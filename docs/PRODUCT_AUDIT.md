@@ -52,7 +52,7 @@ Status meanings:
 - **Planned** — specified and prioritized, but not implemented.
 - **Excluded** — intentionally outside the core product.
 
-| Capability | User value | v0.4.6 source status | Disposition |
+| Capability | User value | v0.4.7 source status | Disposition |
 | --- | --- | --- | --- |
 | File and folder ingest | Analyze one track or a full library | Implemented | Current |
 | Recursive bounded discovery | Avoid freezing on large trees | Implemented | Current |
@@ -138,6 +138,9 @@ Gate 1 is complete at the repository level. Compare uses bounded alignment estim
 - Analysis uses an adaptive, bounded worker schedule derived from available CPU parallelism instead of fixed two-file waves. Result order remains deterministic even when files finish out of order.
 - Session writes are buffered into bounded batches and committed transactionally, reducing per-file worker messages and SQLite transaction overhead.
 - Renderer progress events are coalesced to animation frames, and the audit result table is virtualized with overscan. A 10,000-record audit retains authoritative application state while mounting only the visible rows.
+- Rich waveform and spectrogram arrays remain authoritative in SQLite but no longer accumulate in the Electron main process or renderer. Live queues and History use compact summaries, selected tracks hydrate full detail on demand, legacy rich sessions restore in bounded pages, and persistence applies backpressure at 25 rich records.
+- Resource controls are per-file ceilings rather than independent speed settings. Before workers start, Audio-V resolves them against a system-wide budget capped at 20% of physical memory or 4 GB and 75% of logical CPUs; unsafe maximum combinations are visibly reduced.
+- Current-audit fingerprint matching uses exact-hash and ±3-second duration indexes instead of an all-pairs scan. Above 1,000 files, per-file historical enrichment is deferred to the persistent fingerprint library screen so end-of-audit relationship assembly cannot multiply into tens of millions of comparisons.
 - Checksum manifests are indexed once per source, and the Oracle reuses an already-computed SHA-256 result instead of rereading the file.
 - Authoritative JSON and CSV session reports stream from paged SQLite records without a fixed payload limit. PDF, DOCX, and XLSX generation also runs outside the Electron main process, although those rich formats currently materialize the session inside the storage worker.
 - Compiled-worker verification now exercises Oracle analysis, comparison, durable storage, and streamed report export.

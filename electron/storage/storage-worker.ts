@@ -61,7 +61,7 @@ async function streamSessionReport(
     let offset = 0;
     let first = true;
     while (true) {
-      const files = store.getSessionFilesPage(sessionId, offset, 250);
+      const files = store.getSessionFilesPage(sessionId, offset, 25);
       if (files.length === 0) break;
       for (const file of files) {
         if (format === "csv") {
@@ -105,7 +105,9 @@ port.on("message", (request: StorageWorkerRequest) => {
       case "list-sessions":
         return store.listSessions(request.limit);
       case "get-session":
-        return store.getSession(request.sessionId);
+        return store.getSession(request.sessionId, request.compact);
+      case "get-session-file":
+        return store.getSessionFile(request.sessionId, request.filePath);
       case "get-session-summary":
         return store.getSessionSummary(request.sessionId);
       case "get-recovery-candidates":
@@ -115,7 +117,11 @@ port.on("message", (request: StorageWorkerRequest) => {
       case "set-cached":
         return store.setCached(request.file);
       case "find-fingerprints":
-        return store.findFingerprintCandidates(request.filePath, request.limit);
+        return store.findFingerprintCandidates(
+          request.filePath,
+          request.limit,
+          request.durationSeconds,
+        );
       case "list-fingerprint-library":
         return store.listFingerprintLibrary(request.limit);
       case "rebuild-fingerprint-library":

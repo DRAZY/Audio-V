@@ -3,6 +3,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { AuditSessionStore } from "../electron/audit-session-store";
 import { scanSources } from "../electron/scanner";
+import { compactAudioFileRecord } from "../shared/compact-audio-record";
 import { pcmWave } from "./helpers/wave-fixture";
 
 const temporaryDirectories: string[] = [];
@@ -129,6 +130,55 @@ describe("AuditSessionStore", () => {
       });
     } finally {
       recoveredProcess.close();
+    }
+  });
+
+  it("preserves rich evidence while restoring compact history summaries", async () => {
+    const directory = await fs.mkdtemp(
+      path.join(process.cwd(), "tests/.tmp-session-detail-"),
+    );
+    temporaryDirectories.push(directory);
+    const audioPath = path.join(directory, "detail.wav");
+    await fs.writeFile(audioPath, pcmWave({ seconds: 1 }));
+    const result = await scanSources({
+      kind: "files",
+      label: "Detail payload",
+      paths: [audioPath],
+    });
+    const store = new AuditSessionStore(path.join(directory, "sessions.sqlite3"));
+    try {
+      const sessionId = store.create({
+        kind: "files",
+        label: "Detail payload",
+        paths: [audioPath],
+      });
+      store.storeFile(sessionId, result.files[0], 0, false);
+      const summary = compactAudioFileRecord({
+        ...result.files[0],
+        oracle: {
+          ...result.files[0].oracle,
+          headline: "Updated summary evidence",
+        },
+      });
+      store.storeFile(sessionId, summary, 0, false);
+
+      const restoredFull = store.getSessionFile(sessionId, audioPath);
+      const restoredSummary = store.getSession(sessionId, true)?.files[0];
+      expect(restoredFull?.oracle.headline).toBe("Updated summary evidence");
+      expect(
+        restoredFull?.oracle.measurements?.spectrogramPyramid?.some(
+          (spectrum) => spectrum.slices.length > 0,
+        ),
+      ).toBe(true);
+      expect(restoredSummary).toMatchObject({ detailLevel: "summary" });
+      expect(restoredSummary?.oracle.measurements?.spectrogram.slices).toEqual(
+        [],
+      );
+      expect(JSON.stringify(restoredSummary).length).toBeLessThan(
+        JSON.stringify(restoredFull).length / 10,
+      );
+    } finally {
+      store.close();
     }
   });
 

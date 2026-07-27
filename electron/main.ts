@@ -1,6 +1,6 @@
 import path from "node:path";
 import { promises as fs } from "node:fs";
-import { availableParallelism } from "node:os";
+import { availableParallelism, totalmem } from "node:os";
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import type {
   AnalysisResourceLimits,
@@ -22,6 +22,7 @@ import { createPrivacySafeDiagnostics } from "./diagnostics";
 import { inspectSpectrogram } from "./oracle/spectrogram-inspector";
 import { configureEngineResourcePolicy } from "./oracle/ffmpeg-runtime";
 import { normalizeSourcePath, sourcePathKey } from "./source-path";
+import { resolveAnalysisResourcePolicy } from "../shared/analysis-resource-policy";
 
 const approvedSelections = new Map<string, AudioSourceSelection>();
 const recoveryQuarantines = new Map<string, ReadonlyMap<string, string>>();
@@ -40,15 +41,19 @@ let oracleCache: OracleRecordCache;
 let oracleWorkers: OracleWorkerPool;
 let auditSessions: AuditStorageClient;
 let activeComparisonController: AbortController | null = null;
-const defaultResourceLimits: AnalysisResourceLimits = {
-  concurrency: Math.max(
-    1,
-    Math.min(4, Math.floor(availableParallelism() / 4)),
-  ) as AnalysisResourceLimits["concurrency"],
-  workerMemoryMb: 256,
-  ffmpegThreads: 2,
-  nativeProcessMemoryMb: 1024,
-};
+const defaultResourceLimits = resolveAnalysisResourcePolicy(
+  {
+    concurrency: Math.max(
+      1,
+      Math.min(4, Math.floor(availableParallelism() / 4)),
+    ) as AnalysisResourceLimits["concurrency"],
+    workerMemoryMb: 256,
+    ffmpegThreads: 2,
+    nativeProcessMemoryMb: 1024,
+  },
+  totalmem(),
+  availableParallelism(),
+).limits;
 let currentResourceLimits = defaultResourceLimits;
 
 class ScanPauseGate {
@@ -105,11 +110,14 @@ class SessionPersistenceBuffer {
     this.#sessionId = sessionId;
   }
 
-  add(file: AudioFileRecord, ordinal: number, fromCache: boolean): void {
+  add(
+    file: AudioFileRecord,
+    ordinal: number,
+    fromCache: boolean,
+  ): void | Promise<void> {
     this.#entries.push({ file, ordinal, fromCache });
-    if (this.#entries.length >= 50) {
-      void this.flush();
-      return;
+    if (this.#entries.length >= 25) {
+      return this.flush();
     }
     if (!this.#timer) {
       this.#timer = setTimeout(() => {
@@ -390,7 +398,7 @@ ipcMain.handle("sessions:open", async (_event, requestedSessionId: unknown) => {
   ) {
     throw new TypeError("A valid audit session identifier is required.");
   }
-  const session = await auditSessions.getSession(requestedSessionId);
+  const session = await auditSessions.getSession(requestedSessionId, true);
   if (!session) throw new Error("The requested audit session was not found.");
   approveSelection(session.source);
   for (const file of session.files) {
@@ -400,6 +408,33 @@ ipcMain.handle("sessions:open", async (_event, requestedSessionId: unknown) => {
   }
   return session;
 });
+
+ipcMain.handle(
+  "sessions:open-file",
+  async (
+    _event,
+    requestedSessionId: unknown,
+    requestedFilePath: unknown,
+  ) => {
+    if (
+      typeof requestedSessionId !== "string" ||
+      !/^[a-f0-9-]{36}$/iu.test(requestedSessionId) ||
+      typeof requestedFilePath !== "string"
+    ) {
+      throw new TypeError("A valid audit session and file path are required.");
+    }
+    const file = await auditSessions.getSessionFile(
+      requestedSessionId,
+      path.resolve(requestedFilePath),
+    );
+    if (!file) {
+      throw new Error("The requested file is not present in this audit session.");
+    }
+    approvedAudioFiles.add(path.resolve(file.path));
+    authoritativeRecords.set(path.resolve(file.path), file);
+    return file;
+  },
+);
 
 ipcMain.handle(
   "sessions:prepare-resume",
@@ -528,10 +563,17 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
   if (!approved) {
     throw new Error("Select these files through Audio-V before scanning them.");
   }
+  const requestedResourceLimits =
+    requestedSource.resourceLimits ?? defaultResourceLimits;
+  const resourcePolicy = resolveAnalysisResourcePolicy(
+    requestedResourceLimits,
+    totalmem(),
+    availableParallelism(),
+  );
   const source: AudioSourceSelection = {
     ...approved,
     mode: requestedSource.mode ?? "full-audit",
-    resourceLimits: requestedSource.resourceLimits ?? defaultResourceLimits,
+    resourceLimits: resourcePolicy.limits,
     externalLookup: requestedSource.externalLookup,
   };
   const requestedLimits = source.resourceLimits ?? defaultResourceLimits;
@@ -578,7 +620,13 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
           approvedAudioFiles.add(normalizedPath);
           authoritativeRecords.set(normalizedPath, progress.file);
         }
-        _event.sender.send("library:scan-progress", progress);
+        _event.sender.send("library:scan-progress", {
+          ...progress,
+          resourceLimits: requestedLimits,
+          resourcePolicyExplanation: resourcePolicy.adjusted
+            ? resourcePolicy.explanation
+            : null,
+        });
       },
       {
         signal: controller.signal,
@@ -586,7 +634,9 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
         analyzeFile: (filePath, signal) =>
           oracleWorkers.analyze(filePath, signal),
         onDiscovered: async (filePaths, warnings) => {
-          sessionWarnings = [...warnings];
+          sessionWarnings = resourcePolicy.adjusted
+            ? [resourcePolicy.explanation, ...warnings]
+            : [...warnings];
           await auditSessions.markDiscovered(
             sessionId,
             filePaths.length,
@@ -596,15 +646,18 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
         onFileStarted: (filePath) =>
           auditSessions.markFileStarted(sessionId, filePath),
         onFileStored: (file, ordinal, fromCache) => {
-          persistence.add(file, ordinal, fromCache);
+          return persistence.add(file, ordinal, fromCache);
         },
         waitIfPaused: () => pauseGate.wait(controller.signal),
         concurrency: requestedLimits.concurrency,
         recoveryQuarantine,
+        compactResults: true,
       },
     );
     await persistence.flush();
-    sessionWarnings = result.warnings;
+    sessionWarnings = resourcePolicy.adjusted
+      ? [resourcePolicy.explanation, ...result.warnings]
+      : result.warnings;
     await auditSessions.finish(sessionId, "completed", sessionWarnings);
     for (const file of result.files) {
       const normalizedPath = path.resolve(file.path);
@@ -629,7 +682,12 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
       );
       setTimeout(() => app.quit(), 250);
     }
-    return { ...result, source: persistedSource, sessionId };
+    return {
+      ...result,
+      source: persistedSource,
+      warnings: sessionWarnings,
+      sessionId,
+    };
   } catch (error) {
     await persistence.flush().catch(() => undefined);
     await auditSessions.finish(
@@ -984,8 +1042,12 @@ app.whenReady().then(async () => {
     get: (filePath) => auditSessions.getCached(filePath),
     set: (record) => auditSessions.setCached(record),
     flush: async () => undefined,
-    findFingerprintCandidates: (filePath, limit) =>
-      auditSessions.findFingerprintCandidates(filePath, limit),
+    findFingerprintCandidates: (filePath, limit, durationSeconds) =>
+      auditSessions.findFingerprintCandidates(
+        filePath,
+        limit,
+        durationSeconds,
+      ),
   };
   oracleWorkers = new OracleWorkerPool(
     path.join(__dirname, "oracle", "oracle-worker.js"),

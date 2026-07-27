@@ -12,6 +12,10 @@ import type {
   FingerprintLibraryEntry,
   FingerprintLibraryMutationResult,
 } from "../shared/contracts";
+import {
+  compactAudioFileRecord,
+  restoreAudioFileDetails,
+} from "../shared/compact-audio-record";
 
 interface SessionRow {
   id: string;
@@ -31,7 +35,7 @@ interface FileRow {
   record_json: string;
 }
 
-const schemaVersion = 4;
+const schemaVersion = 5;
 const crashRecoveryWarning =
   "Audio-V recovered this audit after the previous application process ended before the scan finished.";
 
@@ -62,6 +66,7 @@ export class AuditSessionStore {
         ordinal INTEGER NOT NULL,
         from_cache INTEGER NOT NULL DEFAULT 0,
         record_json TEXT NOT NULL,
+        summary_json TEXT,
         updated_at TEXT NOT NULL,
         PRIMARY KEY (session_id, file_path)
       );
@@ -112,6 +117,14 @@ export class AuditSessionStore {
     if (!sessionColumns.some((column) => column.name === "interrupted")) {
       this.#database.exec(
         "ALTER TABLE audit_sessions ADD COLUMN interrupted INTEGER NOT NULL DEFAULT 0",
+      );
+    }
+    const fileColumns = this.#database
+      .prepare("PRAGMA table_info(audit_files)")
+      .all() as unknown as Array<{ name: string }>;
+    if (!fileColumns.some((column) => column.name === "summary_json")) {
+      this.#database.exec(
+        "ALTER TABLE audit_files ADD COLUMN summary_json TEXT",
       );
     }
   }
@@ -173,24 +186,31 @@ export class AuditSessionStore {
     try {
       const insert = this.#database.prepare(`
           INSERT INTO audit_files (
-            session_id, file_path, ordinal, from_cache, record_json, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?)
+            session_id, file_path, ordinal, from_cache, record_json,
+            summary_json, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT(session_id, file_path) DO UPDATE SET
             ordinal = excluded.ordinal,
             from_cache = excluded.from_cache,
             record_json = excluded.record_json,
+            summary_json = excluded.summary_json,
             updated_at = excluded.updated_at
-        `);
+      `);
       for (const entry of entries) {
+        const storedFile = this.#restoreSessionFileDetails(
+          sessionId,
+          entry.file,
+        );
         insert.run(
           sessionId,
-          entry.file.path,
+          storedFile.path,
           entry.ordinal,
           entry.fromCache ? 1 : 0,
-          JSON.stringify(entry.file),
+          JSON.stringify(storedFile),
+          JSON.stringify(compactAudioFileRecord(storedFile)),
           now,
         );
-        this.#indexFingerprint(entry.file, now);
+        this.#indexFingerprint(storedFile, now);
         this.#database
           .prepare(`
             DELETE FROM audit_active_files
@@ -305,11 +325,12 @@ export class AuditSessionStore {
     const result = this.#database
       .prepare(`
         UPDATE audit_files
-        SET record_json = ?, updated_at = ?
+        SET record_json = ?, summary_json = ?, updated_at = ?
         WHERE session_id = ? AND file_path = ?
       `)
       .run(
         JSON.stringify(record),
+        JSON.stringify(compactAudioFileRecord(record)),
         new Date().toISOString(),
         sessionId,
         path.resolve(filePath),
@@ -329,25 +350,64 @@ export class AuditSessionStore {
     return rows.map((row) => this.#summary(row));
   }
 
-  getSession(sessionId: string): StoredAuditSession | null {
+  getSession(
+    sessionId: string,
+    compact = false,
+  ): StoredAuditSession | null {
     const session = this.#database
       .prepare("SELECT * FROM audit_sessions WHERE id = ?")
       .get(sessionId) as unknown as SessionRow | undefined;
     if (!session) return null;
-    const files = this.#database
-      .prepare(`
-        SELECT record_json FROM audit_files
-        WHERE session_id = ?
-        ORDER BY ordinal, file_path
-      `)
-      .all(sessionId) as unknown as FileRow[];
+    const restoredFiles: AudioFileRecord[] = [];
+    if (compact) {
+      let offset = 0;
+      while (true) {
+        const page = this.#getCompactSessionFilesPage(
+          sessionId,
+          offset,
+          100,
+        );
+        if (page.length === 0) break;
+        restoredFiles.push(...page);
+        offset += page.length;
+      }
+    } else {
+      const files = this.#database
+        .prepare(`
+          SELECT record_json FROM audit_files
+          WHERE session_id = ?
+          ORDER BY ordinal, file_path
+        `)
+        .all(sessionId) as unknown as FileRow[];
+      restoredFiles.push(
+        ...files.map(
+          (row) => JSON.parse(row.record_json) as AudioFileRecord,
+        ),
+      );
+    }
     return {
       ...this.#summary(session),
       warnings: JSON.parse(session.warnings_json) as string[],
-      files: files.map(
-        (row) => JSON.parse(row.record_json) as AudioFileRecord,
-      ),
+      files: restoredFiles,
     };
+  }
+
+  getSessionFile(
+    sessionId: string,
+    filePath: string,
+  ): AudioFileRecord | null {
+    const row = this.#database
+      .prepare(`
+        SELECT record_json
+        FROM audit_files
+        WHERE session_id = ? AND file_path = ?
+      `)
+      .get(sessionId, path.resolve(filePath)) as unknown as
+      | FileRow
+      | undefined;
+    return row
+      ? (JSON.parse(row.record_json) as AudioFileRecord)
+      : null;
   }
 
   getSessionSummary(sessionId: string): AuditSessionSummary | null {
@@ -372,6 +432,41 @@ export class AuditSessionStore {
         LIMIT ? OFFSET ?
       `)
       .all(sessionId, safeLimit, safeOffset) as unknown as FileRow[];
+    return rows.map(
+      (row) => JSON.parse(row.record_json) as AudioFileRecord,
+    );
+  }
+
+  #getCompactSessionFilesPage(
+    sessionId: string,
+    offset: number,
+    limit: number,
+  ): AudioFileRecord[] {
+    const rows = this.#database
+      .prepare(`
+        SELECT COALESCE(
+          summary_json,
+          json_set(
+            json_remove(
+              record_json,
+              '$.oracle.measurements.waveform.points',
+              '$.oracle.measurements.spectrogram.slices',
+              '$.oracle.measurements.spectrogramPyramid'
+            ),
+            '$.detailLevel',
+            'summary'
+          )
+        ) AS record_json
+        FROM audit_files
+        WHERE session_id = ?
+        ORDER BY ordinal, file_path
+        LIMIT ? OFFSET ?
+      `)
+      .all(
+        sessionId,
+        Math.max(1, Math.min(250, Math.trunc(limit))),
+        Math.max(0, Math.trunc(offset)),
+      ) as unknown as FileRow[];
     return rows.map(
       (row) => JSON.parse(row.record_json) as AudioFileRecord,
     );
@@ -415,6 +510,19 @@ export class AuditSessionStore {
   async setCached(record: AudioFileRecord): Promise<void> {
     const normalized = path.resolve(record.path);
     const stat = await fs.stat(normalized);
+    const existing = this.#database
+      .prepare(`
+        SELECT record_json
+        FROM oracle_cache
+        WHERE file_path = ?
+      `)
+      .get(normalized) as unknown as FileRow | undefined;
+    const cachedRecord = restoreAudioFileDetails(
+      record,
+      existing
+        ? (JSON.parse(existing.record_json) as AudioFileRecord)
+        : null,
+    );
     this.#database
       .prepare(`
         INSERT INTO oracle_cache (
@@ -432,16 +540,17 @@ export class AuditSessionStore {
         normalized,
         stat.size,
         stat.mtimeMs,
-        record.oracle.engineVersion,
-        JSON.stringify(record),
+        cachedRecord.oracle.engineVersion,
+        JSON.stringify(cachedRecord),
         new Date().toISOString(),
       );
-    this.#indexFingerprint(record, new Date().toISOString());
+    this.#indexFingerprint(cachedRecord, new Date().toISOString());
   }
 
   findFingerprintCandidates(
     filePath: string,
-    limit = 5_000,
+    limit = 100,
+    durationSeconds?: number | null,
   ): FingerprintIndexCandidate[] {
     const rows = this.#database
       .prepare(`
@@ -449,12 +558,23 @@ export class AuditSessionStore {
           raw_fingerprint_json, duration_seconds, last_seen_at
         FROM fingerprint_index
         WHERE file_path <> ?
+          AND (
+            ? IS NULL OR
+            duration_seconds BETWEEN ? AND ?
+          )
         ORDER BY last_seen_at DESC
         LIMIT ?
       `)
       .all(
         path.resolve(filePath),
-        Math.max(1, Math.min(20_000, Math.trunc(limit))),
+        durationSeconds ?? null,
+        durationSeconds === null || durationSeconds === undefined
+          ? null
+          : Math.max(0, durationSeconds - 3),
+        durationSeconds === null || durationSeconds === undefined
+          ? null
+          : durationSeconds + 3,
+        Math.max(1, Math.min(1_000, Math.trunc(limit))),
       ) as unknown as Array<{
         file_path: string;
         file_name: string;
@@ -661,6 +781,28 @@ export class AuditSessionStore {
         record.oracle.engineVersion,
         now,
       );
+  }
+
+  #restoreSessionFileDetails(
+    sessionId: string,
+    record: AudioFileRecord,
+  ): AudioFileRecord {
+    if (record.detailLevel !== "summary") return record;
+    const existing = this.#database
+      .prepare(`
+        SELECT record_json
+        FROM audit_files
+        WHERE session_id = ? AND file_path = ?
+      `)
+      .get(sessionId, path.resolve(record.path)) as unknown as
+      | FileRow
+      | undefined;
+    return restoreAudioFileDetails(
+      record,
+      existing
+        ? (JSON.parse(existing.record_json) as AudioFileRecord)
+        : null,
+    );
   }
 
   #summary(row: SessionRow): AuditSessionSummary {

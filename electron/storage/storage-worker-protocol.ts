@@ -14,12 +14,13 @@ export type StorageWorkerRequest =
   | { id: string; operation: "store-files"; sessionId: string; entries: Array<{ file: AudioFileRecord; ordinal: number; fromCache: boolean }> }
   | { id: string; operation: "finish"; sessionId: string; status: Exclude<AuditSessionStatus, "running">; warnings: string[] }
   | { id: string; operation: "list-sessions"; limit?: number }
-  | { id: string; operation: "get-session"; sessionId: string }
+  | { id: string; operation: "get-session"; sessionId: string; compact?: boolean }
+  | { id: string; operation: "get-session-file"; sessionId: string; filePath: string }
   | { id: string; operation: "get-session-summary"; sessionId: string }
   | { id: string; operation: "get-recovery-candidates"; sessionId: string }
   | { id: string; operation: "get-cached"; filePath: string }
   | { id: string; operation: "set-cached"; file: AudioFileRecord }
-  | { id: string; operation: "find-fingerprints"; filePath: string; limit?: number }
+  | { id: string; operation: "find-fingerprints"; filePath: string; limit?: number; durationSeconds?: number | null }
   | { id: string; operation: "list-fingerprint-library"; limit?: number }
   | { id: string; operation: "rebuild-fingerprint-library" }
   | { id: string; operation: "prune-fingerprint-library" }

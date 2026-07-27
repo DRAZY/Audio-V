@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { inspectAudioFile, scanSources } from "../electron/scanner";
 import { analyzeAudioFile } from "../electron/oracle/oracle-engine";
 import { runEngine } from "../electron/oracle/ffmpeg-runtime";
+import type { AudioFileRecord } from "../shared/contracts";
 import { pcmWave } from "./helpers/wave-fixture";
 
 const temporaryDirectories: string[] = [];
@@ -328,6 +329,36 @@ describe("scanSources", () => {
         code: "RECOVERY_QUARANTINED",
       },
     });
+  });
+
+  it("keeps rich evidence in persistence while returning bounded desktop summaries", async () => {
+    const directory = await makeTemporaryDirectory();
+    const audioPath = path.join(directory, "bounded.wav");
+    await fs.writeFile(audioPath, pcmWave({ seconds: 1 }));
+    const stored: AudioFileRecord[] = [];
+
+    const result = await scanSources(
+      { kind: "files", label: "Bounded result", paths: [audioPath] },
+      undefined,
+      {
+        compactResults: true,
+        onFileStored: (file) => stored.push(file),
+      },
+    );
+
+    expect(stored[0].detailLevel).toBeUndefined();
+    expect(
+      stored[0].oracle.measurements?.spectrogramPyramid?.some(
+        (spectrum) => spectrum.slices.length > 0,
+      ),
+    ).toBe(true);
+    expect(result.files[0]).toMatchObject({ detailLevel: "summary" });
+    expect(result.files[0].oracle.measurements?.spectrogram.slices).toEqual([]);
+    expect(result.files[0].oracle.measurements?.spectrogramPyramid).toBeUndefined();
+    expect(result.files[0].oracle.measurements?.waveform?.points).toEqual([]);
+    expect(JSON.stringify(result.files[0]).length).toBeLessThan(
+      JSON.stringify(stored[0]).length / 10,
+    );
   });
 
   it("honors adaptive bounded analysis concurrency", async () => {

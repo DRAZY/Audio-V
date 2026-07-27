@@ -24,6 +24,8 @@ const api: AudioVDesktopApi = {
   listAuditSessions: () => ipcRenderer.invoke("sessions:list"),
   openAuditSession: (sessionId) =>
     ipcRenderer.invoke("sessions:open", sessionId),
+  openAuditSessionFile: (sessionId, filePath) =>
+    ipcRenderer.invoke("sessions:open-file", sessionId, filePath),
   prepareAuditSessionResume: (sessionId) =>
     ipcRenderer.invoke("sessions:prepare-resume", sessionId),
   compareSignals: (leftPath, rightPath, channelMapping) =>

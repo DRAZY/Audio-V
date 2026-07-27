@@ -49,6 +49,7 @@ const fingerprintLibraryLoading = ref(false);
 const fingerprintLibraryMessage = ref("Index has not been loaded.");
 const fingerprintLibraryFilter = ref("");
 const loadingSessionId = ref("");
+const hydratingFileId = ref("");
 const isAnalyzing = ref(false);
 const scanMode = ref<AnalysisMode>("full-audit");
 const analysisConcurrency = ref<1 | 2 | 3 | 4>(2);
@@ -139,6 +140,23 @@ const scanProgressTitle = computed(() => {
     scanMode.value === "metadata-inventory" ? "Inventorying" : "Analyzing";
   return `${action} · ${progress.completed.toLocaleString()} of ${progress.total.toLocaleString()} complete`;
 });
+const requestedAggregateMemoryMb = computed(
+  () =>
+    768 +
+    analysisConcurrency.value *
+      (analysisWorkerMemoryMb.value + analysisNativeMemoryMb.value),
+);
+const requestedAggregateThreads = computed(
+  () => analysisConcurrency.value * analysisFfmpegThreads.value,
+);
+const resourceControlWarning = computed(() => {
+  const memory = requestedAggregateMemoryMb.value;
+  const threads = requestedAggregateThreads.value;
+  if (memory > 4_096 || threads > 8) {
+    return `Requested ceiling: ${(memory / 1024).toFixed(1)} GB and ${threads} FFmpeg threads. Audio-V will automatically reduce this combination to the system-safe aggregate budget when the audit starts.`;
+  }
+  return `Requested ceiling: ${(memory / 1024).toFixed(1)} GB and ${threads} FFmpeg threads. Final limits are validated against available system memory and CPU before workers start.`;
+});
 
 const selected = computed(
   () => files.value.find((file) => file.id === selectedId.value) ?? files.value[0],
@@ -156,7 +174,8 @@ const displaySpectrum = computed(() => {
   const persisted = measurements.spectrogramPyramid?.find(
       (spectrum) =>
         spectrum.fftSize === spectrogramFftSize.value &&
-        spectrogramChannelMode.value === "per-channel power average",
+        spectrogramChannelMode.value === "per-channel power average" &&
+        spectrum.slices.length > 0,
     );
   return persisted ?? null;
 });
@@ -459,7 +478,8 @@ async function loadSpectrogramInspection(): Promise<void> {
   const persisted = file.oracle.measurements.spectrogramPyramid?.find(
     (spectrum) =>
       spectrum.fftSize === requestedFftSize &&
-      requestedChannelMode === "per-channel power average",
+      requestedChannelMode === "per-channel power average" &&
+      spectrum.slices.length > 0,
   );
   if (persisted) {
     inspectedSpectrum.value = null;
@@ -769,6 +789,14 @@ watch(
 );
 watch(
   () => [
+    activeSessionId.value,
+    selected.value?.id,
+    selected.value?.detailLevel,
+  ],
+  () => void hydrateSelectedSessionFile(),
+);
+watch(
+  () => [
     compareA.value?.id,
     compareA.value?.oracle.measuredAt,
     compareB.value?.id,
@@ -809,6 +837,42 @@ function queueProgressFile(file: AudioFileRecord): void {
   });
 }
 
+async function hydrateSelectedSessionFile(): Promise<void> {
+  const file = selected.value;
+  const sessionId = activeSessionId.value;
+  if (
+    !window.audioV ||
+    !file ||
+    file.detailLevel !== "summary" ||
+    !sessionId ||
+    hydratingFileId.value === file.id
+  ) {
+    return;
+  }
+  hydratingFileId.value = file.id;
+  try {
+    const full = await window.audioV.openAuditSessionFile(
+      sessionId,
+      file.path,
+    );
+    if (
+      activeSessionId.value === sessionId &&
+      selected.value?.id === file.id
+    ) {
+      files.value = files.value.map((candidate) =>
+        candidate.id === file.id ? full : candidate,
+      );
+    }
+  } catch (error) {
+    scanMessage.value =
+      error instanceof Error
+        ? `Saved detail could not be loaded · ${error.message}`
+        : "Saved detail could not be loaded.";
+  } finally {
+    if (hydratingFileId.value === file.id) hydratingFileId.value = "";
+  }
+}
+
 function updateTableViewport(event: Event): void {
   const element = event.currentTarget as HTMLElement;
   tableScrollTop.value = element.scrollTop;
@@ -829,6 +893,23 @@ onMounted(() => {
     window.audioV?.onScanProgress((progress) => {
       if (!isDiscovering.value) return;
       scanProgress.value = progress;
+      if (progress.resourceLimits) {
+        analysisConcurrency.value = progress.resourceLimits.concurrency;
+        analysisWorkerMemoryMb.value =
+          progress.resourceLimits.workerMemoryMb;
+        analysisFfmpegThreads.value = progress.resourceLimits.ffmpegThreads;
+        analysisNativeMemoryMb.value =
+          progress.resourceLimits.nativeProcessMemoryMb;
+      }
+      if (
+        progress.resourcePolicyExplanation &&
+        !sourceWarnings.value.includes(progress.resourcePolicyExplanation)
+      ) {
+        sourceWarnings.value = [
+          progress.resourcePolicyExplanation,
+          ...sourceWarnings.value,
+        ];
+      }
       if (progress.file) {
         queueProgressFile(progress.file);
         if (!selectedId.value) selectedId.value = progress.file.id;
@@ -837,7 +918,7 @@ onMounted(() => {
         scanMessage.value =
           scanMode.value === "metadata-inventory"
             ? `${progress.total.toLocaleString()} audio files discovered · starting metadata inventory`
-            : `${progress.total.toLocaleString()} audio files discovered · starting complete decode`;
+            : `${progress.total.toLocaleString()} audio files discovered · starting complete decode${progress.resourcePolicyExplanation ? " · resource controls adjusted to the system-safe aggregate budget" : ""}`;
       } else if (progress.phase === "processing") {
         scanMessage.value =
           `${scanProgressTitle.value} · ${progress.currentFile ?? "Preparing file"}`;
@@ -949,6 +1030,7 @@ async function scanSource(source: AudioSourceSelection): Promise<void> {
   isScanPaused.value = false;
   sourceWarnings.value = [];
   files.value = [];
+  activeSessionId.value = "";
   selectedId.value = "";
   scanMessage.value =
     mode === "metadata-inventory"
@@ -994,6 +1076,7 @@ async function scanSource(source: AudioSourceSelection): Promise<void> {
       `${result.unreadableCount ? ` · ${result.unreadableCount} failed integrity` : ""}` +
       warnings;
     await refreshAuditSessions();
+    await hydrateSelectedSessionFile();
   } catch (error) {
     sourceWarnings.value = [
       error instanceof Error
@@ -1112,6 +1195,7 @@ async function openAuditSession(sessionId: string): Promise<void> {
     scanMessage.value =
       `${session.completedCount.toLocaleString()} of ${session.discoveredCount.toLocaleString()} files restored · ${session.status}`;
     historyOpen.value = false;
+    await hydrateSelectedSessionFile();
   } catch (error) {
     scanMessage.value =
       error instanceof Error ? error.message : "The audit session could not be opened.";
@@ -1222,7 +1306,9 @@ async function analyzeSelected(): Promise<void> {
       activeSessionId.value || undefined,
     );
     files.value = files.value.map((file) =>
-      file.id === selected.value?.id ? { ...file, oracle } : file,
+      file.id === selected.value?.id
+        ? { ...file, detailLevel: undefined, oracle }
+        : file,
     );
     activePanel.value = oracle.measurements ? "loudness" : "evidence";
     scanMessage.value =
@@ -1423,7 +1509,7 @@ function spectrogramPng(spectral: SpectrogramMeasurements): string {
 async function exportBatchSpectrograms(): Promise<void> {
   if (!window.audioV) return;
   const measuredFiles = files.value.filter(
-    (file) => file.oracle.measurements?.spectrogram.slices.length,
+    (file) => file.oracle.measurements,
   );
   if (!measuredFiles.length) {
     scanMessage.value = "No measured spectrograms are available to export";
@@ -1441,7 +1527,7 @@ async function exportBatchSpectrograms(): Promise<void> {
           spectrogramChannelMode.value === "per-channel power average",
       );
       const spectral =
-        persisted ??
+        (persisted?.slices.length ? persisted : null) ??
         await window.audioV.inspectSpectrogram(
           file.path,
           spectrogramFftSize.value,
@@ -3007,7 +3093,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
           <article class="resource-controls">
             <span>Analysis resources</span>
             <strong>Bounded worker controls</strong>
-            <p>Changes apply to the next audit. JavaScript heap, FFmpeg threads, and native-process memory are enforced while decoded audio remains streamed.</p>
+            <p>Changes apply to the next audit. These are per-file ceilings, not speed levels; Audio-V enforces an additional system-wide memory and CPU budget before creating workers.</p>
             <label>Concurrent files
               <select v-model.number="analysisConcurrency" :disabled="isDiscovering">
                 <option :value="1">1</option><option :value="2">2</option><option :value="3">3</option><option :value="4">4</option>
@@ -3028,6 +3114,12 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
                 <option :value="256">256 MB</option><option :value="512">512 MB</option><option :value="1024">1 GB</option><option :value="2048">2 GB</option>
               </select>
             </label>
+            <small
+              class="resource-budget-note"
+              :class="{ warning: requestedAggregateMemoryMb > 4096 || requestedAggregateThreads > 8 }"
+            >
+              {{ resourceControlWarning }}
+            </small>
           </article>
           <article class="resource-controls">
             <span>External identity service</span>

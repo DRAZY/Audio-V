@@ -11,6 +11,7 @@ import {
   type ScanSelectionResult,
   type FingerprintIndexCandidate,
 } from "../shared/contracts";
+import { compactAudioFileRecord } from "../shared/compact-audio-record";
 import {
   analyzeAudioFile,
   engineVersion as currentOracleEngineVersion,
@@ -68,6 +69,7 @@ export interface OracleRecordCache {
   findFingerprintCandidates?(
     filePath: string,
     limit?: number,
+    durationSeconds?: number | null,
   ): Promise<FingerprintIndexCandidate[]>;
 }
 
@@ -550,11 +552,47 @@ async function attachFingerprintRelationships(
   files: AudioFileRecord[],
   cache?: OracleRecordCache,
 ): Promise<AudioFileRecord[]> {
+  const exactGroups = new Map<string, number[]>();
+  const durationBuckets = new Map<number, number[]>();
+  for (let index = 0; index < files.length; index += 1) {
+    const fingerprint = files[index].oracle.technical?.fingerprint;
+    if (!fingerprint || fingerprint.status !== "measured") continue;
+    if (fingerprint.fingerprintSha256) {
+      const group = exactGroups.get(fingerprint.fingerprintSha256) ?? [];
+      group.push(index);
+      exactGroups.set(fingerprint.fingerprintSha256, group);
+    }
+    if (fingerprint.durationSeconds !== null) {
+      const bucket = Math.round(fingerprint.durationSeconds);
+      const group = durationBuckets.get(bucket) ?? [];
+      group.push(index);
+      durationBuckets.set(bucket, group);
+    }
+  }
+  const includeHistoricalMatches = files.length <= 1_000;
   return Promise.all(files.map(async (file, index) => {
     const technical = file.oracle.technical;
     if (!technical || technical.fingerprint.status !== "measured") return file;
-    const currentMatches = files.flatMap((candidate, candidateIndex) => {
+    const candidateIndexes = new Set<number>();
+    if (technical.fingerprint.fingerprintSha256) {
+      for (
+        const candidateIndex of
+        exactGroups.get(technical.fingerprint.fingerprintSha256) ?? []
+      ) {
+        candidateIndexes.add(candidateIndex);
+      }
+    }
+    if (technical.fingerprint.durationSeconds !== null) {
+      const duration = Math.round(technical.fingerprint.durationSeconds);
+      for (let bucket = duration - 3; bucket <= duration + 3; bucket += 1) {
+        for (const candidateIndex of durationBuckets.get(bucket) ?? []) {
+          candidateIndexes.add(candidateIndex);
+        }
+      }
+    }
+    const currentMatches = [...candidateIndexes].flatMap((candidateIndex) => {
       if (candidateIndex === index) return [];
+      const candidate = files[candidateIndex];
       const other = candidate.oracle.technical?.fingerprint;
       if (!other || other.status !== "measured") return [];
       const sameFingerprint =
@@ -586,8 +624,13 @@ async function attachFingerprintRelationships(
         source: "current-audit" as const,
       }];
     });
-    const historical = cache?.findFingerprintCandidates
-      ? await cache.findFingerprintCandidates(file.path)
+    const historical =
+      includeHistoricalMatches && cache?.findFingerprintCandidates
+      ? await cache.findFingerprintCandidates(
+          file.path,
+          100,
+          technical.fingerprint.durationSeconds,
+        )
       : [];
     const historicalMatches = historical.flatMap((candidate) => {
       if (currentMatches.some((match) => match.filePath === candidate.filePath)) {
@@ -747,6 +790,7 @@ export async function scanSources(
     waitIfPaused?: () => Promise<void>;
     concurrency?: number;
     recoveryQuarantine?: ReadonlyMap<string, string>;
+    compactResults?: boolean;
   },
 ): Promise<ScanSelectionResult> {
   const warnings: string[] = [];
@@ -939,15 +983,18 @@ export async function scanSources(
         };
       })();
       const { file, fromCache } = analyzed;
-      filesByIndex[index] = file;
-      completed += 1;
       await options?.onFileStored?.(file, index, fromCache);
+      const resultFile = options?.compactResults
+        ? compactAudioFileRecord(file)
+        : file;
+      filesByIndex[index] = resultFile;
+      completed += 1;
       onProgress?.({
         phase: inventoryOnly ? "inventorying" : "analyzing",
         completed,
         total: filePaths.length,
-        currentFile: file.name,
-        file,
+        currentFile: resultFile.name,
+        file: resultFile,
         fromCache,
       });
   };

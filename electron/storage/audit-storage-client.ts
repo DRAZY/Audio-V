@@ -86,8 +86,22 @@ export class AuditStorageClient {
     return this.#request({ operation: "list-sessions", limit });
   }
 
-  getSession(sessionId: string): Promise<StoredAuditSession | null> {
-    return this.#request({ operation: "get-session", sessionId });
+  getSession(
+    sessionId: string,
+    compact = false,
+  ): Promise<StoredAuditSession | null> {
+    return this.#request({ operation: "get-session", sessionId, compact });
+  }
+
+  getSessionFile(
+    sessionId: string,
+    filePath: string,
+  ): Promise<AudioFileRecord | null> {
+    return this.#request({
+      operation: "get-session-file",
+      sessionId,
+      filePath,
+    });
   }
 
   getSessionSummary(sessionId: string): Promise<AuditSessionSummary | null> {
@@ -109,8 +123,14 @@ export class AuditStorageClient {
   findFingerprintCandidates(
     filePath: string,
     limit?: number,
+    durationSeconds?: number | null,
   ): Promise<FingerprintIndexCandidate[]> {
-    return this.#request({ operation: "find-fingerprints", filePath, limit });
+    return this.#request({
+      operation: "find-fingerprints",
+      filePath,
+      limit,
+      durationSeconds,
+    });
   }
 
   listFingerprintLibrary(limit?: number): Promise<FingerprintLibraryEntry[]> {

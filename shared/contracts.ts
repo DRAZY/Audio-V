@@ -497,6 +497,7 @@ export interface OracleResult {
 }
 
 export interface AudioFileRecord {
+  detailLevel?: "summary";
   id: string;
   path: string;
   name: string;
@@ -634,6 +635,8 @@ export interface ScanProgressUpdate {
   currentFile: string | null;
   file: AudioFileRecord | null;
   fromCache: boolean;
+  resourceLimits?: AnalysisResourceLimits;
+  resourcePolicyExplanation?: string | null;
 }
 
 export interface ReportExportResult {
@@ -715,6 +718,10 @@ export interface AudioVDesktopApi {
   scanSelection(source: AudioSourceSelection): Promise<ScanSelectionResult>;
   listAuditSessions(): Promise<AuditSessionSummary[]>;
   openAuditSession(sessionId: string): Promise<StoredAuditSession>;
+  openAuditSessionFile(
+    sessionId: string,
+    filePath: string,
+  ): Promise<AudioFileRecord>;
   prepareAuditSessionResume(sessionId: string): Promise<AuditResumePlan>;
   compareSignals(
     leftPath: string,
