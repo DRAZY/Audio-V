@@ -634,9 +634,7 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
         analyzeFile: (filePath, signal) =>
           oracleWorkers.analyze(filePath, signal),
         onDiscovered: async (filePaths, warnings) => {
-          sessionWarnings = resourcePolicy.adjusted
-            ? [resourcePolicy.explanation, ...warnings]
-            : [...warnings];
+          sessionWarnings = [...warnings];
           await auditSessions.markDiscovered(
             sessionId,
             filePaths.length,
@@ -655,9 +653,7 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
       },
     );
     await persistence.flush();
-    sessionWarnings = resourcePolicy.adjusted
-      ? [resourcePolicy.explanation, ...result.warnings]
-      : result.warnings;
+    sessionWarnings = result.warnings;
     await auditSessions.finish(sessionId, "completed", sessionWarnings);
     for (const file of result.files) {
       const normalizedPath = path.resolve(file.path);

@@ -219,6 +219,17 @@ button:focus-visible {
   background: var(--raised);
 }
 
+.scan-mode.adjusted {
+  border-color: color-mix(in srgb, var(--amber), transparent 35%);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--amber), transparent 91%), transparent),
+    var(--raised);
+}
+
+.scan-mode.adjusted small {
+  color: var(--amber);
+}
+
 .scan-mode small {
   color: var(--muted);
   font: 650 7px/1 var(--font-data);
@@ -531,6 +542,8 @@ button:focus-visible {
   background: rgba(244, 184, 90, 0.07);
   color: #d9d3c6;
   font-size: 11px;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .source-warnings summary {
@@ -540,7 +553,7 @@ button:focus-visible {
 }
 
 .source-warnings ul {
-  max-height: 110px;
+  max-height: min(110px, 18vh);
   margin: 8px 0;
   padding-left: 20px;
   overflow: auto;
@@ -618,6 +631,10 @@ button:focus-visible {
   grid-template-rows: 42px 32px minmax(0, 1fr);
 }
 
+.results-card:has(.source-warnings) {
+  grid-template-rows: 42px auto 32px minmax(0, 1fr);
+}
+
 .filters {
   padding: 0 10px;
   display: flex;
@@ -659,8 +676,15 @@ button:focus-visible {
 .table-grid {
   display: grid;
   grid-template-columns:
-    minmax(190px, 1.85fr) 0.55fr 0.75fr 0.65fr
-    0.58fr 0.7fr 0.58fr 0.72fr;
+    minmax(220px, 1.85fr)
+    minmax(70px, 0.55fr)
+    minmax(94px, 0.75fr)
+    minmax(80px, 0.65fr)
+    minmax(72px, 0.58fr)
+    minmax(88px, 0.7fr)
+    minmax(70px, 0.58fr)
+    minmax(86px, 0.72fr);
+  column-gap: 12px;
   align-items: center;
 }
 
@@ -669,6 +693,13 @@ button:focus-visible {
   color: #9b9faa;
   font: 650 7px/1 var(--font-data);
   text-transform: uppercase;
+}
+
+.table-head > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .table-body {

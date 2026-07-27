@@ -627,6 +627,7 @@ export interface ScanProgressUpdate {
   phase:
     | "discovered"
     | "processing"
+    | "staging"
     | "inventorying"
     | "analyzing"
     | "complete";
@@ -637,6 +638,13 @@ export interface ScanProgressUpdate {
   fromCache: boolean;
   resourceLimits?: AnalysisResourceLimits;
   resourcePolicyExplanation?: string | null;
+  sourceIo?: {
+    storageKind: "local" | "network" | "removable-or-mounted";
+    staged: boolean;
+    sizeBytes: number;
+    transferredBytes?: number;
+    explanation: string;
+  };
 }
 
 export interface ReportExportResult {

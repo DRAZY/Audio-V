@@ -26,6 +26,8 @@ Every package contains the engine manifest, provenance, C2PA Tool and Chromaprin
 
 Audio-V can read audio from removable storage and operating-system-mounted network shares only after the user selects a file or folder through the native chooser. On macOS this includes mounted locations under `/Volumes`; on Windows it includes mapped drive letters and UNC paths. Audio-V does not mount shares, store network credentials, or expose an SMB/NFS server. Analysis remains local, although reading a file from a network share necessarily transfers that file's bytes across the user's configured network filesystem.
 
+During a full audit of a mounted or non-system source, one active file may be copied into an operating-system temporary directory so repeated Oracle passes do not repeatedly traverse the network or removable bus. The copy is deleted when that file finishes or is canceled. Staging directories are process-scoped; a later run removes remnants owned by a process that is no longer running. Metadata Inventory does not create staged audio copies. Temporary-space reservations prevent concurrent workers from consuming more than the disclosed safe budget.
+
 ## Optional external identity lookup
 
 AcoustID lookup is disabled by default and runs only when the user enables it for the next audit and supplies an AcoustID application API key. Audio-V sends the locally calculated Chromaprint fingerprint and rounded duration to `https://api.acoustid.org`; it does not send the audio file. The returned AcoustID and linked MusicBrainz recording identifiers are evidence leads, not proof of ownership, mastering provenance, or byte identity.

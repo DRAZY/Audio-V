@@ -101,6 +101,125 @@ app.whenReady().then(async () => {
     );
   }
 
+  window.setContentSize(1120, 720);
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  const warningLayout = await window.webContents.executeJavaScript(`
+    (() => {
+      const host = document.createElement("div");
+      host.className = "qa-active-warning";
+      host.style.position = "fixed";
+      host.style.inset = "18px";
+      host.style.zIndex = "10000";
+      host.style.padding = "18px";
+      host.style.display = "grid";
+      host.style.gridTemplateRows = "330px 260px";
+      host.style.gap = "12px";
+      host.style.background = "var(--background)";
+
+      const results = document.createElement("section");
+      results.className = "results-card";
+      results.innerHTML = \`
+        <div class="filters">
+          <span class="eyebrow">Audit results</span>
+          <button class="active">All 32</button>
+          <button>Review 4</button>
+          <span class="scan-state">18 of 32 fully analyzed · long network-track-name.flac</span>
+        </div>
+        <details class="source-warnings" open>
+          <summary>2 source access warnings</summary>
+          <ul>
+            <li>\\\\\\\\studio-nas\\\\music\\\\archive: one folder could not be read because access was denied.</li>
+            <li>USB-C Library: one disconnected album was skipped while the remaining source continued.</li>
+          </ul>
+          <p>Confirm the volume is connected, then re-select the folder so the operating system can grant access.</p>
+        </details>
+        <div class="table-grid table-head">
+          <span>File name</span><span>Format</span><span>Sample rate</span>
+          <span>Bit depth</span><span>Duration</span><span>Bitrate</span>
+          <span>Channels</span><span>Verdict</span>
+        </div>
+        <div class="table-body">
+          <button class="file-row table-grid selected">
+            <span>long network-track-name.flac</span><span>FLAC</span><span>96 kHz</span>
+            <span>24-bit</span><span>5:18</span><span>2.8 Mbps</span><span>2 ch</span>
+            <span class="row-verdict review"><i></i>Review</span>
+          </button>
+        </div>
+      \`;
+      const assessment = document.createElement("section");
+      assessment.className = "analysis-card";
+      assessment.innerHTML = \`
+        <div class="analysis-tabs"><button>Oracle evidence</button></div>
+        <div class="evidence-view"><article><span>Assessment</span><strong>Review signal findings</strong><p>The active track assessment remains entirely below the warning and results table.</p></article></div>
+      \`;
+      host.append(results, assessment);
+      document.body.append(host);
+      const rect = (selector) => {
+        const value = host.querySelector(selector).getBoundingClientRect();
+        return {
+          left: value.left, right: value.right, top: value.top,
+          bottom: value.bottom, width: value.width, height: value.height,
+        };
+      };
+      return {
+        results: rect(".results-card"),
+        filters: rect(".filters"),
+        warnings: rect(".source-warnings"),
+        tableHead: rect(".table-head"),
+        tableHeadCells: [...host.querySelectorAll(".table-head > span")].map(
+          (element) => {
+            const value = element.getBoundingClientRect();
+            return {
+              left: value.left,
+              right: value.right,
+              scrollWidth: element.scrollWidth,
+              clientWidth: element.clientWidth,
+            };
+          },
+        ),
+        tableBody: rect(".table-body"),
+        assessment: rect(".analysis-card"),
+      };
+    })()
+  `);
+  const warningRowsSeparated =
+    warningLayout.filters.bottom <= warningLayout.warnings.top + 1 &&
+    warningLayout.warnings.bottom <= warningLayout.tableHead.top + 1 &&
+    warningLayout.tableHead.bottom <= warningLayout.tableBody.top + 1;
+  const warningCardContained =
+    warningLayout.tableBody.bottom <= warningLayout.results.bottom + 1;
+  const assessmentSeparated =
+    warningLayout.results.bottom <= warningLayout.assessment.top + 1;
+  const tableColumnsSeparated = warningLayout.tableHeadCells.every(
+    (cell, index, cells) =>
+      cell.scrollWidth <= cell.clientWidth &&
+      (index === 0 || cell.left - cells[index - 1].right >= 8),
+  );
+  results.push({
+    name: "active-audit-source-warning",
+    measurement: warningLayout,
+    checks: {
+      warningRowsSeparated,
+      warningCardContained,
+      assessmentSeparated,
+      tableColumnsSeparated,
+    },
+    passed:
+      warningRowsSeparated &&
+      warningCardContained &&
+      assessmentSeparated &&
+      tableColumnsSeparated,
+  });
+  await new Promise((resolve) => setTimeout(resolve, 120));
+  const warningScreenshot = await window.webContents.capturePage();
+  await writeFile(
+    path.join(process.cwd(), "build", "layout-active-warning.png"),
+    warningScreenshot.toPNG(),
+  );
+  await window.webContents.executeJavaScript(
+    `document.querySelector(".qa-active-warning")?.remove()`,
+  );
+
   window.setContentSize(scenarios[0].width, scenarios[0].height);
   await new Promise((resolve) => setTimeout(resolve, 80));
   const loudnessGrid = await window.webContents.executeJavaScript(`
@@ -304,7 +423,7 @@ app.whenReady().then(async () => {
     );
   } else {
     console.log(
-      "Responsive layout passed at default and minimum desktop sizes, including dense inspector text, selected paths, scan progress, and the loudness diagnostics grid.",
+      "Responsive layout passed at default and minimum desktop sizes, including open source warnings, table gutters, active assessment separation, dense inspector text, selected paths, scan progress, and the loudness diagnostics grid.",
     );
   }
   window.destroy();

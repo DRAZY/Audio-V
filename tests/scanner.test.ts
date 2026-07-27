@@ -203,6 +203,49 @@ describe("scanSources", () => {
     expect(result.unreadableCount).toBe(0);
   });
 
+  it("analyzes a mounted source from one staged copy but preserves its source identity", async () => {
+    const directory = await makeTemporaryDirectory();
+    const sourcePath = path.join(directory, "mounted-source.wav");
+    const stagedPath = path.join(directory, "staged-source.wav");
+    const contents = pcmWave({ channels: 2 });
+    await fs.writeFile(sourcePath, contents);
+    await fs.writeFile(stagedPath, contents);
+    let analyzedPath = "";
+    let cleaned = false;
+
+    const result = await scanSources(
+      {
+        kind: "files",
+        label: "Mounted source",
+        paths: [sourcePath],
+      },
+      undefined,
+      {
+        classifyStorage: () => "network",
+        stageFile: async () => ({
+          analysisPath: stagedPath,
+          storageKind: "network",
+          staged: true,
+          sizeBytes: contents.length,
+          explanation: "Test staging.",
+          cleanup: async () => {
+            cleaned = true;
+          },
+        }),
+        analyzeFile: async (filePath, signal) => {
+          analyzedPath = filePath;
+          return analyzeAudioFile(filePath, signal);
+        },
+      },
+    );
+
+    expect(analyzedPath).toBe(stagedPath);
+    expect(cleaned).toBe(true);
+    expect(result.files[0].path).toBe(sourcePath);
+    expect(result.files[0].name).toBe(path.basename(sourcePath));
+    expect(result.files[0].oracle.analysisState).toBe("completed");
+  });
+
   it("deduplicates selected files, scans nested folders, and skips hidden files", async () => {
     const directory = await makeTemporaryDirectory();
     const nested = path.join(directory, "album");

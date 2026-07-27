@@ -52,7 +52,7 @@ Status meanings:
 - **Planned** — specified and prioritized, but not implemented.
 - **Excluded** — intentionally outside the core product.
 
-| Capability | User value | v0.4.8 source status | Disposition |
+| Capability | User value | v0.4.9 source status | Disposition |
 | --- | --- | --- | --- |
 | File and folder ingest | Analyze one track or a full library | Implemented | Current |
 | Recursive bounded discovery | Avoid freezing on large trees | Implemented | Current |
@@ -142,13 +142,14 @@ Gate 1 is complete at the repository level. Compare uses bounded alignment estim
 - Resource controls are per-file ceilings rather than independent speed settings. Before workers start, Audio-V resolves them against a system-wide budget capped at 20% of physical memory or 4 GB and 75% of logical CPUs; unsafe maximum combinations are visibly reduced.
 - Current-audit fingerprint matching uses exact-hash and ±3-second duration indexes instead of an all-pairs scan. Above 1,000 files, per-file historical enrichment is deferred to the persistent fingerprint library screen so end-of-audit relationship assembly cannot multiply into tens of millions of comparisons.
 - Checksum manifests are indexed once per source, and the Oracle reuses an already-computed SHA-256 result instead of rereading the file.
+- Mounted and removable libraries use eight-way bounded directory discovery. Full audits stage each active macOS `/Volumes`, Windows UNC, mapped-drive, or non-system-drive file through one 4 MB sequential transfer, run repeated forensic passes locally, and delete the copy afterward. Staging follows the resolved 1–4 file concurrency and an aggregate temporary-space reservation, rather than adding an independent unbounded “network sessions” control.
 - Authoritative JSON and CSV session reports stream from paged SQLite records without a fixed payload limit. PDF, DOCX, and XLSX generation also runs outside the Electron main process, although those rich formats currently materialize the session inside the storage worker.
 - Compiled-worker verification now exercises Oracle analysis, comparison, durable storage, and streamed report export.
 - `npm run benchmark:scale` enforces repeatable persistence and restoration budgets for synthetic 100-, 1,000-, and 10,000-record sessions and records the latest result in `build/performance-latest.json`.
 
 The latest local benchmark completed 10,000 batch inserts in 55.79 ms and restored the session in 18.83 ms. These figures validate the storage and state-retrieval architecture on the development Mac; they do not represent full audio decode throughput.
 
-Gate 2 is complete for the repository-level scale foundation. Market-readiness still requires hardware and clean-VM profiling on Apple Silicon macOS and supported Windows versions with real 100/1,000/10,000-file libraries, removable/network volumes, long-duration files, constrained memory, cancellation under load, and thermal throttling. Discovery still retains a sorted path list, renderer filters remain linear in session size, and rich document exports remain whole-session operations inside the storage worker. Those are measured optimization candidates rather than hidden claims of unlimited scale.
+Gate 2 is complete for the repository-level scale foundation. Market-readiness still requires hardware and clean-VM profiling on Apple Silicon macOS and supported Windows versions with real 100/1,000/10,000-file libraries, 1/10 GbE shares, removable/network volumes, long-duration files, constrained memory, cancellation under load, and thermal throttling. Discovery still retains a sorted path list, renderer filters remain linear in session size, and rich document exports remain whole-session operations inside the storage worker. Those are measured optimization candidates rather than hidden claims of unlimited scale.
 
 ### Gate 3 implementation status
 
@@ -289,6 +290,6 @@ No build may be called a beta until:
 - Compare renders bounded full-track waveform envelopes, paired measured spectrograms, and a normalized B-minus-A spectral heatmap alongside identity, format, loudness, clipping, bandwidth, stereo, and checksum values; no playback surface was introduced.
 - Audit and per-file evidence export to PDF, XLSX, DOCX, CSV, or JSON from a shared 40+ column evidence model. Production dependencies remain free of known audit advisories.
 - The desktop typography floor is 11px for utility labels and 12–14px for working text, with larger rows, controls, and analysis panels.
-- The 110-test regression suite covers discovery, malformed metadata, PCM math, internal WAVE decoding, spectral-bin detection, multi-codec full decoding, FLAC audio-MD5 mismatch, loudness/true peak, continuity, packet-rate behavior, fidelity controls, persistent fingerprint management, cue programme/pregap segments, calculated ReplayGain eligibility, explicit comparison channel mapping, resource enforcement, cache invalidation, prompt cancellation of blocked workers, process cancellation, source-preserving repair output, attached-artwork retention, source preservation, truncation, and verdict truthfulness.
+- The 113-test regression suite covers discovery, mounted-source staging and identity preservation, malformed metadata, PCM math, internal WAVE decoding, spectral-bin detection, multi-codec full decoding, FLAC audio-MD5 mismatch, loudness/true peak, continuity, packet-rate behavior, fidelity controls, persistent fingerprint management, cue programme/pregap segments, calculated ReplayGain eligibility, explicit comparison channel mapping, resource enforcement, cache invalidation, prompt cancellation of blocked workers, process cancellation, source-preserving repair output, attached-artwork retention, source preservation, truncation, and verdict truthfulness.
 - Production dependencies pass `npm audit --omit=dev`; remaining advisories are confined to the upstream packaging toolchain.
 - Release packages contain third-party notices and a machine-readable engine capability manifest.

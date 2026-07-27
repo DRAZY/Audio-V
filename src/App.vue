@@ -36,6 +36,8 @@ const activeSessionId = ref("");
 const scanMessage = ref("Ready for files or a folder");
 const scanProgress = ref<ScanProgressUpdate | null>(null);
 const sourceWarnings = ref<string[]>([]);
+const resourcePolicyNotice = ref("");
+const sourceIoNotice = ref("");
 const diagnosticsMessage = ref(
   "Diagnostics exclude filenames, paths, checksums, tags, and audio evidence.",
 );
@@ -917,14 +919,11 @@ onMounted(() => {
         analysisNativeMemoryMb.value =
           progress.resourceLimits.nativeProcessMemoryMb;
       }
-      if (
-        progress.resourcePolicyExplanation &&
-        !sourceWarnings.value.includes(progress.resourcePolicyExplanation)
-      ) {
-        sourceWarnings.value = [
-          progress.resourcePolicyExplanation,
-          ...sourceWarnings.value,
-        ];
+      if (progress.resourcePolicyExplanation) {
+        resourcePolicyNotice.value = progress.resourcePolicyExplanation;
+      }
+      if (progress.sourceIo) {
+        sourceIoNotice.value = progress.sourceIo.explanation;
       }
       if (progress.file) {
         queueProgressFile(progress.file);
@@ -939,6 +938,18 @@ onMounted(() => {
       } else if (progress.phase === "processing") {
         scanMessage.value =
           `${scanProgressTitle.value} · ${progress.currentFile ?? "Preparing file"}`;
+      } else if (progress.phase === "staging") {
+        const transferred = progress.sourceIo?.transferredBytes;
+        const totalBytes = progress.sourceIo?.sizeBytes;
+        const transferPercent =
+          transferred !== undefined && totalBytes
+            ? Math.min(100, Math.round((transferred / totalBytes) * 100))
+            : null;
+        scanMessage.value = progress.sourceIo?.staged
+          ? `Optimized mounted-source transfer complete · analyzing local staged copy · ${progress.currentFile}`
+          : progress.sourceIo && transferred === undefined
+            ? `Local staging unavailable · analyzing mounted source directly · ${progress.currentFile}`
+            : `Optimizing mounted-source read${transferPercent === null ? "" : ` · ${transferPercent}%`} · ${progress.currentFile}`;
       } else if (progress.phase === "inventorying") {
         scanMessage.value = `${progress.completed.toLocaleString()} of ${progress.total.toLocaleString()} inventoried · ${progress.currentFile}`;
       } else if (progress.phase === "analyzing") {
@@ -1047,6 +1058,8 @@ async function scanSource(source: AudioSourceSelection): Promise<void> {
   isScanPaused.value = false;
   isScanCancelling.value = false;
   sourceWarnings.value = [];
+  resourcePolicyNotice.value = "";
+  sourceIoNotice.value = "";
   files.value = [];
   activeSessionId.value = "";
   selectedId.value = "";
@@ -1065,7 +1078,9 @@ async function scanSource(source: AudioSourceSelection): Promise<void> {
     queuedProgressFiles = [];
     activeSessionId.value = result.sessionId ?? "";
     files.value = result.files;
-    sourceWarnings.value = result.warnings;
+    sourceWarnings.value = result.warnings.filter(
+      (warning) => warning !== resourcePolicyNotice.value,
+    );
     const firstMeasured =
       result.files.find((file) => file.oracle.measurements) ?? result.files[0];
     selectedId.value = firstMeasured?.id ?? "";
@@ -1953,8 +1968,12 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
               <strong :title="sourceRoot">{{ sourceRoot }}</strong>
             </span>
           </div>
-          <label class="scan-mode">
-            <small>Run mode</small>
+          <label
+            class="scan-mode"
+            :class="{ adjusted: Boolean(resourcePolicyNotice) }"
+            :title="resourcePolicyNotice || 'Choose whether Audio-V performs a full Oracle audit or metadata inventory.'"
+          >
+            <small>{{ resourcePolicyNotice ? "Safe limits active" : "Run mode" }}</small>
             <select
               v-model="scanMode"
               :disabled="isDiscovering"
@@ -2135,7 +2154,11 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
           </button>
           <span class="scan-state">{{ scanMessage }}</span>
         </div>
-        <details v-if="sourceWarnings.length" class="source-warnings" open>
+        <details
+          v-if="sourceWarnings.length"
+          class="source-warnings"
+          :open="!isDiscovering"
+        >
           <summary>
             {{ sourceWarnings.length }} source access warning{{ sourceWarnings.length === 1 ? "" : "s" }}
           </summary>
@@ -3159,6 +3182,11 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
               {{ resourceControlWarning }}
             </small>
           </article>
+          <article>
+            <span>Mounted-source I/O</span>
+            <strong>Single-transfer local staging</strong>
+            <p>On macOS /Volumes sources and Windows UNC, mapped, or non-system drives, Audio-V uses up to four bounded 4 MB sequential transfer streams. Each active file is copied once to protected temporary storage, repeatedly decoded locally, then removed. Eight-way directory discovery reduces share latency without changing Oracle evidence.</p>
+          </article>
           <article class="resource-controls">
             <span>External identity service</span>
             <strong>Optional AcoustID / MusicBrainz</strong>
@@ -3190,7 +3218,11 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
       </section>
 
       <footer class="statusbar">
-        <span role="status" aria-live="polite"><i></i>{{ scanMessage }}</span>
+        <span
+          role="status"
+          aria-live="polite"
+          :title="sourceIoNotice || undefined"
+        ><i></i>{{ scanMessage }}</span>
         <span>{{ files.length.toLocaleString() }} files in session</span>
         <span>Oracle integrity, fidelity &amp; forensics scope v10</span>
       </footer>

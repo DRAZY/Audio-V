@@ -37,6 +37,12 @@ import {
 } from "./oracle/analysis-tools";
 import { analyzeCueTracks } from "./oracle/cue-track-analyzer";
 import { measureAlbumReplayGain } from "./oracle/album-replaygain";
+import {
+  classifySourceStorage,
+  stageSourceFile,
+  type SourceStorageKind,
+  type StagedSourceFile,
+} from "./source-read-optimizer";
 
 const supportedExtensions = new Set<string>(AUDIO_EXTENSIONS);
 
@@ -218,59 +224,70 @@ async function collectAudioFiles(
   const discovered: string[] = [];
   const pending = [root];
   const visitedDirectories = new Set<string>();
+  const directoryBatchSize = 8;
 
   while (pending.length > 0) {
     throwIfCanceled(signal);
-    const current = pending.pop();
-    if (!current) continue;
-
-    try {
-      const canonicalDirectory = await abortable(
-        fs.realpath(current),
-        signal,
-      );
-      if (visitedDirectories.has(canonicalDirectory)) continue;
-      visitedDirectories.add(canonicalDirectory);
-    } catch (error) {
-      warnings.push(sourceReadError(current, error));
-      continue;
-    }
-
-    let entries;
-    try {
-      entries = await abortable(
-        fs.readdir(current, { withFileTypes: true }),
-        signal,
-      );
-    } catch (error) {
-      warnings.push(sourceReadError(current, error));
-      continue;
-    }
-    for (const entry of entries) {
-      throwIfCanceled(signal);
-      if (entry.name.startsWith(".")) continue;
-      const entryPath = path.join(current, entry.name);
-      let isDirectory = entry.isDirectory();
-      let isFile = entry.isFile();
-      if (entry.isSymbolicLink() || (!isDirectory && !isFile)) {
+    const batch = pending.splice(
+      Math.max(0, pending.length - directoryBatchSize),
+      directoryBatchSize,
+    );
+    const results = await Promise.all(
+      batch.map(async (current) => {
         try {
-          const stat = await abortable(fs.stat(entryPath), signal);
-          isDirectory = stat.isDirectory();
-          isFile = stat.isFile();
+          const canonicalDirectory = await abortable(
+            fs.realpath(current),
+            signal,
+          );
+          if (visitedDirectories.has(canonicalDirectory)) return null;
+          visitedDirectories.add(canonicalDirectory);
         } catch (error) {
-          warnings.push(sourceReadError(entryPath, error));
-          continue;
+          warnings.push(sourceReadError(current, error));
+          return null;
         }
-      }
-      if (isDirectory) {
-        pending.push(entryPath);
-      } else if (
-        isFile &&
-        supportedExtensions.has(path.extname(entry.name).toLowerCase())
-      ) {
-        discovered.push(entryPath);
-      } else if (isFile && isChecksumManifest(entryPath)) {
-        checksumManifests?.add(entryPath);
+
+        try {
+          return {
+            current,
+            entries: await abortable(
+              fs.readdir(current, { withFileTypes: true }),
+              signal,
+            ),
+          };
+        } catch (error) {
+          warnings.push(sourceReadError(current, error));
+          return null;
+        }
+      }),
+    );
+    for (const result of results) {
+      if (!result) continue;
+      for (const entry of result.entries) {
+        throwIfCanceled(signal);
+        if (entry.name.startsWith(".")) continue;
+        const entryPath = path.join(result.current, entry.name);
+        let isDirectory = entry.isDirectory();
+        let isFile = entry.isFile();
+        if (entry.isSymbolicLink() || (!isDirectory && !isFile)) {
+          try {
+            const stat = await abortable(fs.stat(entryPath), signal);
+            isDirectory = stat.isDirectory();
+            isFile = stat.isFile();
+          } catch (error) {
+            warnings.push(sourceReadError(entryPath, error));
+            continue;
+          }
+        }
+        if (isDirectory) {
+          pending.push(entryPath);
+        } else if (
+          isFile &&
+          supportedExtensions.has(path.extname(entry.name).toLowerCase())
+        ) {
+          discovered.push(entryPath);
+        } else if (isFile && isChecksumManifest(entryPath)) {
+          checksumManifests?.add(entryPath);
+        }
       }
     }
   }
@@ -331,11 +348,12 @@ async function attachExternalChecksumEvidence(
   file: AudioFileRecord,
   entriesByPath: ReadonlyMap<string, ChecksumManifestEntry[]>,
   signal?: AbortSignal,
+  verificationPath = file.path,
 ): Promise<AudioFileRecord> {
   if (!file.oracle.technical) return file;
   const relevantEntries = entriesByPath.get(path.resolve(file.path)) ?? [];
   const externalChecksums = await verifyChecksumEntries(
-    file.path,
+    verificationPath,
     relevantEntries,
     { sha256: file.oracle.technical.fileSha256 },
     signal,
@@ -440,6 +458,30 @@ function attachMetadataProvenance(file: AudioFileRecord): AudioFileRecord {
       ],
       technical: { ...technical, metadata: file.metadata, provenanceIndicators },
     },
+  };
+}
+
+function restoreOracleSourcePath(
+  oracle: OracleResult,
+  analysisPath: string,
+  sourcePath: string,
+): OracleResult {
+  if (analysisPath === sourcePath) return oracle;
+  const restore = (value: string) => value.replaceAll(analysisPath, sourcePath);
+  return {
+    ...oracle,
+    interpretation: restore(oracle.interpretation),
+    failure: oracle.failure
+      ? {
+          ...oracle.failure,
+          summary: restore(oracle.failure.summary),
+          evidence: restore(oracle.failure.evidence),
+        }
+      : null,
+    evidence: oracle.evidence.map((entry) => ({
+      ...entry,
+      summary: restore(entry.summary),
+    })),
   };
 }
 
@@ -846,6 +888,16 @@ export async function scanSources(
     concurrency?: number;
     recoveryQuarantine?: ReadonlyMap<string, string>;
     compactResults?: boolean;
+    classifyStorage?: (filePath: string) => SourceStorageKind;
+    stageFile?: (
+      filePath: string,
+      signal?: AbortSignal,
+      storageKind?: SourceStorageKind,
+      onTransferProgress?: (
+        transferredBytes: number,
+        totalBytes: number,
+      ) => void,
+    ) => Promise<StagedSourceFile>;
   },
 ): Promise<ScanSelectionResult> {
   throwIfCanceled(options?.signal);
@@ -989,62 +1041,129 @@ export async function scanSources(
             fromCache: false,
           };
         }
-        const oracle = await (options?.analyzeFile ?? analyzeAudioFile)(
-          inspected.path,
+        const storageKind =
+          options?.classifyStorage?.(filePath) ??
+          classifySourceStorage(filePath);
+        if (storageKind !== "local") {
+          onProgress?.({
+            phase: "staging",
+            completed,
+            total: filePaths.length,
+            currentFile: path.basename(filePath),
+            file: null,
+            fromCache: false,
+          });
+        }
+        const staged = await (options?.stageFile ?? stageSourceFile)(
+          filePath,
           options?.signal,
+          storageKind,
+          (transferredBytes, totalBytes) => {
+            onProgress?.({
+              phase: "staging",
+              completed,
+              total: filePaths.length,
+              currentFile: path.basename(filePath),
+              file: null,
+              fromCache: false,
+              sourceIo: {
+                storageKind,
+                staged: false,
+                sizeBytes: totalBytes,
+                transferredBytes,
+                explanation:
+                  "Transferring this mounted source once before repeated local analysis.",
+              },
+            });
+          },
         );
-        const technical = oracle.technical;
-        if (technical) technical.metadata = inspected.metadata;
-        if (
-          inspected.metadata.cueSheet.tracks.length > 0 &&
-          (technical?.sampleRate ?? inspected.sampleRate) &&
-          (technical?.channels ?? inspected.channels)
-        ) {
-          oracle.cueTracks = await analyzeCueTracks(
-            inspected.metadata.cueSheet.tracks,
-            (technical?.sampleRate ?? inspected.sampleRate)!,
-            (technical?.channels ?? inspected.channels)!,
-            options?.signal,
-          );
+        if (storageKind !== "local") {
+          onProgress?.({
+            phase: "staging",
+            completed,
+            total: filePaths.length,
+            currentFile: path.basename(filePath),
+            file: null,
+            fromCache: false,
+            sourceIo: {
+              storageKind: staged.storageKind,
+              staged: staged.staged,
+              sizeBytes: staged.sizeBytes,
+              transferredBytes: staged.staged
+                ? staged.sizeBytes
+                : undefined,
+              explanation: staged.explanation,
+            },
+          });
         }
-        let file = normalizeAudioRecordFormat({
-          ...inspected,
-          codec: technical?.codecLongName ?? inspected.codec,
-          container: technical?.container ?? inspected.container,
-          codecProfile: technical?.profile ?? inspected.codecProfile,
-          durationSeconds: technical?.durationSeconds ?? inspected.durationSeconds,
-          bitrate: technical?.streamBitrate ?? inspected.bitrate,
-          sampleRate: technical?.sampleRate ?? inspected.sampleRate,
-          bitDepth: technical?.bitsPerRawSample ?? inspected.bitDepth,
-          channels: technical?.channels ?? inspected.channels,
-          channelMode: technical?.channelLayout ?? inspected.channelMode,
-          bitrateMode: technical?.bitrateMode ?? inspected.bitrateMode,
-          scanError: oracle.measurements ? null : inspected.scanError,
-          oracle,
-        });
-        file = attachMetadataProvenance(file);
-        if (
-          source.externalLookup?.acoustIdEnabled &&
-          source.externalLookup.acoustIdApiKey &&
-          file.oracle.technical
-        ) {
-          file.oracle.technical.fingerprint.acoustIdLookup =
-            await lookupAcoustId(
-              file.oracle.technical.fingerprint,
-              source.externalLookup.acoustIdApiKey,
+        try {
+          const oracle = restoreOracleSourcePath(
+            await (options?.analyzeFile ?? analyzeAudioFile)(
+              staged.analysisPath,
               options?.signal,
-              file.path,
+            ),
+            staged.analysisPath,
+            filePath,
+          );
+          const technical = oracle.technical;
+          if (technical) technical.metadata = inspected.metadata;
+          if (
+            inspected.metadata.cueSheet.tracks.length > 0 &&
+            (technical?.sampleRate ?? inspected.sampleRate) &&
+            (technical?.channels ?? inspected.channels)
+          ) {
+            oracle.cueTracks = await analyzeCueTracks(
+              inspected.metadata.cueSheet.tracks.map((track) => ({
+                ...track,
+                sourcePath: staged.analysisPath,
+              })),
+              (technical?.sampleRate ?? inspected.sampleRate)!,
+              (technical?.channels ?? inspected.channels)!,
+              options?.signal,
             );
+          }
+          let file = normalizeAudioRecordFormat({
+            ...inspected,
+            codec: technical?.codecLongName ?? inspected.codec,
+            container: technical?.container ?? inspected.container,
+            codecProfile: technical?.profile ?? inspected.codecProfile,
+            durationSeconds: technical?.durationSeconds ?? inspected.durationSeconds,
+            bitrate: technical?.streamBitrate ?? inspected.bitrate,
+            sampleRate: technical?.sampleRate ?? inspected.sampleRate,
+            bitDepth: technical?.bitsPerRawSample ?? inspected.bitDepth,
+            channels: technical?.channels ?? inspected.channels,
+            channelMode: technical?.channelLayout ?? inspected.channelMode,
+            bitrateMode: technical?.bitrateMode ?? inspected.bitrateMode,
+            scanError: oracle.measurements ? null : inspected.scanError,
+            oracle,
+          });
+          file = attachMetadataProvenance(file);
+          if (
+            source.externalLookup?.acoustIdEnabled &&
+            source.externalLookup.acoustIdApiKey &&
+            file.oracle.technical
+          ) {
+            file.oracle.technical.fingerprint.acoustIdLookup =
+              await lookupAcoustId(
+                file.oracle.technical.fingerprint,
+                source.externalLookup.acoustIdApiKey,
+                options?.signal,
+                file.path,
+              );
+          }
+          await options?.cache?.set(file);
+          return {
+            file: await attachExternalChecksumEvidence(
+              file,
+              checksumEntriesByPath,
+              options?.signal,
+              staged.analysisPath,
+            ),
+            fromCache: false,
+          };
+        } finally {
+          await staged.cleanup();
         }
-        await options?.cache?.set(file);
-        return {
-          file: await attachExternalChecksumEvidence(
-            file,
-            checksumEntriesByPath,
-            options?.signal,
-          ),
-          fromCache: false,
-        };
       })();
       const { file, fromCache } = analyzed;
       await options?.onFileStored?.(file, index, fromCache);
