@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { fetchWithRetry } from "./fetch-with-retry.mjs";
 
 const root = process.cwd();
 const downloads = {
@@ -26,7 +27,7 @@ const downloads = {
 async function download(name, directory) {
   const entry = downloads[name];
   const destination = path.join(directory, name);
-  const response = await fetch(entry.url, { redirect: "follow" });
+  const response = await fetchWithRetry(entry.url, { redirect: "follow" });
   if (!response.ok) throw new Error(`${name} download failed: HTTP ${response.status}`);
   const bytes = Buffer.from(await response.arrayBuffer());
   const actual = createHash("sha256").update(bytes).digest("hex");

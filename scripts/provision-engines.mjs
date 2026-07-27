@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fetchWithRetry } from "./fetch-with-retry.mjs";
 
 const root = process.cwd();
 const sourceUrl = "https://ffmpeg.org/releases/ffmpeg-8.1.2.tar.xz";
@@ -14,7 +15,7 @@ const windowsSha256 =
   "923522df4e21c84cf6bd533ad690ea9b134087b38a95535a35abd786c25445c9";
 
 async function download(url, destination, expectedSha256) {
-  const response = await fetch(url, { redirect: "follow" });
+  const response = await fetchWithRetry(url, { redirect: "follow" });
   if (!response.ok || !response.body) {
     throw new Error(`Download failed (${response.status}): ${url}`);
   }
@@ -31,7 +32,7 @@ async function writeEngineNotices(directory, source) {
     path.join(root, "vendor", "ffmpeg", "mac-arm64", "COPYING.LGPLv2.1"),
     "utf8",
   ).catch(() =>
-    fetch(
+    fetchWithRetry(
       "https://raw.githubusercontent.com/FFmpeg/FFmpeg/n8.1.2/COPYING.LGPLv2.1",
     ).then((response) => response.text()),
   );
