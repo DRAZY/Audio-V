@@ -66,6 +66,19 @@ describe("inspectAudioFile", () => {
 });
 
 describe("scanSources", () => {
+  it("honors cancellation before source discovery begins", async () => {
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(
+      scanSources(
+        { kind: "folder", label: "Canceled", paths: [process.cwd()] },
+        undefined,
+        { signal: controller.signal },
+      ),
+    ).rejects.toThrow(/canceled/i);
+  });
+
   it("records why album ReplayGain is or is not available", async () => {
     const directory = await makeTemporaryDirectory();
     const files = [

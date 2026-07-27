@@ -40,6 +40,28 @@ import { measureAlbumReplayGain } from "./oracle/album-replaygain";
 
 const supportedExtensions = new Set<string>(AUDIO_EXTENSIONS);
 
+function throwIfCanceled(signal?: AbortSignal): void {
+  if (signal?.aborted) throw new Error("Audio analysis canceled.");
+}
+
+async function abortable<T>(
+  operation: Promise<T>,
+  signal?: AbortSignal,
+): Promise<T> {
+  if (!signal) return operation;
+  throwIfCanceled(signal);
+  let abort: (() => void) | null = null;
+  const canceled = new Promise<never>((_resolve, reject) => {
+    abort = () => reject(new Error("Audio analysis canceled."));
+    signal.addEventListener("abort", abort, { once: true });
+  });
+  try {
+    return await Promise.race([operation, canceled]);
+  } finally {
+    if (abort) signal.removeEventListener("abort", abort);
+  }
+}
+
 function sourceReadError(sourcePath: string, error: unknown): string {
   const code =
     error && typeof error === "object" && "code" in error
@@ -191,17 +213,22 @@ async function collectAudioFiles(
   root: string,
   warnings: string[],
   checksumManifests?: Set<string>,
+  signal?: AbortSignal,
 ): Promise<string[]> {
   const discovered: string[] = [];
   const pending = [root];
   const visitedDirectories = new Set<string>();
 
   while (pending.length > 0) {
+    throwIfCanceled(signal);
     const current = pending.pop();
     if (!current) continue;
 
     try {
-      const canonicalDirectory = await fs.realpath(current);
+      const canonicalDirectory = await abortable(
+        fs.realpath(current),
+        signal,
+      );
       if (visitedDirectories.has(canonicalDirectory)) continue;
       visitedDirectories.add(canonicalDirectory);
     } catch (error) {
@@ -211,19 +238,23 @@ async function collectAudioFiles(
 
     let entries;
     try {
-      entries = await fs.readdir(current, { withFileTypes: true });
+      entries = await abortable(
+        fs.readdir(current, { withFileTypes: true }),
+        signal,
+      );
     } catch (error) {
       warnings.push(sourceReadError(current, error));
       continue;
     }
     for (const entry of entries) {
+      throwIfCanceled(signal);
       if (entry.name.startsWith(".")) continue;
       const entryPath = path.join(current, entry.name);
       let isDirectory = entry.isDirectory();
       let isFile = entry.isFile();
       if (entry.isSymbolicLink() || (!isDirectory && !isFile)) {
         try {
-          const stat = await fs.stat(entryPath);
+          const stat = await abortable(fs.stat(entryPath), signal);
           isDirectory = stat.isDirectory();
           isFile = stat.isFile();
         } catch (error) {
@@ -251,18 +282,22 @@ async function collectNearbyChecksumManifests(
   filePath: string,
   checksumManifests: Set<string>,
   warnings: string[],
+  signal?: AbortSignal,
 ): Promise<void> {
+  throwIfCanceled(signal);
   try {
     const entries = await fs.readdir(path.dirname(filePath), {
       withFileTypes: true,
     });
     for (const entry of entries) {
+      throwIfCanceled(signal);
       if (entry.isFile()) {
         const entryPath = path.join(path.dirname(filePath), entry.name);
         if (isChecksumManifest(entryPath)) checksumManifests.add(entryPath);
       }
     }
   } catch (error) {
+    throwIfCanceled(signal);
     warnings.push(sourceReadError(path.dirname(filePath), error));
   }
 }
@@ -270,9 +305,11 @@ async function collectNearbyChecksumManifests(
 async function loadChecksumEntries(
   manifestPaths: Set<string>,
   warnings: string[],
+  signal?: AbortSignal,
 ): Promise<ChecksumManifestEntry[]> {
   const entries: ChecksumManifestEntry[] = [];
   for (const manifestPath of [...manifestPaths].sort()) {
+    throwIfCanceled(signal);
     try {
       const parsed = await readChecksumManifest(manifestPath);
       if (parsed.length === 0) {
@@ -281,6 +318,7 @@ async function loadChecksumEntries(
         entries.push(...parsed);
       }
     } catch (error) {
+      throwIfCanceled(signal);
       warnings.push(
         `${manifestPath}: ${error instanceof Error ? error.message : "Checksum manifest could not be read"}`,
       );
@@ -292,6 +330,7 @@ async function loadChecksumEntries(
 async function attachExternalChecksumEvidence(
   file: AudioFileRecord,
   entriesByPath: ReadonlyMap<string, ChecksumManifestEntry[]>,
+  signal?: AbortSignal,
 ): Promise<AudioFileRecord> {
   if (!file.oracle.technical) return file;
   const relevantEntries = entriesByPath.get(path.resolve(file.path)) ?? [];
@@ -299,6 +338,7 @@ async function attachExternalChecksumEvidence(
     file.path,
     relevantEntries,
     { sha256: file.oracle.technical.fileSha256 },
+    signal,
   );
   const priorEvidence = file.oracle.evidence.filter(
     (item) => !item.id.startsWith("external-checksum-"),
@@ -536,6 +576,7 @@ async function attachAlbumReplayGain(
           });
         }
       } catch (error) {
+        throwIfCanceled(signal);
         const reason =
           `Album ReplayGain measurement failed: ${
             error instanceof Error ? error.message : "measurement failed"
@@ -551,10 +592,12 @@ async function attachAlbumReplayGain(
 async function attachFingerprintRelationships(
   files: AudioFileRecord[],
   cache?: OracleRecordCache,
+  signal?: AbortSignal,
 ): Promise<AudioFileRecord[]> {
   const exactGroups = new Map<string, number[]>();
   const durationBuckets = new Map<number, number[]>();
   for (let index = 0; index < files.length; index += 1) {
+    throwIfCanceled(signal);
     const fingerprint = files[index].oracle.technical?.fingerprint;
     if (!fingerprint || fingerprint.status !== "measured") continue;
     if (fingerprint.fingerprintSha256) {
@@ -571,6 +614,7 @@ async function attachFingerprintRelationships(
   }
   const includeHistoricalMatches = files.length <= 1_000;
   return Promise.all(files.map(async (file, index) => {
+    throwIfCanceled(signal);
     const technical = file.oracle.technical;
     if (!technical || technical.fingerprint.status !== "measured") return file;
     const candidateIndexes = new Set<number>();
@@ -632,6 +676,7 @@ async function attachFingerprintRelationships(
           technical.fingerprint.durationSeconds,
         )
       : [];
+    throwIfCanceled(signal);
     const historicalMatches = historical.flatMap((candidate) => {
       if (currentMatches.some((match) => match.filePath === candidate.filePath)) {
         return [];
@@ -689,8 +734,11 @@ async function attachFingerprintRelationships(
   }));
 }
 
-export async function inspectAudioFile(filePath: string): Promise<AudioFileRecord> {
-  const stat = await fs.stat(filePath);
+export async function inspectAudioFile(
+  filePath: string,
+  signal?: AbortSignal,
+): Promise<AudioFileRecord> {
+  const stat = await abortable(fs.stat(filePath), signal);
   const id = createHash("sha256")
     .update(`${filePath}\0${stat.size}\0${stat.mtimeMs}`)
     .digest("hex")
@@ -698,12 +746,18 @@ export async function inspectAudioFile(filePath: string): Promise<AudioFileRecor
   let scanError: string | null = null;
 
   try {
-    const metadata = await parseFile(filePath, {
-      duration: true,
-      skipCovers: true,
-    });
+    const metadata = await abortable(
+      parseFile(filePath, {
+        duration: true,
+        skipCovers: true,
+      }),
+      signal,
+    );
     const format = metadata.format;
-    const metadataInventory = await buildMetadataInventory(filePath, metadata);
+    const metadataInventory = await abortable(
+      buildMetadataInventory(filePath, metadata),
+      signal,
+    );
     if (
       !format.codec &&
       !format.sampleRate &&
@@ -740,6 +794,7 @@ export async function inspectAudioFile(filePath: string): Promise<AudioFileRecor
       oracle: notAnalyzedOracleResult(scanError),
     };
   } catch (error) {
+    throwIfCanceled(signal);
     scanError = error instanceof Error ? error.message : "Unknown parsing error";
     return {
       id,
@@ -793,20 +848,23 @@ export async function scanSources(
     compactResults?: boolean;
   },
 ): Promise<ScanSelectionResult> {
+  throwIfCanceled(options?.signal);
   const warnings: string[] = [];
   const discovered: string[] = [];
   const checksumManifests = new Set<string>();
   const inventoryOnly = source.mode === "metadata-inventory";
 
   for (const selectedPath of source.paths) {
+    throwIfCanceled(options?.signal);
     try {
-      const stat = await fs.stat(selectedPath);
+      const stat = await abortable(fs.stat(selectedPath), options?.signal);
       if (stat.isDirectory()) {
         discovered.push(
           ...(await collectAudioFiles(
             selectedPath,
             warnings,
             checksumManifests,
+            options?.signal,
           )),
         );
       } else if (
@@ -818,11 +876,13 @@ export async function scanSources(
           selectedPath,
           checksumManifests,
           warnings,
+          options?.signal,
         );
       } else {
         warnings.push(`${selectedPath}: unsupported file type`);
       }
     } catch (error) {
+      throwIfCanceled(options?.signal);
       warnings.push(sourceReadError(selectedPath, error));
     }
   }
@@ -838,6 +898,7 @@ export async function scanSources(
   const checksumEntries = await loadChecksumEntries(
     inventoryOnly ? new Set<string>() : checksumManifests,
     warnings,
+    options?.signal,
   );
   const checksumEntriesByPath = new Map<string, ChecksumManifestEntry[]>();
   for (const entry of checksumEntries) {
@@ -863,6 +924,7 @@ export async function scanSources(
   let nextIndex = 0;
   let completed = 0;
   const analyzeAtIndex = async (index: number): Promise<void> => {
+    throwIfCanceled(options?.signal);
     const filePath = filePaths[index];
     await options?.onFileStarted?.(filePath);
     onProgress?.({
@@ -902,11 +964,12 @@ export async function scanSources(
             file: await attachExternalChecksumEvidence(
               restored,
               checksumEntriesByPath,
+              options?.signal,
             ),
             fromCache: true,
           };
         }
-        const inspected = await inspectAudioFile(filePath);
+        const inspected = await inspectAudioFile(filePath, options?.signal);
         const recoveryReason = options?.recoveryQuarantine?.get(
           path.resolve(filePath),
         );
@@ -978,6 +1041,7 @@ export async function scanSources(
           file: await attachExternalChecksumEvidence(
             file,
             checksumEntriesByPath,
+            options?.signal,
           ),
           fromCache: false,
         };
@@ -1038,6 +1102,7 @@ export async function scanSources(
   files = await attachFingerprintRelationships(
     filesBeforeRelationships,
     options?.cache,
+    options?.signal,
   );
   await Promise.all(
     files.flatMap((file, index) =>

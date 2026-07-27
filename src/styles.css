@@ -304,6 +304,21 @@ button:focus-visible {
   cursor: default;
 }
 
+.primary-action.cancelling {
+  border-color: rgba(244, 184, 90, 0.72);
+  background: linear-gradient(135deg, #8a5b22, #664124);
+  opacity: 1;
+}
+
+.primary-action.cancelling span {
+  color: var(--amber);
+  animation: cancel-pulse 700ms ease-in-out infinite alternate;
+}
+
+@keyframes cancel-pulse {
+  to { opacity: 0.35; }
+}
+
 .primary-action span {
   font-size: 18px;
 }
@@ -346,6 +361,19 @@ button:focus-visible {
     radial-gradient(circle, var(--raised) 54%, transparent 56%),
     conic-gradient(var(--accent-two) 0 var(--sweep), var(--line) var(--sweep));
   box-shadow: 0 0 24px rgba(66, 223, 229, 0.12);
+}
+
+.verdict-ring.cancelling {
+  background:
+    radial-gradient(circle, var(--raised) 54%, transparent 56%),
+    conic-gradient(var(--amber) 0 var(--sweep), var(--line) var(--sweep));
+  box-shadow: 0 0 24px rgba(244, 184, 90, 0.14);
+}
+
+.verdict-ring.cancelling::after {
+  border-top-color: var(--amber);
+  border-right-color: rgba(244, 184, 90, 0.42);
+  animation-duration: 420ms;
 }
 
 .verdict-ring.scanning::after {

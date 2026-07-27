@@ -119,6 +119,7 @@ export async function readChecksumManifest(
 async function hashFile(
   filePath: string,
   algorithms: ChecksumAlgorithm[],
+  signal?: AbortSignal,
 ): Promise<Map<ChecksumAlgorithm, string>> {
   if (algorithms.length === 0) return new Map();
   const hashes = new Map(
@@ -127,7 +128,7 @@ async function hashFile(
       createHash(algorithm),
     ]),
   );
-  for await (const chunk of createReadStream(filePath)) {
+  for await (const chunk of createReadStream(filePath, { signal })) {
     for (const hash of hashes.values()) hash.update(chunk);
   }
   return new Map(
@@ -139,6 +140,7 @@ export async function verifyChecksumEntries(
   filePath: string,
   entries: ChecksumManifestEntry[],
   knownHashes: Partial<Record<ChecksumAlgorithm, string>> = {},
+  signal?: AbortSignal,
 ): Promise<ExternalChecksumVerification[]> {
   const resolvedFile = path.resolve(filePath);
   const relevant = entries.filter(
@@ -152,6 +154,7 @@ export async function verifyChecksumEntries(
   const calculated = await hashFile(
     filePath,
     missingAlgorithms,
+    signal,
   );
   return relevant.map((entry) => {
     const actual =

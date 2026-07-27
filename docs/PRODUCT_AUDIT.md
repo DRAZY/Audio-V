@@ -52,7 +52,7 @@ Status meanings:
 - **Planned** — specified and prioritized, but not implemented.
 - **Excluded** — intentionally outside the core product.
 
-| Capability | User value | v0.4.7 source status | Disposition |
+| Capability | User value | v0.4.8 source status | Disposition |
 | --- | --- | --- | --- |
 | File and folder ingest | Analyze one track or a full library | Implemented | Current |
 | Recursive bounded discovery | Avoid freezing on large trees | Implemented | Current |
@@ -72,7 +72,7 @@ Status meanings:
 | Adjustable analysis settings | Reproducible visual evidence | Implemented | Current |
 | Effective-bandwidth estimate | Support upsample/transcode review | Implemented as conservative heuristic evidence | Current |
 | Evidence-backed verdict | Explain facts versus heuristics | Implemented with scoped Clear, Review, Failed, and Analysis error outcomes | Current |
-| Batch queue, pause, resume, cancel | Library-scale workflow | Implemented with crash-safe in-flight checkpoints and conservative recovery limits | Current |
+| Batch queue, pause, resume, cancel | Library-scale workflow | Implemented with crash-safe checkpoints, immediate cancel acknowledgement, hard worker recycling, and conservative recovery limits | Current |
 | Saved cache and sessions | Resume audits and avoid repeated work | Implemented with SQLite persistence, startup interruption recovery, and suspect-file isolation | Current |
 | PDF/XLSX/DOCX/CSV/JSON reports | Share and automate results | Implemented from a shared evidence model | Current |
 | File/edition comparison | Distinguish masters and encodes | Implemented with independent loading and full-overlap multichannel null testing | Current |
@@ -125,7 +125,7 @@ The Oracle Engine must be an independent, versioned worker rather than renderer 
 - True-peak remediation derives its gain from the current authoritative Oracle record rather than accepting a renderer-supplied measurement.
 - Renderer navigation, permission requests, and content loading use default-deny policies.
 - Spectrogram power and waveform envelopes are channel-safe and no longer erase opposite-polarity stereo material.
-- Audit history can reopen persisted evidence. At startup, orphaned running sessions become explicit interrupted checkpoints; the last source label is restored, safe resume avoids preloading the large partial result set, completed cache records are reused, and only files active when the prior process ended are quarantined as analysis errors for separate inspection. Active queues can pause after current jobs finish, and failed records can be retried.
+- Audit history can reopen persisted evidence. At startup, orphaned running sessions become explicit interrupted checkpoints; the last source label is restored, safe resume avoids preloading the large partial result set, completed cache records are reused, and only files active when the prior process ended are quarantined as analysis errors for separate inspection. Active queues can pause after current jobs finish. Cancellation rejects active work immediately, interrupts discovery/checksum/finalization stages, gives native decoders a cooperative shutdown window, then recycles any analysis worker blocked in synchronous computation. Completed records remain checkpointed, and failed records can be retried.
 - The legacy 300-entry JSON cache migrates once into the unbounded SQLite Oracle cache, keyed by file size, modification time, and Oracle engine version.
 - Compare now runs a separate decoded-signal worker that measures offset, gain, polarity, correlation, residual energy, and relationship.
 - Spectrum analysis now stores a selectable 512-point overview and 2,048-point detail tier.
@@ -289,6 +289,6 @@ No build may be called a beta until:
 - Compare renders bounded full-track waveform envelopes, paired measured spectrograms, and a normalized B-minus-A spectral heatmap alongside identity, format, loudness, clipping, bandwidth, stereo, and checksum values; no playback surface was introduced.
 - Audit and per-file evidence export to PDF, XLSX, DOCX, CSV, or JSON from a shared 40+ column evidence model. Production dependencies remain free of known audit advisories.
 - The desktop typography floor is 11px for utility labels and 12–14px for working text, with larger rows, controls, and analysis panels.
-- The 94-test regression suite covers discovery, malformed metadata, PCM math, internal WAVE decoding, spectral-bin detection, multi-codec full decoding, FLAC audio-MD5 mismatch, loudness/true peak, continuity, packet-rate behavior, fidelity controls, persistent fingerprint management, cue programme/pregap segments, calculated ReplayGain eligibility, explicit comparison channel mapping, resource enforcement, cache invalidation, process cancellation, source-preserving repair output, attached-artwork retention, source preservation, truncation, and verdict truthfulness.
+- The 110-test regression suite covers discovery, malformed metadata, PCM math, internal WAVE decoding, spectral-bin detection, multi-codec full decoding, FLAC audio-MD5 mismatch, loudness/true peak, continuity, packet-rate behavior, fidelity controls, persistent fingerprint management, cue programme/pregap segments, calculated ReplayGain eligibility, explicit comparison channel mapping, resource enforcement, cache invalidation, prompt cancellation of blocked workers, process cancellation, source-preserving repair output, attached-artwork retention, source preservation, truncation, and verdict truthfulness.
 - Production dependencies pass `npm audit --omit=dev`; remaining advisories are confined to the upstream packaging toolchain.
 - Release packages contain third-party notices and a machine-readable engine capability manifest.

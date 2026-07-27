@@ -42,6 +42,7 @@ const diagnosticsMessage = ref(
 const validationStatus = ref<OracleValidationStatus | null>(null);
 const isDiscovering = ref(false);
 const isScanPaused = ref(false);
+const isScanCancelling = ref(false);
 const historyOpen = ref(false);
 const recentSessions = ref<AuditSessionSummary[]>([]);
 const fingerprintLibrary = ref<FingerprintLibraryEntry[]>([]);
@@ -135,6 +136,9 @@ const scanProgressSweep = computed(
 );
 const scanProgressTitle = computed(() => {
   const progress = scanProgress.value;
+  if (isScanCancelling.value) {
+    return `Cancelling · ${progress?.completed.toLocaleString() ?? 0} completed results preserved`;
+  }
   if (!progress?.total) return "Discovering audio files";
   const action =
     scanMode.value === "metadata-inventory" ? "Inventorying" : "Analyzing";
@@ -825,6 +829,18 @@ let removeScanProgressListener: (() => void) | null = null;
 let progressFrame: number | null = null;
 let queuedProgressFiles: AudioFileRecord[] = [];
 
+function flushQueuedProgressFiles(): void {
+  if (progressFrame !== null) {
+    cancelAnimationFrame(progressFrame);
+    progressFrame = null;
+  }
+  if (queuedProgressFiles.length === 0) return;
+  const merged = new Map(files.value.map((entry) => [entry.id, entry]));
+  for (const entry of queuedProgressFiles) merged.set(entry.id, entry);
+  queuedProgressFiles = [];
+  files.value = [...merged.values()];
+}
+
 function queueProgressFile(file: AudioFileRecord): void {
   queuedProgressFiles.push(file);
   if (progressFrame !== null) return;
@@ -914,6 +930,7 @@ onMounted(() => {
         queueProgressFile(progress.file);
         if (!selectedId.value) selectedId.value = progress.file.id;
       }
+      if (isScanCancelling.value) return;
       if (progress.phase === "discovered") {
         scanMessage.value =
           scanMode.value === "metadata-inventory"
@@ -1028,6 +1045,7 @@ async function scanSource(source: AudioSourceSelection): Promise<void> {
     fromCache: false,
   };
   isScanPaused.value = false;
+  isScanCancelling.value = false;
   sourceWarnings.value = [];
   files.value = [];
   activeSessionId.value = "";
@@ -1078,16 +1096,21 @@ async function scanSource(source: AudioSourceSelection): Promise<void> {
     await refreshAuditSessions();
     await hydrateSelectedSessionFile();
   } catch (error) {
-    sourceWarnings.value = [
-      error instanceof Error
-        ? error.message
-        : "The selected source could not be scanned.",
-    ];
-    scanMessage.value =
+    flushQueuedProgressFiles();
+    const message =
       error instanceof Error ? error.message : "The selected source could not be scanned.";
+    if (isScanCancelling.value && /cancel(?:ed|led)/i.test(message)) {
+      sourceWarnings.value = [];
+      scanMessage.value =
+        `Audit canceled cleanly · ${files.value.length.toLocaleString()} completed result${files.value.length === 1 ? "" : "s"} preserved in History`;
+    } else {
+      sourceWarnings.value = [message];
+      scanMessage.value = message;
+    }
   } finally {
     isDiscovering.value = false;
     isScanPaused.value = false;
+    isScanCancelling.value = false;
     await refreshAuditSessions();
   }
 }
@@ -1226,7 +1249,7 @@ async function resumeAuditSession(session: AuditSessionSummary): Promise<void> {
 }
 
 async function toggleScanPause(): Promise<void> {
-  if (!window.audioV || !isDiscovering.value) return;
+  if (!window.audioV || !isDiscovering.value || isScanCancelling.value) return;
   const changed = isScanPaused.value
     ? await window.audioV.resumeScan()
     : await window.audioV.pauseScan();
@@ -1290,9 +1313,16 @@ function swapComparison(): void {
 }
 
 async function cancelScan(): Promise<void> {
-  if (!window.audioV || !isDiscovering.value) return;
-  scanMessage.value = "Canceling active decoders and preserving completed results…";
-  await window.audioV.cancelScan();
+  if (!window.audioV || !isDiscovering.value || isScanCancelling.value) return;
+  isScanCancelling.value = true;
+  isScanPaused.value = false;
+  scanMessage.value =
+    "Cancelling active decoders now · preserving completed results and resumable history…";
+  const accepted = await window.audioV.cancelScan();
+  if (!accepted) {
+    isScanCancelling.value = false;
+    scanMessage.value = "The audit had already stopped.";
+  }
 }
 
 async function analyzeSelected(): Promise<void> {
@@ -1944,16 +1974,20 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
           <button
             v-if="isDiscovering"
             class="secondary-action"
+            :disabled="isScanCancelling"
             @click="toggleScanPause"
           >
-            {{ isScanPaused ? "Resume" : "Pause" }}
+            {{ isScanCancelling ? "Stopping…" : isScanPaused ? "Resume" : "Pause" }}
           </button>
           <button
             class="primary-action"
+            :class="{ cancelling: isScanCancelling }"
+            :disabled="isScanCancelling"
+            :aria-busy="isScanCancelling"
             @click="isDiscovering ? cancelScan() : chooseSource('folder')"
           >
-            {{ isDiscovering ? "Cancel audit" : "Choose folder" }}
-            <span>›</span>
+            {{ isScanCancelling ? "Cancelling…" : isDiscovering ? "Cancel audit" : "Choose folder" }}
+            <span>{{ isScanCancelling ? "■" : "›" }}</span>
           </button>
         </div>
       </header>
@@ -2005,7 +2039,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
       <section class="overview">
         <div
           class="verdict-ring"
-          :class="{ scanning: isDiscovering }"
+          :class="{ scanning: isDiscovering, cancelling: isScanCancelling }"
           :style="{ '--sweep': isDiscovering ? scanProgressSweep : files.length ? '360deg' : '0deg' }"
           :role="isDiscovering ? 'progressbar' : undefined"
           :aria-label="isDiscovering ? scanProgressTitle : undefined"
@@ -2045,7 +2079,11 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
             </div>
             <span aria-hidden="true"><i :style="{ width: `${scanProgressPercent}%` }"></i></span>
             <small :title="scanProgress?.currentFile ?? undefined">
-              {{ scanProgress?.currentFile ?? "Reading the selected source…" }}
+              {{
+                isScanCancelling
+                  ? "Stopping active work and checkpointing completed files…"
+                  : scanProgress?.currentFile ?? "Reading the selected source…"
+              }}
             </small>
           </div>
         </div>

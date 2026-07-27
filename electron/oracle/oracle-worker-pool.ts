@@ -19,7 +19,10 @@ interface QueuedJob {
 interface WorkerSlot {
   worker: Worker;
   activeJob: QueuedJob | null;
+  recycling: boolean;
 }
+
+const cancellationGraceMs = 500;
 
 export class OracleWorkerPool {
   readonly #workerPath: string;
@@ -76,11 +79,16 @@ export class OracleWorkerPool {
             (candidate) => candidate.activeJob === job,
           );
           if (slot) {
+            slot.activeJob = null;
+            slot.recycling = true;
+            signal?.removeEventListener("abort", job.abort);
+            reject(new Error("Audio analysis canceled."));
             const request: OracleWorkerRequest = {
               type: "cancel",
               jobId: job.id,
             };
             slot.worker.postMessage(request);
+            void this.#recycleCanceledWorker(slot);
           }
         },
       };
@@ -123,6 +131,7 @@ export class OracleWorkerPool {
         },
       }),
       activeJob: null,
+      recycling: false,
     };
     slot.worker.on("message", (response: OracleWorkerResponse) => {
       const job = slot.activeJob;
@@ -168,10 +177,22 @@ export class OracleWorkerPool {
     }
   }
 
+  async #recycleCanceledWorker(slot: WorkerSlot): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, cancellationGraceMs));
+    const slotIndex = this.#slots.indexOf(slot);
+    if (slotIndex < 0 || this.#closed) return;
+    await slot.worker.terminate();
+    if (this.#closed) return;
+    const currentIndex = this.#slots.indexOf(slot);
+    if (currentIndex < 0) return;
+    this.#slots[currentIndex] = this.#createSlot();
+    this.#dispatch();
+  }
+
   #dispatch(): void {
     if (this.#closed) return;
     for (const slot of this.#slots) {
-      if (slot.activeJob) continue;
+      if (slot.activeJob || slot.recycling) continue;
       while (!slot.activeJob && this.#queue.length > 0) {
         const job = this.#queue.shift();
         if (!job) break;
