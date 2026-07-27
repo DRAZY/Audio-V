@@ -146,6 +146,9 @@ function isSourceSelection(value: unknown): value is AudioSourceSelection {
   return (
     (source.kind === "files" || source.kind === "folder") &&
     typeof source.label === "string" &&
+    (source.mode === undefined ||
+      source.mode === "full-audit" ||
+      source.mode === "metadata-inventory") &&
     Array.isArray(source.paths) &&
     source.paths.length > 0 &&
     source.paths.every((entry) => typeof entry === "string")
@@ -369,17 +372,21 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
   if (!approved) {
     throw new Error("Select these files through Audio-V before scanning them.");
   }
+  const source: AudioSourceSelection = {
+    ...approved,
+    mode: requestedSource.mode ?? "full-audit",
+  };
   activeScanController?.abort();
   const controller = new AbortController();
   const pauseGate = new ScanPauseGate();
   activeScanController = controller;
   activeScanPause = pauseGate;
-  const sessionId = await auditSessions.create(approved);
+  const sessionId = await auditSessions.create(source);
   const persistence = new SessionPersistenceBuffer(auditSessions, sessionId);
   let sessionWarnings: string[] = [];
   try {
     const result = await scanSources(
-      approved,
+      source,
       (progress) => {
         if (progress.file) {
           const normalizedPath = path.resolve(progress.file.path);

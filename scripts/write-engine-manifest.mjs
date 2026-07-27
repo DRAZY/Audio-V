@@ -24,7 +24,7 @@ const manifest = {
   projectLicense: packageJson.license,
   sourceRevision,
   oracleEngine: {
-    version: "0.3.0-oracle-v5",
+    version: "0.4.0-oracle-v6",
     schemaVersion: 1,
     decoderBundled: "FFmpeg-and-ffprobe-8.1.2-LGPL",
     capabilities: {
@@ -51,7 +51,7 @@ const manifest = {
       fidelityGoldenCorpus: "implemented-regression-only-not-probability-calibrated",
       persistentCache: "implemented-versioned-size-mtime-invalidated",
       batchCancellation: "implemented-active-process-termination",
-      scopedVerdictRules: "implemented-for-oracle-integrity-fidelity-v5",
+      scopedVerdictRules: "implemented-for-oracle-integrity-fidelity-v6",
       compareWorkflow:
         "implemented-independent-files-waveforms-spectra-and-difference-heatmap",
       repairTriage: "implemented-actions-evidence-reveal-acknowledge",

@@ -15,7 +15,10 @@ Verdicts have deliberately limited scope:
 - **Clear** — complete decoding and current deterministic/measured rules passed.
 - **Review** — decoding completed but a measured or heuristic finding deserves inspection.
 - **Failed** — deterministic decode or integrity evidence failed.
-- **Metadata only** — decoded-signal analysis was unavailable.
+
+**Not analyzed** is not a verdict. Select **Metadata inventory** as the run mode to catalog declared format, codec, duration, bitrate, sample rate, bit depth, and channels without decoding the signal. Run a **Full Oracle audit** when you want integrity, loudness, spectrogram, continuity, and origin evidence.
+
+An **Analysis error** means a tool, resource, probe, measurement, or internal processing stage did not finish. Audio-V shows the failure stage, code, and exact diagnostic evidence and does not call the source damaged. Retry the analysis after reviewing that evidence.
 
 Select a row to inspect its measured spectrogram, loudness, technical profile, evidence chain, Origin Assessment, and Oracle verdict. A Clear result does not prove provenance.
 

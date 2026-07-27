@@ -30,7 +30,7 @@ describe("analyzeAudioFile", () => {
 
     expect(result.verdict).toBe("verified");
     expect(result.confidence).toBe(100);
-    expect(result.scope).toBe("oracle-integrity-fidelity-v5");
+    expect(result.scope).toBe("oracle-integrity-fidelity-v6");
     expect(result.headline).toBe("Current checks passed");
     expect(result.measurements?.frames).toBe(11_025);
     expect(result.evidence[0].kind).toBe("deterministic");
@@ -62,6 +62,12 @@ describe("analyzeAudioFile", () => {
     const result = await analyzeAudioFile(filePath);
 
     expect(result.verdict).toBe("damaged");
+    expect(result.analysisState).toBe("failed");
+    expect(result.failure).toMatchObject({
+      category: "file-integrity",
+      stage: "full-decode",
+      code: "DECODE_INTEGRITY_FAILED",
+    });
     expect(result.confidence).toBe(100);
     expect(result.measurements).toBeNull();
     expect(result.evidence[0].disposition).toBe("contradicts");
@@ -73,6 +79,7 @@ describe("analyzeAudioFile", () => {
     const result = await analyzeAudioFile(filePath);
 
     expect(result.verdict).toBe("damaged");
+    expect(result.analysisState).toBe("failed");
     expect(result.measurements).toBeNull();
     expect(result.headline).toBe("Audio stream integrity failed");
   });

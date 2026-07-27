@@ -1,8 +1,9 @@
 import type { OracleResult } from "../../shared/contracts";
 import { analyzeWithFfmpeg } from "./ffmpeg-analyzer";
 import { assessFidelityOrigin } from "./fidelity-assessment";
+import { classifyOracleFailure } from "./analysis-failure";
 
-export const engineVersion = "0.3.0-oracle-v5";
+export const engineVersion = "0.4.0-oracle-v6";
 
 export async function analyzeAudioFile(
   filePath: string,
@@ -78,8 +79,19 @@ export async function analyzeAudioFile(
     return {
       schemaVersion: 1,
       engineVersion,
-      scope: "oracle-integrity-fidelity-v5",
+      scope: "oracle-integrity-fidelity-v6",
       verdict,
+      analysisState: flacMd5Mismatch ? "failed" : "completed",
+      failure: flacMd5Mismatch
+        ? {
+            category: "file-integrity",
+            stage: "integrity-verification",
+            code: "FLAC_STREAMINFO_MD5_MISMATCH",
+            summary:
+              "The decoded FLAC audio does not match its stored STREAMINFO MD5.",
+            evidence: `Stored ${technical.flacMd5?.storedMd5}; calculated ${technical.flacMd5?.calculatedMd5}.`,
+          }
+        : null,
       confidence:
         flacMd5Mismatch
           ? 100
@@ -213,24 +225,31 @@ export async function analyzeAudioFile(
     };
   } catch (error) {
     if (signal?.aborted) throw error;
-    const summary =
-      error instanceof Error ? error.message : "The complete audio decode failed.";
+    const failure = classifyOracleFailure(error);
+    const integrityFailure = failure.category === "file-integrity";
     return {
       schemaVersion: 1,
       engineVersion,
-      scope: "oracle-integrity-fidelity-v5",
-      verdict: "damaged",
-      confidence: 100,
-      headline: "Audio stream integrity failed",
-      interpretation:
-        "The selected audio stream could not be decoded completely. This is a deterministic decode-integrity failure, not a spectral quality estimate.",
+      scope: "oracle-integrity-fidelity-v6",
+      verdict: integrityFailure ? "damaged" : "inconclusive",
+      analysisState: integrityFailure ? "failed" : "error",
+      failure,
+      confidence: integrityFailure ? 100 : null,
+      headline: integrityFailure
+        ? "Audio stream integrity failed"
+        : "Analysis could not be completed",
+      interpretation: integrityFailure
+        ? "The selected audio stream could not be decoded completely, and the decoder supplied deterministic corruption evidence against the file itself."
+        : "Audio-V encountered a tool, resource, or internal processing error. The file has not been classified as damaged; retry the analysis and review the failure stage and diagnostic evidence.",
       evidence: [
         {
-          id: "full-decode",
-          label: "Complete stream decode",
-          summary,
-          kind: "deterministic",
-          disposition: "contradicts",
+          id: integrityFailure ? "full-decode" : "analysis-diagnostic",
+          label: integrityFailure
+            ? "Complete stream decode"
+            : "Analysis diagnostic",
+          summary: failure.evidence,
+          kind: integrityFailure ? "deterministic" : "measured",
+          disposition: integrityFailure ? "contradicts" : "neutral",
         },
       ],
       measurements: null,

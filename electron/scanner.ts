@@ -10,7 +10,10 @@ import {
   type ScanProgressUpdate,
   type ScanSelectionResult,
 } from "../shared/contracts";
-import { analyzeAudioFile } from "./oracle/oracle-engine";
+import {
+  analyzeAudioFile,
+  engineVersion as currentOracleEngineVersion,
+} from "./oracle/oracle-engine";
 import {
   audioCodecLabel,
   audioFormatLabel,
@@ -48,17 +51,25 @@ function normalizeAudioRecordFormat(file: AudioFileRecord): AudioFileRecord {
   return { ...file, extension, codec, container };
 }
 
-function metadataOnlyOracleResult(scanError: string | null): OracleResult {
+function notAnalyzedOracleResult(scanError: string | null): OracleResult {
   if (scanError) {
     return {
       schemaVersion: 1,
-      engineVersion: "0.1.0",
+      engineVersion: "metadata-inventory-v1",
       scope: "metadata-only",
       verdict: "inconclusive",
+      analysisState: "error",
+      failure: {
+        category: "analysis-error",
+        stage: "metadata-probe",
+        code: "METADATA_PROBE_ERROR",
+        summary: "Audio-V could not complete the metadata inventory for this file.",
+        evidence: scanError,
+      },
       confidence: null,
-      headline: "Metadata unavailable",
+      headline: "Metadata inventory error",
       interpretation:
-        "The metadata probe could not parse this file. That is not proof of stream damage; a full decode test has not run yet.",
+        "The metadata reader could not inventory this file. That is not evidence of audio damage, and the Oracle Engine has not analyzed its decoded signal.",
       evidence: [
         {
           id: "metadata-read",
@@ -77,13 +88,15 @@ function metadataOnlyOracleResult(scanError: string | null): OracleResult {
 
   return {
     schemaVersion: 1,
-    engineVersion: "0.1.0",
+    engineVersion: "metadata-inventory-v1",
     scope: "metadata-only",
     verdict: "inconclusive",
+    analysisState: "not-analyzed",
+    failure: null,
     confidence: null,
-    headline: "Metadata inspection complete",
+    headline: "Metadata inventoried · not analyzed",
     interpretation:
-      "Technical metadata was discovered successfully. This file's codec is not decoded by the current engine, so Audio-V has not made a signal-integrity or fidelity claim.",
+      "Container and stream metadata were inventoried without decoding the audio. No integrity, signal-quality, spectral-origin, or fidelity verdict has been issued.",
     evidence: [
       {
         id: "metadata-read",
@@ -285,7 +298,7 @@ export async function inspectAudioFile(filePath: string): Promise<AudioFileRecor
       channelMode: null,
       bitrateMode: null,
       scanError,
-      oracle: metadataOnlyOracleResult(scanError),
+      oracle: notAnalyzedOracleResult(scanError),
     };
   } catch (error) {
     scanError = error instanceof Error ? error.message : "Unknown parsing error";
@@ -309,7 +322,7 @@ export async function inspectAudioFile(filePath: string): Promise<AudioFileRecor
       channelMode: null,
       bitrateMode: null,
       scanError,
-      oracle: metadataOnlyOracleResult(scanError),
+      oracle: notAnalyzedOracleResult(scanError),
     };
   }
 }
@@ -340,6 +353,7 @@ export async function scanSources(
   const warnings: string[] = [];
   const discovered: string[] = [];
   const checksumManifests = new Set<string>();
+  const inventoryOnly = source.mode === "metadata-inventory";
 
   for (const selectedPath of source.paths) {
     try {
@@ -381,7 +395,7 @@ export async function scanSources(
     filePaths.length,
   );
   const checksumEntries = await loadChecksumEntries(
-    checksumManifests,
+    inventoryOnly ? new Set<string>() : checksumManifests,
     warnings,
   );
   const checksumEntriesByPath = new Map<string, ChecksumManifestEntry[]>();
@@ -410,8 +424,14 @@ export async function scanSources(
   const analyzeAtIndex = async (index: number): Promise<void> => {
     const filePath = filePaths[index];
     const analyzed = await (async () => {
-        const cached = await options?.cache?.get(filePath);
-        if (cached) {
+        const cached = inventoryOnly
+          ? null
+          : await options?.cache?.get(filePath);
+        if (
+          cached &&
+          cached.oracle.engineVersion === currentOracleEngineVersion &&
+          cached.oracle.analysisState !== "not-analyzed"
+        ) {
           return {
             file: await attachExternalChecksumEvidence(
               normalizeAudioRecordFormat(cached),
@@ -421,6 +441,12 @@ export async function scanSources(
           };
         }
         const inspected = await inspectAudioFile(filePath);
+        if (inventoryOnly) {
+          return {
+            file: normalizeAudioRecordFormat(inspected),
+            fromCache: false,
+          };
+        }
         const oracle = await (options?.analyzeFile ?? analyzeAudioFile)(
           inspected.path,
           options?.signal,
@@ -455,7 +481,7 @@ export async function scanSources(
       completed += 1;
       await options?.onFileStored?.(file, index, fromCache);
       onProgress?.({
-        phase: "analyzing",
+        phase: inventoryOnly ? "inventorying" : "analyzing",
         completed,
         total: filePaths.length,
         currentFile: file.name,
@@ -491,7 +517,9 @@ export async function scanSources(
     scannedAt: new Date().toISOString(),
     files,
     unreadableCount: files.filter(
-      (file) => file.oracle.verdict === "damaged",
+      (file) =>
+        file.oracle.analysisState === "failed" ||
+        file.oracle.verdict === "damaged",
     ).length,
     warnings,
   };

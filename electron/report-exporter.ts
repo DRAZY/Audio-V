@@ -77,12 +77,26 @@ export function audioFileReportRow(file: AudioFileRecord): ReportRow {
             `${item.algorithm.toUpperCase()}:${item.status}:${item.expected}`,
         )
         .join(" | ") ?? "";
+    const analysisState =
+      file.oracle.analysisState ??
+      (file.oracle.verdict === "damaged"
+        ? "failed"
+        : file.oracle.measurements
+          ? "completed"
+          : file.oracle.scope === "metadata-only"
+            ? "not-analyzed"
+            : "error");
     return {
       File: file.name,
       Path: file.path,
       Verdict: file.oracle.verdict,
       "Oracle headline": file.oracle.headline,
       "Oracle confidence": display(file.oracle.confidence),
+      "Analysis state": analysisState,
+      "Failure category": display(file.oracle.failure?.category),
+      "Failure stage": display(file.oracle.failure?.stage),
+      "Failure code": display(file.oracle.failure?.code),
+      "Failure evidence": display(file.oracle.failure?.evidence),
       Format: audioFormatLabel(file),
       Codec: file.codec,
       Container: file.container,
@@ -94,7 +108,14 @@ export function audioFileReportRow(file: AudioFileRecord): ReportRow {
       "Channel layout": display(file.channelMode),
       "Bitrate mode": display(file.bitrateMode),
       "Duration seconds": display(signal?.durationSeconds ?? file.durationSeconds),
-      "Complete decode": signal ? "yes" : "no",
+      "Complete decode":
+        signal
+          ? "yes"
+          : analysisState === "not-analyzed"
+            ? "not run"
+            : analysisState === "error"
+              ? "analysis error"
+              : "failed integrity",
       "File SHA-256": display(technical?.fileSha256),
       "External checksums": checksumStatus,
       "FLAC audio MD5": display(technical?.flacMd5?.status),

@@ -10,6 +10,7 @@ import { SpectrogramAccumulator } from "./spectrogram";
 import { WaveformEnvelopeAccumulator } from "./waveform-envelope";
 import { verifyFlacMd5 } from "./flac-integrity";
 import { audioCodecLabel } from "../../shared/audio-format";
+import { atOracleStage } from "./analysis-failure";
 
 interface ProbeStream {
   codec_name?: string;
@@ -204,8 +205,14 @@ export async function analyzeWithFfmpeg(
   measurements: SignalMeasurements;
   technical: StreamTechnicalAnalysis;
 }> {
-  const { technical } = await probe(filePath, signal);
-  await packetStatistics(filePath, technical, signal);
+  const { technical } = await atOracleStage(
+    "stream-probe",
+    () => probe(filePath, signal),
+  );
+  await atOracleStage(
+    "stream-probe",
+    () => packetStatistics(filePath, technical, signal),
+  );
   const totalFrames = Math.max(
     1,
     Math.round((technical.durationSeconds ?? 1) * technical.sampleRate),
@@ -232,9 +239,10 @@ export async function analyzeWithFfmpeg(
   );
   let carry: Buffer<ArrayBufferLike> = Buffer.alloc(0);
 
-  await runEngine(
-    "ffmpeg",
-    [
+  await atOracleStage("full-decode", async () => {
+    await runEngine(
+      "ffmpeg",
+      [
       "-nostdin",
       "-hide_banner",
       "-nostats",
@@ -255,43 +263,52 @@ export async function analyzeWithFfmpeg(
       "-acodec",
       "pcm_f64le",
       "pipe:1",
-    ],
-    (chunk) => {
-      const combined = carry.length ? Buffer.concat([carry, chunk]) : chunk;
-      const frameBytes = technical.channels * 8;
-      const completeLength = combined.length - (combined.length % frameBytes);
-      const samples = new Float64Array(completeLength / 8);
-      for (let offset = 0; offset < completeLength; offset += 8) {
-        samples[offset / 8] = combined.readDoubleLE(offset);
-      }
-      measurement.pushInterleaved(samples);
-      spectrogram.pushInterleaved(samples);
-      detailSpectrogram.pushInterleaved(samples);
-      waveform.pushInterleaved(samples);
-      carry = combined.subarray(completeLength);
-    },
-    signal,
-  );
-  if (carry.length) throw new Error("Decoded PCM ended with an incomplete frame.");
+      ],
+      (chunk) => {
+        const combined = carry.length ? Buffer.concat([carry, chunk]) : chunk;
+        const frameBytes = technical.channels * 8;
+        const completeLength = combined.length - (combined.length % frameBytes);
+        const samples = new Float64Array(completeLength / 8);
+        for (let offset = 0; offset < completeLength; offset += 8) {
+          samples[offset / 8] = combined.readDoubleLE(offset);
+        }
+        measurement.pushInterleaved(samples);
+        spectrogram.pushInterleaved(samples);
+        detailSpectrogram.pushInterleaved(samples);
+        waveform.pushInterleaved(samples);
+        carry = combined.subarray(completeLength);
+      },
+      signal,
+    );
+    if (carry.length) {
+      throw new Error("Decoded PCM ended with an incomplete frame.");
+    }
+  });
 
-  const loudnessResult = await runEngine("ffmpeg", [
-    "-nostdin",
-    "-hide_banner",
-    "-nostats",
-    "-v",
-    "info",
-    "-i",
-    filePath,
-    "-map",
-    "0:a:0",
-    "-af",
-    "ebur128=peak=true:framelog=quiet",
-    "-f",
-    "null",
-    "-",
-  ], undefined, signal);
+  const loudnessResult = await atOracleStage(
+    "signal-measurement",
+    () => runEngine("ffmpeg", [
+      "-nostdin",
+      "-hide_banner",
+      "-nostats",
+      "-v",
+      "info",
+      "-i",
+      filePath,
+      "-map",
+      "0:a:0",
+      "-af",
+      "ebur128=peak=true:framelog=quiet",
+      "-f",
+      "null",
+      "-",
+    ], undefined, signal),
+  );
   const loudness = parseLoudness(loudnessResult.stderr);
-  technical.flacMd5 = await verifyFlacMd5(filePath, technical, signal);
+  technical.flacMd5 = await atOracleStage(
+    "integrity-verification",
+    () => verifyFlacMd5(filePath, technical, signal),
+  );
   const peakToLoudnessRatioLu =
     loudness.truePeakDbtp === null || loudness.integratedLufs === null
       ? null

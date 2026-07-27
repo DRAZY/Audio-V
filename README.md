@@ -72,8 +72,9 @@ Heuristic rule strength is not a probability of provenance. Audio-V separately r
 |---|---|
 | **Clear** | The entire selected stream decoded and passed the current deterministic and measured rules. This does not certify provenance. |
 | **Review** | Decoding completed, but a measured finding, checksum discrepancy, or heuristic pattern deserves human inspection. Review does not automatically mean damage or require repair. |
-| **Failed** | Deterministic stream-integrity evidence failed, such as a fatal full-decode error or FLAC decoded-audio MD5 mismatch. |
-| **Metadata only** | Decoded-signal measurements were unavailable, so no integrity or fidelity verdict was issued. |
+| **Failed** | Deterministic evidence exists against the file itself, such as decoder-reported stream corruption or a FLAC decoded-audio MD5 mismatch. |
+
+**Not analyzed** is a workflow state, not a verdict. It means Metadata Inventory cataloged declared technical properties without decoding the signal or invoking Oracle. **Analysis error** is also separate from Failed: Audio-V shows the failed processing stage and exact diagnostic evidence, issues no file-integrity verdict, and offers a retry.
 
 Findings such as clipping, positive true peak, digital-silence dropout candidates, near/dual mono, unusual channel correlation, and possible spectral transformation route to **Review** rather than being mislabeled as proven corruption.
 
@@ -82,6 +83,7 @@ Findings such as clipping, positive true peak, digital-silence dropout candidate
 ### Audit files and complete libraries
 
 - Choose individual files, multi-select, or recursively scan folders
+- Run a fast **Metadata Inventory** that catalogs declared format, codec, duration, bitrate, sample rate, bit depth, and channels while leaving every file explicitly **Not analyzed**
 - Process work concurrently with pause, cancellation, saved sessions, and cache reuse
 - Normalize codec/container labels and expose sample rate, bit depth, channel layout, bitrate, profile, duration, and encoder information
 - Calculate SHA-256 identity and verify adjacent or folder-level MD5, SHA-1, SHA-256, and SHA-512 manifests

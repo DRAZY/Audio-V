@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import type {
+  AnalysisMode,
   AudioFileRecord,
   AudioSourceSelection,
   AuditSessionSummary,
@@ -32,7 +33,10 @@ const historyOpen = ref(false);
 const recentSessions = ref<AuditSessionSummary[]>([]);
 const loadingSessionId = ref("");
 const isAnalyzing = ref(false);
-const filter = ref<"all" | "clear" | "review" | "metadata" | "failed">("all");
+const scanMode = ref<AnalysisMode>("full-audit");
+const filter = ref<
+  "all" | "clear" | "review" | "not-analyzed" | "error" | "failed"
+>("all");
 const compareAId = ref("");
 const compareBId = ref("");
 const comparisonFiles = ref<AudioFileRecord[]>([]);
@@ -86,10 +90,19 @@ const visibleFiles = computed(() => {
       ["review", "likely-transcode", "likely-upsample"].includes(file.oracle.verdict),
     );
   }
-  if (filter.value === "metadata") {
-    return files.value.filter((file) => file.oracle.scope === "metadata-only");
+  if (filter.value === "not-analyzed") {
+    return files.value.filter(
+      (file) => oracleAnalysisState(file) === "not-analyzed",
+    );
   }
-  return files.value.filter((file) => file.oracle.verdict === "damaged");
+  if (filter.value === "error") {
+    return files.value.filter(
+      (file) => oracleAnalysisState(file) === "error",
+    );
+  }
+  return files.value.filter(
+    (file) => oracleAnalysisState(file) === "failed",
+  );
 });
 const virtualWindow = computed(() => {
   const window = createVirtualWindow(
@@ -150,7 +163,11 @@ const comparisonSummary = computed(() => {
   };
 });
 const attentionItems = computed(() =>
-  files.value.filter((file) => ["review", "damaged"].includes(file.oracle.verdict)),
+  files.value.filter(
+    (file) =>
+      ["review", "damaged"].includes(file.oracle.verdict) ||
+      oracleAnalysisState(file) === "error",
+  ),
 );
 const reportSelected = computed(() =>
   files.value.find((file) => file.id === reportSelectedId.value),
@@ -161,16 +178,26 @@ const counts = computed(() => {
     ["verified", "authentic"].includes(file.oracle.verdict),
   ).length;
   const failed = files.value.filter(
-    (file) => file.oracle.verdict === "damaged",
+    (file) => oracleAnalysisState(file) === "failed",
   ).length;
-  const metadataOnly = files.value.filter(
-    (file) => file.oracle.scope === "metadata-only",
+  const notAnalyzed = files.value.filter(
+    (file) => oracleAnalysisState(file) === "not-analyzed",
+  ).length;
+  const analysisErrors = files.value.filter(
+    (file) => oracleAnalysisState(file) === "error",
   ).length;
   const review = files.value.filter((file) =>
     ["review", "likely-transcode", "likely-upsample"].includes(file.oracle.verdict),
   ).length;
-  return { clear, review, metadataOnly, failed };
+  return { clear, review, notAnalyzed, analysisErrors, failed };
 });
+
+function oracleAnalysisState(file: AudioFileRecord) {
+  if (file.oracle.analysisState) return file.oracle.analysisState;
+  if (file.oracle.verdict === "damaged") return "failed";
+  if (file.oracle.measurements || file.oracle.measuredAt) return "completed";
+  return file.oracle.scope === "metadata-only" ? "not-analyzed" : "error";
+}
 
 function formatDuration(seconds: number | null): string {
   if (seconds === null) return "—";
@@ -214,7 +241,17 @@ function verdictClass(verdict: OracleVerdict): string {
   return "review";
 }
 
+function fileStateClass(file: AudioFileRecord): string {
+  const state = oracleAnalysisState(file);
+  if (state === "not-analyzed") return "pending";
+  if (state === "error") return "error";
+  return verdictClass(file.oracle.verdict);
+}
+
 function shortVerdict(file: AudioFileRecord): string {
+  const state = oracleAnalysisState(file);
+  if (state === "not-analyzed") return "Not analyzed";
+  if (state === "error") return "Analysis error";
   const labels: Record<OracleVerdict, string> = {
     verified: "Clear",
     authentic: "Clear",
@@ -222,13 +259,20 @@ function shortVerdict(file: AudioFileRecord): string {
     "likely-transcode": "Likely",
     "likely-upsample": "Likely",
     damaged: "Failed",
-    inconclusive: file.oracle.measurements ? "Measured" : "Metadata only",
+    inconclusive: file.oracle.measurements ? "Measured" : "Inconclusive",
   };
   return labels[file.oracle.verdict];
 }
 
 function oracleConfidenceDescription(file: AudioFileRecord): string {
-  if (file.oracle.verdict === "damaged") {
+  const state = oracleAnalysisState(file);
+  if (state === "not-analyzed") {
+    return "Metadata inventory only · Oracle Engine has not run";
+  }
+  if (state === "error") {
+    return `No verdict issued · ${failureStageLabel(file)} error`;
+  }
+  if (state === "failed") {
     return "Deterministic integrity failure · complete evidence available";
   }
   if (
@@ -242,6 +286,23 @@ function oracleConfidenceDescription(file: AudioFileRecord): string {
     return `Deterministic checks completed · ${file.oracle.scope}`;
   }
   return "No decoded-signal classification";
+}
+
+function failureStageLabel(file: AudioFileRecord): string {
+  return (
+    file.oracle.failure?.stage
+      ?.split("-")
+      .map((part) => part[0]?.toUpperCase() + part.slice(1))
+      .join(" ") ?? "Unknown stage"
+  );
+}
+
+function decodeStatusLabel(file: AudioFileRecord): string {
+  if (file.oracle.measurements) return "Complete";
+  const state = oracleAnalysisState(file);
+  if (state === "not-analyzed") return "Not run";
+  if (state === "error") return `Error · ${failureStageLabel(file)}`;
+  return "Failed integrity";
 }
 
 function spectralColor(dbfs: number, floor: number): string {
@@ -509,7 +570,12 @@ onMounted(() => {
         if (!selectedId.value) selectedId.value = progress.file.id;
       }
       if (progress.phase === "discovered") {
-        scanMessage.value = `${progress.total.toLocaleString()} audio files discovered · starting complete decode`;
+        scanMessage.value =
+          scanMode.value === "metadata-inventory"
+            ? `${progress.total.toLocaleString()} audio files discovered · starting metadata inventory`
+            : `${progress.total.toLocaleString()} audio files discovered · starting complete decode`;
+      } else if (progress.phase === "inventorying") {
+        scanMessage.value = `${progress.completed.toLocaleString()} of ${progress.total.toLocaleString()} inventoried · ${progress.currentFile}`;
       } else if (progress.phase === "analyzing") {
         scanMessage.value = `${progress.completed.toLocaleString()} of ${progress.total.toLocaleString()} ${progress.fromCache ? "restored from verified cache" : "fully analyzed"} · ${progress.currentFile}`;
       }
@@ -574,15 +640,21 @@ async function exportDiagnostics(): Promise<void> {
 }
 
 async function scanSource(source: AudioSourceSelection): Promise<void> {
+  const mode = source.mode ?? scanMode.value;
+  scanMode.value = mode;
+  const requestedSource = { ...source, mode };
   isDiscovering.value = true;
   isScanPaused.value = false;
   files.value = [];
   selectedId.value = "";
-  scanMessage.value = "Discovering files and fully decoding every supported audio stream…";
+  scanMessage.value =
+    mode === "metadata-inventory"
+      ? "Discovering files and inventorying declared technical metadata…"
+      : "Discovering files and fully decoding every supported audio stream…";
   sourceRoot.value = source.label;
 
   try {
-    const result = await window.audioV!.scanSelection(source);
+    const result = await window.audioV!.scanSelection(requestedSource);
     if (progressFrame !== null) {
       cancelAnimationFrame(progressFrame);
       progressFrame = null;
@@ -598,9 +670,14 @@ async function scanSource(source: AudioSourceSelection): Promise<void> {
     reportSelectedId.value = result.files[0]?.id ?? "";
     activePanel.value = firstMeasured?.oracle.measurements ? "loudness" : "evidence";
     filter.value = "all";
-    const measured = result.files.filter((file) => file.oracle.measuredAt).length;
-    const metadataOnly = result.files.filter(
-      (file) => !file.oracle.measuredAt && !file.scanError,
+    const measured = result.files.filter(
+      (file) => oracleAnalysisState(file) === "completed",
+    ).length;
+    const notAnalyzed = result.files.filter(
+      (file) => oracleAnalysisState(file) === "not-analyzed",
+    ).length;
+    const analysisErrors = result.files.filter(
+      (file) => oracleAnalysisState(file) === "error",
     ).length;
     const warnings = result.warnings.length
       ? ` · ${result.warnings.length} source warning${result.warnings.length === 1 ? "" : "s"}`
@@ -608,8 +685,9 @@ async function scanSource(source: AudioSourceSelection): Promise<void> {
     scanMessage.value =
       `${result.files.length.toLocaleString()} files loaded` +
       `${measured ? ` · ${measured} analyzed` : ""}` +
-      `${metadataOnly ? ` · ${metadataOnly} metadata only` : ""}` +
-      `${result.unreadableCount ? ` · ${result.unreadableCount} unreadable` : ""}` +
+      `${notAnalyzed ? ` · ${notAnalyzed} not analyzed` : ""}` +
+      `${analysisErrors ? ` · ${analysisErrors} analysis error${analysisErrors === 1 ? "" : "s"}` : ""}` +
+      `${result.unreadableCount ? ` · ${result.unreadableCount} failed integrity` : ""}` +
       warnings;
     await refreshAuditSessions();
   } catch (error) {
@@ -632,6 +710,7 @@ async function openAuditSession(sessionId: string): Promise<void> {
   loadingSessionId.value = sessionId;
   try {
     const session = await window.audioV.openAuditSession(sessionId);
+    scanMode.value = session.source.mode ?? "full-audit";
     files.value = session.files;
     activeSessionId.value = session.id;
     sourceRoot.value = session.label;
@@ -679,7 +758,7 @@ async function chooseSource(kind: "files" | "folder"): Promise<void> {
     kind === "files"
       ? await window.audioV.selectFiles()
       : await window.audioV.selectFolder();
-  if (source) await scanSource(source);
+  if (source) await scanSource({ ...source, mode: scanMode.value });
 }
 
 async function chooseComparisonFile(slot: "a" | "b"): Promise<void> {
@@ -740,9 +819,12 @@ async function analyzeSelected(): Promise<void> {
       file.id === selected.value?.id ? { ...file, oracle } : file,
     );
     activePanel.value = oracle.measurements ? "loudness" : "evidence";
-    scanMessage.value = oracle.measurements
-      ? `Complete decode and analysis passed · ${selected.value.name}`
-      : `Decode-integrity failure · ${selected.value.name}`;
+    scanMessage.value =
+      oracle.analysisState === "failed"
+        ? `Deterministic integrity failure · ${selected.value.name}`
+        : oracle.analysisState === "error"
+          ? `Analysis error at ${failureStageLabel({ ...selected.value, oracle })} · no integrity verdict issued`
+          : `Complete decode and analysis finished · ${selected.value.name}`;
   } catch (error) {
     scanMessage.value =
       error instanceof Error ? error.message : "The complete audio analysis failed.";
@@ -754,14 +836,15 @@ async function analyzeSelected(): Promise<void> {
 async function retryFailedFiles(): Promise<void> {
   if (!window.audioV || isAnalyzing.value || isDiscovering.value) return;
   const failed = files.value.filter(
-    (file) => file.oracle.verdict === "damaged",
+    (file) =>
+      ["failed", "error"].includes(oracleAnalysisState(file)),
   );
   if (!failed.length) return;
   isAnalyzing.value = true;
   let completed = 0;
   try {
     for (const file of failed) {
-      scanMessage.value = `Retrying failed files · ${completed + 1} of ${failed.length} · ${file.name}`;
+      scanMessage.value = `Retrying incomplete or failed analyses · ${completed + 1} of ${failed.length} · ${file.name}`;
       const oracle = await window.audioV.analyzeFile(
         file.path,
         activeSessionId.value || undefined,
@@ -925,6 +1008,14 @@ function repairActionability(file: AudioFileRecord): {
   tone: "clear" | "review" | "failed";
   detail: string;
 } {
+  if (oracleAnalysisState(file) === "error") {
+    return {
+      label: "Analysis retry required",
+      tone: "review",
+      detail:
+        "No damage verdict was issued. Retry the failed analysis stage before considering remediation.",
+    };
+  }
   if (file.oracle.verdict === "damaged") {
     return {
       label: "Source replacement recommended",
@@ -965,6 +1056,9 @@ function repairActionability(file: AudioFileRecord): {
 }
 
 function repairRecommendation(file: AudioFileRecord): string {
+  if (oracleAnalysisState(file) === "error") {
+    return `Audio-V stopped at ${failureStageLabel(file)}. Review the exact diagnostic evidence, confirm the bundled engine is available, and re-run analysis; do not replace or rewrite the source based on this processing error.`;
+  }
   if (file.oracle.verdict === "damaged") {
     return "The stream failed a deterministic integrity check. Reveal the source and re-acquire it from a verified copy; rewriting damaged audio would conceal the failure without restoring missing information.";
   }
@@ -989,14 +1083,20 @@ function repairRecommendation(file: AudioFileRecord): string {
 }
 
 function isReviewFile(file: AudioFileRecord): boolean {
-  return ["review", "likely-transcode", "likely-upsample", "damaged"].includes(
-    file.oracle.verdict,
+  return (
+    oracleAnalysisState(file) === "error" ||
+    ["review", "likely-transcode", "likely-upsample", "damaged"].includes(
+      file.oracle.verdict,
+    )
   );
 }
 
 function reviewExplanation(file: AudioFileRecord): string {
+  if (oracleAnalysisState(file) === "error") {
+    return `Audio-V could not complete the ${failureStageLabel(file)} stage. This is an application or processing error, not evidence that the audio file is damaged.`;
+  }
   if (file.oracle.verdict === "damaged") {
-    return "Failed means the decoder or a deterministic checksum found structural damage. Do not replace the original automatically; use the evidence to locate or restore a verified copy.";
+    return "Failed means Audio-V has deterministic evidence against the file itself, such as decoder-reported corruption or a decoded-audio checksum mismatch. Do not replace the original automatically; use the exact evidence to locate or restore a verified copy.";
   }
   const measurements = file.oracle.measurements;
   if (
@@ -1027,6 +1127,7 @@ function reviewExplanation(file: AudioFileRecord): string {
 
 function canCreateTruePeakCopy(file: AudioFileRecord): boolean {
   return (
+    oracleAnalysisState(file) === "completed" &&
     file.oracle.verdict !== "damaged" &&
     (file.oracle.measurements?.truePeakDbtp ?? -Infinity) > -1
   );
@@ -1198,6 +1299,17 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
               <strong>{{ sourceRoot }}</strong>
             </span>
           </div>
+          <label class="scan-mode">
+            <small>Run mode</small>
+            <select
+              v-model="scanMode"
+              :disabled="isDiscovering"
+              title="Full Oracle Audit decodes and assesses every file. Metadata Inventory catalogs declared properties without issuing a verdict."
+            >
+              <option value="full-audit">Full Oracle audit</option>
+              <option value="metadata-inventory">Metadata inventory</option>
+            </select>
+          </label>
           <button
             class="secondary-action"
             :disabled="isDiscovering"
@@ -1274,7 +1386,8 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
             <span><i class="clear"></i>Clear <b>{{ counts.clear }}</b></span>
             <span><i class="review"></i>Review <b>{{ counts.review }}</b></span>
             <span><i class="failed"></i>Failed <b>{{ counts.failed }}</b></span>
-            <span><i class="pending"></i>Metadata only <b>{{ counts.metadataOnly }}</b></span>
+            <span class="workflow-state"><i class="pending"></i>Not analyzed <b>{{ counts.notAnalyzed }}</b></span>
+            <span v-if="counts.analysisErrors" class="workflow-state"><i class="error"></i>Analysis error <b>{{ counts.analysisErrors }}</b></span>
           </div>
         </div>
         <div v-if="selected" class="selected-summary">
@@ -1307,18 +1420,21 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
           <button :aria-pressed="filter === 'review'" :class="{ active: filter === 'review' }" @click="filter = 'review'">
             Review {{ counts.review }}
           </button>
-          <button :aria-pressed="filter === 'metadata'" :class="{ active: filter === 'metadata' }" @click="filter = 'metadata'">
-            Metadata {{ counts.metadataOnly }}
+          <button :aria-pressed="filter === 'not-analyzed'" :class="{ active: filter === 'not-analyzed' }" @click="filter = 'not-analyzed'">
+            Not analyzed {{ counts.notAnalyzed }}
+          </button>
+          <button v-if="counts.analysisErrors" :aria-pressed="filter === 'error'" :class="{ active: filter === 'error' }" @click="filter = 'error'">
+            Errors {{ counts.analysisErrors }}
           </button>
           <button :aria-pressed="filter === 'failed'" :class="{ active: filter === 'failed' }" @click="filter = 'failed'">
             Failed {{ counts.failed }}
           </button>
           <button
-            v-if="counts.failed"
+            v-if="counts.failed || counts.analysisErrors"
             :disabled="isDiscovering || isAnalyzing"
             @click="retryFailedFiles"
           >
-            Retry failed
+            Retry failed/errors
           </button>
           <span class="scan-state">{{ scanMessage }}</span>
         </div>
@@ -1348,7 +1464,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
             <span>{{ formatDuration(file.durationSeconds) }}</span>
             <span>{{ formatBitrate(file.bitrate) }}</span>
             <span>{{ file.channels ?? "—" }}</span>
-            <span class="row-verdict" :class="verdictClass(file.oracle.verdict)">
+            <span class="row-verdict" :class="fileStateClass(file)">
               <i></i>{{ shortVerdict(file) }}
             </span>
           </button>
@@ -1383,7 +1499,11 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
             {{
               selected.oracle.measurements
                 ? "Complete decode, integrity, loudness, and spectrum analysis finished"
-                : "Complete decode did not produce signal measurements"
+                : oracleAnalysisState(selected) === "not-analyzed"
+                  ? "Metadata inventory complete · Oracle Engine has not analyzed this file"
+                  : oracleAnalysisState(selected) === "error"
+                    ? `Analysis stopped at ${failureStageLabel(selected)} · no integrity verdict issued`
+                    : "Deterministic integrity evidence stopped the complete decode"
             }}
           </span>
         </nav>
@@ -1456,8 +1576,13 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
                 <span>STFT</span>
                 <strong>Spectrogram not measured</strong>
                 <p>
-                  No spectrogram is available because the complete stream decode failed.
-                  Review the Evidence panel for the decoder error.
+                  {{
+                    oracleAnalysisState(selected) === "not-analyzed"
+                      ? "Metadata Inventory does not decode signal data. Re-run this file with the Oracle Engine to measure its spectrogram."
+                      : oracleAnalysisState(selected) === "error"
+                        ? `Analysis stopped at ${failureStageLabel(selected)}. No file-integrity conclusion was made.`
+                        : "The deterministic integrity failure prevented a complete spectrogram. Review the exact decoder evidence."
+                  }}
                 </p>
               </div>
             </div>
@@ -1529,19 +1654,60 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
               <div v-else class="analysis-pending">
                 <span>BS.1770-5</span>
                 <strong>
-                  Complete stream decode failed
+                  {{
+                    oracleAnalysisState(selected) === "not-analyzed"
+                      ? "Not analyzed"
+                      : oracleAnalysisState(selected) === "error"
+                        ? "Analysis could not be completed"
+                        : "Complete stream decode failed"
+                  }}
                 </strong>
                 <p>
-                  Review the Evidence panel for the exact decoder-integrity error.
+                  {{
+                    oracleAnalysisState(selected) === "not-analyzed"
+                      ? "Run a Full Oracle Audit to measure loudness and signal quality."
+                      : oracleAnalysisState(selected) === "error"
+                        ? "Review the failure stage and diagnostic evidence; this is not a damage verdict."
+                        : "Review the Evidence panel for the exact deterministic integrity evidence."
+                  }}
                 </p>
               </div>
             </div>
 
             <div v-else class="evidence-view">
               <section
+                v-if="selected.oracle.failure"
+                class="failure-explanation"
+                :class="selected.oracle.failure.category"
+              >
+                <header>
+                  <span class="eyebrow">
+                    {{
+                      selected.oracle.failure.category === "file-integrity"
+                        ? "Deterministic file-integrity failure"
+                        : "Analysis processing error"
+                    }}
+                  </span>
+                  <strong>{{ failureStageLabel(selected) }}</strong>
+                  <b>{{ selected.oracle.failure.code }}</b>
+                </header>
+                <p>{{ selected.oracle.failure.summary }}</p>
+                <div>
+                  <span>Exact evidence</span>
+                  <code>{{ selected.oracle.failure.evidence }}</code>
+                </div>
+                <button
+                  v-if="selected.oracle.failure.category === 'analysis-error'"
+                  :disabled="isAnalyzing"
+                  @click="analyzeSelected"
+                >
+                  Retry this analysis
+                </button>
+              </section>
+              <section
                 v-if="isReviewFile(selected)"
                 class="review-workflow"
-                :class="verdictClass(selected.oracle.verdict)"
+                :class="fileStateClass(selected)"
               >
                 <div>
                   <span class="eyebrow">Why this needs attention</span>
@@ -1559,7 +1725,21 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
                   </button>
                   <button @click="exportFileEvidence(selected)">Export evidence</button>
                   <button @click="revealSource(selected)">Reveal source</button>
-                  <button class="primary-review-action" @click="openRepair(selected)">Open repair options</button>
+                  <button
+                    v-if="selected.oracle.failure?.category !== 'analysis-error'"
+                    class="primary-review-action"
+                    @click="openRepair(selected)"
+                  >
+                    Open repair options
+                  </button>
+                  <button
+                    v-else
+                    class="primary-review-action"
+                    :disabled="isAnalyzing"
+                    @click="analyzeSelected"
+                  >
+                    Retry analysis
+                  </button>
                 </div>
               </section>
               <article
@@ -1638,7 +1818,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
               </ul>
               <small v-if="selected.oracle.fidelity">{{ selected.oracle.fidelity.limitation }}</small>
             </section>
-            <div class="oracle-card" :class="verdictClass(selected.oracle.verdict)">
+            <div class="oracle-card" :class="fileStateClass(selected)">
               <span class="oracle-glyph">◇</span>
               <div>
                 <small>Oracle verdict</small>
@@ -1788,7 +1968,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
         <div v-if="attentionItems.length" class="repair-list">
           <article v-for="file in attentionItems" :key="file.id">
             <div>
-              <span class="row-verdict" :class="verdictClass(file.oracle.verdict)"><i></i>{{ shortVerdict(file) }}<em v-if="isAcknowledged(file)">Acknowledged</em></span>
+              <span class="row-verdict" :class="fileStateClass(file)"><i></i>{{ shortVerdict(file) }}<em v-if="isAcknowledged(file)">Acknowledged</em></span>
               <h2>{{ file.name }}</h2>
               <p>{{ reviewExplanation(file) }}</p>
               <div class="repair-actions">
@@ -1860,7 +2040,8 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
           <article><span>Total files</span><strong>{{ files.length }}</strong></article>
           <article><span>Clear</span><strong>{{ counts.clear }}</strong></article>
           <article><span>Review</span><strong>{{ counts.review }}</strong></article>
-          <article><span>Metadata only</span><strong>{{ counts.metadataOnly }}</strong></article>
+          <article><span>Not analyzed</span><strong>{{ counts.notAnalyzed }}</strong></article>
+          <article><span>Analysis errors</span><strong>{{ counts.analysisErrors }}</strong></article>
           <article><span>Failed</span><strong>{{ counts.failed }}</strong></article>
         </div>
         <div v-if="files.length" class="reports-workspace">
@@ -1872,7 +2053,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
               @click="openReport(file)"
             >
               <strong>{{ file.name }}</strong><span>{{ audioFormatLabel(file) }} · {{ formatRate(file.sampleRate) }}</span>
-              <b :class="verdictClass(file.oracle.verdict)">{{ shortVerdict(file) }}</b>
+              <b :class="fileStateClass(file)">{{ shortVerdict(file) }}</b>
               <small>{{ file.oracle.headline }} · {{ file.oracle.scope }}</small>
             </button>
           </div>
@@ -1883,11 +2064,30 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
                 <h2>{{ reportSelected.name }}</h2>
                 <p>{{ reportSelected.path }}</p>
               </div>
-              <span class="report-verdict" :class="verdictClass(reportSelected.oracle.verdict)">{{ shortVerdict(reportSelected) }}</span>
+              <span class="report-verdict" :class="fileStateClass(reportSelected)">{{ shortVerdict(reportSelected) }}</span>
             </header>
             <section class="report-interpretation">
               <strong>{{ reportSelected.oracle.headline }}</strong>
               <p>{{ reportSelected.oracle.interpretation }}</p>
+            </section>
+            <section
+              v-if="reportSelected.oracle.failure"
+              class="failure-explanation report-failure"
+              :class="reportSelected.oracle.failure.category"
+            >
+              <header>
+                <span class="eyebrow">
+                  {{
+                    reportSelected.oracle.failure.category === "file-integrity"
+                      ? "Deterministic file-integrity failure"
+                      : "Analysis processing error"
+                  }}
+                </span>
+                <strong>{{ failureStageLabel(reportSelected) }}</strong>
+                <b>{{ reportSelected.oracle.failure.code }}</b>
+              </header>
+              <p>{{ reportSelected.oracle.failure.summary }}</p>
+              <div><span>Exact evidence</span><code>{{ reportSelected.oracle.failure.evidence }}</code></div>
             </section>
             <div class="report-detail-grid">
               <section>
@@ -1902,7 +2102,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
               <section>
                 <span class="eyebrow">Decoded signal</span>
                 <dl>
-                  <div><dt>Decode</dt><dd>{{ reportSelected.oracle.measurements ? "Complete" : "Failed" }}</dd></div>
+                  <div><dt>Decode</dt><dd>{{ decodeStatusLabel(reportSelected) }}</dd></div>
                   <div><dt>Integrated</dt><dd>{{ comparisonValue(reportSelected, "loudness") }}</dd></div>
                   <div><dt>True peak</dt><dd>{{ comparisonValue(reportSelected, "truePeak") }}</dd></div>
                   <div><dt>Clipped samples</dt><dd>{{ comparisonValue(reportSelected, "clipping") }}</dd></div>
@@ -1946,6 +2146,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
         </header>
         <div class="capability-grid">
           <article><span>Decode integrity</span><strong>Multi-codec full decode</strong><p>Every selected stream is decoded from beginning to end. Fatal stream or truncation errors produce a deterministic Failed verdict.</p></article>
+          <article><span>Metadata workflow</span><strong>Explicit inventory mode</strong><p>Catalog declared format, codec, duration, bitrate, sample rate, bit depth, and channels without decoding. Files remain Not analyzed until a Full Oracle Audit runs.</p></article>
           <article><span>Signal analysis</span><strong>Measured PCM and spectrum</strong><p>Peak, RMS, clipping, DC offset, channel relationship, and a real STFT spectrogram come from decoded samples.</p></article>
           <article><span>Broadcast loudness</span><strong>EBU R128 / BS.1770</strong><p>Integrated LUFS, loudness range, and oversampled true peak are measured by the bundled engine.</p></article>
           <article><span>Codec integrity</span><strong>FLAC audio MD5</strong><p>The decoded PCM is independently compared with the checksum stored in STREAMINFO; mismatch is a deterministic failure.</p></article>
@@ -1959,7 +2160,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
       <footer class="statusbar">
         <span role="status" aria-live="polite"><i></i>{{ scanMessage }}</span>
         <span>{{ files.length.toLocaleString() }} files in session</span>
-        <span>Oracle integrity &amp; fidelity scope v5</span>
+        <span>Oracle integrity &amp; fidelity scope v6</span>
       </footer>
     </main>
   </div>

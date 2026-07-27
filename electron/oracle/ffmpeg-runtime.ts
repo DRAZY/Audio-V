@@ -34,6 +34,25 @@ export interface ProcessResult {
   stderr: string;
 }
 
+export type EngineFailureReason =
+  | "launch"
+  | "timeout"
+  | "output-limit"
+  | "exit";
+
+export class EngineProcessError extends Error {
+  constructor(
+    message: string,
+    readonly tool: "ffmpeg" | "ffprobe",
+    readonly reason: EngineFailureReason,
+    readonly stderr: string = "",
+    readonly exitCode: number | null = null,
+  ) {
+    super(message);
+    this.name = "EngineProcessError";
+  }
+}
+
 export async function runEngine(
   tool: "ffmpeg" | "ffprobe",
   args: string[],
@@ -67,7 +86,13 @@ export async function runEngine(
     };
     const timer = setTimeout(() => {
       child.kill("SIGKILL");
-      settleWithError(new Error(`${tool} exceeded the 30-minute analysis limit.`));
+      settleWithError(
+        new EngineProcessError(
+          `${tool} exceeded the 30-minute analysis limit.`,
+          tool,
+          "timeout",
+        ),
+      );
     }, timeoutMs);
     signal?.addEventListener("abort", abort, { once: true });
 
@@ -79,7 +104,13 @@ export async function runEngine(
       stdoutBytes += chunk.length;
       if (stdoutBytes > outputLimit) {
         child.kill("SIGKILL");
-        settleWithError(new Error(`${tool} produced more than 32 MB of output.`));
+        settleWithError(
+          new EngineProcessError(
+            `${tool} produced more than 32 MB of output.`,
+            tool,
+            "output-limit",
+          ),
+        );
         return;
       }
       stdout.push(chunk);
@@ -89,7 +120,13 @@ export async function runEngine(
       if (stderrBytes <= outputLimit) stderr.push(chunk);
     });
     child.on("error", (error) => {
-      settleWithError(new Error(`${tool} could not start: ${error.message}`));
+      settleWithError(
+        new EngineProcessError(
+          `${tool} could not start: ${error.message}`,
+          tool,
+          "launch",
+        ),
+      );
     });
     child.on("close", (code, terminationSignal) => {
       clearTimeout(timer);
@@ -99,10 +136,14 @@ export async function runEngine(
       const stderrText = Buffer.concat(stderr).toString("utf8").trim();
       if (code !== 0) {
         reject(
-          new Error(
+          new EngineProcessError(
             `${tool} decode failed${terminationSignal ? ` (${terminationSignal})` : ""}: ${
               stderrText || `exit code ${code}`
             }`,
+            tool,
+            "exit",
+            stderrText,
+            code,
           ),
         );
         return;

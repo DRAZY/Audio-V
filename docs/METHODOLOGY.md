@@ -4,7 +4,8 @@ Audio-V separates deterministic integrity checks, direct measurements, and heuri
 
 ## Deterministic integrity
 
-- The selected primary audio stream is decoded from beginning to end with FFmpeg using fatal error handling. Truncation, malformed frames, and decoder failures produce **Failed**.
+- The selected primary audio stream is decoded from beginning to end with FFmpeg using fatal error handling. Only decoder diagnostics that deterministically identify corruption, truncation, malformed frames, checksum errors, or an incomplete decoded frame produce **Failed**.
+- Engine launch failures, timeouts, output limits, unclassified tool exits, probe/measurement faults, and internal exceptions produce **Analysis error**, never **Failed**. Each error retains a stage, stable code, and exact diagnostic evidence. No file-integrity verdict is issued.
 - Native FLAC files expose the 128-bit MD5 stored in STREAMINFO. Audio-V decodes to the canonical little-endian PCM width, calculates the audio MD5, and compares it with STREAMINFO. A mismatch produces **Failed** even when frames remain decodable. The [FLAC format overview](https://xiph.org/flac/documentation_format_overview.html) identifies this signature as the checksum of unencoded audio; the [reference `flac` tool documentation](https://xiph.org/flac/documentation_tools_flac.html) likewise distinguishes bitstream errors from decoded-audio MD5 mismatch.
 - SHA-256 identifies the exact file bytes. Declared duration is compared with decoded frame duration, allowing 100 ms for normal codec delay and container rounding.
 
@@ -14,6 +15,10 @@ Audio-V separates deterministic integrity checks, direct measurements, and heuri
 - Integrated loudness, loudness range, and oversampled true peak are measured with FFmpeg's EBU R128 filter. Peak-to-loudness ratio is true peak minus integrated LUFS. These descriptors follow [EBU R 128](https://tech.ebu.ch/publications/r128) and its [streaming supplement](https://tech.ebu.ch/files/live/sites/tech/files/shared/r/r128s2v1_0.pdf).
 - An internal dropout candidate is an exact digital-zero run of at least 100 ms surrounded by non-zero signal. It produces **Review**, not **Failed**, because intentional edits can contain the same pattern.
 - A discontinuity candidate is a channel sample-to-sample jump of at least 0.95 full scale. It is reported as a measurement and does not currently affect the verdict.
+
+## Metadata inventory
+
+Metadata Inventory is a deliberate non-decoding workflow. It records declared container and stream properties and assigns the workflow state **Not analyzed**. It does not run checksum, PCM, loudness, continuity, spectral, or origin assessment and therefore cannot issue Clear, Review, or Failed.
 
 ## Spectral analysis
 

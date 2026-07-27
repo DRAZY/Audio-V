@@ -39,6 +39,7 @@ describe("inspectAudioFile", () => {
     expect(result.overallFileBitrate).toBeGreaterThan(1_400_000);
     expect(result.scanError).toBeNull();
     expect(result.oracle.verdict).toBe("inconclusive");
+    expect(result.oracle.analysisState).toBe("not-analyzed");
     expect(result.oracle.measuredAt).toBeNull();
   });
 
@@ -51,12 +52,49 @@ describe("inspectAudioFile", () => {
 
     expect(result.scanError).not.toBeNull();
     expect(result.oracle.verdict).toBe("inconclusive");
+    expect(result.oracle.analysisState).toBe("error");
     expect(result.oracle.confidence).toBeNull();
-    expect(result.oracle.headline).toBe("Metadata unavailable");
+    expect(result.oracle.headline).toBe("Metadata inventory error");
+    expect(result.oracle.failure).toMatchObject({
+      category: "analysis-error",
+      stage: "metadata-probe",
+      code: "METADATA_PROBE_ERROR",
+    });
   });
 });
 
 describe("scanSources", () => {
+  it("runs metadata inventory without invoking the Oracle decoder", async () => {
+    const directory = await makeTemporaryDirectory();
+    const filePath = path.join(directory, "inventory.wav");
+    await fs.writeFile(filePath, pcmWave({ channels: 2 }));
+    let oracleInvocations = 0;
+
+    const result = await scanSources(
+      {
+        kind: "files",
+        label: "Metadata inventory",
+        paths: [filePath],
+        mode: "metadata-inventory",
+      },
+      undefined,
+      {
+        analyzeFile: async () => {
+          oracleInvocations += 1;
+          throw new Error("Oracle must not run in metadata inventory mode.");
+        },
+      },
+    );
+
+    expect(oracleInvocations).toBe(0);
+    expect(result.files[0].oracle.analysisState).toBe("not-analyzed");
+    expect(result.files[0].oracle.verdict).toBe("inconclusive");
+    expect(result.files[0].oracle.measurements).toBeNull();
+    expect(result.files[0].sampleRate).toBe(44_100);
+    expect(result.files[0].channels).toBe(2);
+    expect(result.unreadableCount).toBe(0);
+  });
+
   it("deduplicates selected files, scans nested folders, and skips hidden files", async () => {
     const directory = await makeTemporaryDirectory();
     const nested = path.join(directory, "album");

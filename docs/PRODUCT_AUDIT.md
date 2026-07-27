@@ -154,7 +154,7 @@ Gate 2 is complete for the repository-level scale foundation. Market-readiness s
 - Origin coverage, reason, and score type flow through the details UI and every report format.
 - A versioned golden-corpus manifest covers native wideband controls, known MP3-to-FLAC and upsample transformations, intentional low-pass material, digital silence, insufficient duration, and narrow-band tonal content.
 - `npm run validate:fidelity` executes the compiled Oracle against the corpus, blocks regressions, and records a machine-readable scorecard in `build/fidelity-validation-latest.json`.
-- Changing the assessment semantics advanced the engine/cache identity to `0.3.0-oracle-v5`, preventing older cached interpretations from appearing under the new model.
+- Changing the failure semantics advanced the engine/cache identity to `0.4.0-oracle-v6`, preventing older catch-all damage interpretations from appearing under the new model.
 
 Gate 3 now has an enforceable validation foundation, but it is not statistically calibrated. The included corpus is synthetic and deliberately small. Production-grade provenance confidence requires a licensed, ground-truth library across genres, recording eras, mastering processes, analog transfers, speech, silence, sample rates, codecs, bitrates, resampling methods, and intentional filtering, with train/calibration/test separation and published per-class false-positive and false-negative results. Until that corpus exists, Audio-V will continue to use **possible**, **bandwidth limited**, or **inconclusive** language instead of claiming universal origin verdicts.
 
@@ -236,7 +236,8 @@ No build may be called a beta until:
 - Conservative spectral-origin review is regression-tested against native-wideband, MP3-to-FLAC, and 44.1-to-96 kHz controls; it never claims that bandwidth alone proves provenance.
 - The Oracle produces scoped **Clear**, **Review**, and **Failed** outcomes for complete-decode, signal, loudness, and spectral checks, with deterministic evidence and an explicit provenance disclaimer.
 - Compare performs real file-to-file property and measurement comparison; Repair provides non-destructive triage; Reports summarizes the session and exports complete JSON evidence.
-- Decoder failures finish as **Failed** with the engine error in Evidence; successful files cannot remain ambiguously pending or metadata-only.
+- Deterministic decoder corruption and decoded-audio checksum mismatches finish as **Failed** with a stage and exact evidence. Tool, timeout, resource, probe, measurement, and internal failures finish as **Analysis error** without making a damage claim.
+- Metadata Inventory is an explicit non-decoding workflow whose records remain **Not analyzed** until a Full Oracle Audit runs; it is no longer represented in verdict distribution as “Metadata only.”
 - Batch audits can terminate active decoders, preserve completed rows, and restore unchanged v3 results from a persistent size/mtime-invalidated cache.
 - Spectrogram inspection supports linear/log frequency display, −120/−100/−80 dBFS floors, cursor time/frequency/level readout, and PNG export.
 - Review now explains the exact trigger, distinguishes integrity failure from measured or heuristic warnings, and offers acknowledgement, evidence export, source reveal, re-analysis, and Repair routing.

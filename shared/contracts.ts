@@ -25,6 +25,28 @@ export type OracleVerdict =
   | "damaged"
   | "inconclusive";
 
+export type AnalysisMode = "full-audit" | "metadata-inventory";
+export type OracleAnalysisState =
+  | "not-analyzed"
+  | "completed"
+  | "failed"
+  | "error";
+export type OracleFailureStage =
+  | "metadata-probe"
+  | "stream-probe"
+  | "full-decode"
+  | "signal-measurement"
+  | "integrity-verification"
+  | "oracle-engine";
+
+export interface OracleFailure {
+  category: "file-integrity" | "analysis-error";
+  stage: OracleFailureStage;
+  code: string;
+  summary: string;
+  evidence: string;
+}
+
 export type EvidenceKind = "deterministic" | "measured" | "heuristic";
 
 export interface OracleEvidence {
@@ -194,8 +216,11 @@ export interface OracleResult {
     | "ffmpeg-decode-signal-loudness-v2"
     | "oracle-integrity-fidelity-v3"
     | "oracle-integrity-fidelity-v4"
-    | "oracle-integrity-fidelity-v5";
+    | "oracle-integrity-fidelity-v5"
+    | "oracle-integrity-fidelity-v6";
   verdict: OracleVerdict;
+  analysisState?: OracleAnalysisState;
+  failure?: OracleFailure | null;
   confidence: number | null;
   headline: string;
   interpretation: string;
@@ -233,6 +258,7 @@ export interface AudioSourceSelection {
   kind: "files" | "folder";
   paths: string[];
   label: string;
+  mode?: AnalysisMode;
 }
 
 export type AuditSessionStatus =
@@ -287,7 +313,7 @@ export interface ScanSelectionResult {
 }
 
 export interface ScanProgressUpdate {
-  phase: "discovered" | "analyzing" | "complete";
+  phase: "discovered" | "inventorying" | "analyzing" | "complete";
   completed: number;
   total: number;
   currentFile: string | null;
