@@ -11,6 +11,9 @@ interface ChannelAccumulator {
   sumSquares: number;
   clippedSamples: number;
   nearClippedSamples: number;
+  scaledClippingCandidateSamples: number;
+  previousAbsolute: number | null;
+  plateauLength: number;
 }
 
 function amplitudeToDbfs(amplitude: number): number | null {
@@ -31,6 +34,15 @@ export class PcmMeasurementAccumulator {
   #peak = 0;
   #clippedSamples = 0;
   #nearClippedSamples = 0;
+  #scaledClippingCandidateSamples = 0;
+  #clippingEvents: SignalMeasurements["clipping"]["events"] = [];
+  #activeClippingEvent: {
+    startFrame: number;
+    clippedSamples: number;
+    peakAmplitude: number;
+    channels: Set<number>;
+  } | null = null;
+  #clippingEventsTruncated = false;
   #stereoSumLeft = 0;
   #stereoSumRight = 0;
   #stereoSumLeftSquares = 0;
@@ -60,6 +72,9 @@ export class PcmMeasurementAccumulator {
       sumSquares: 0,
       clippedSamples: 0,
       nearClippedSamples: 0,
+      scaledClippingCandidateSamples: 0,
+      previousAbsolute: null,
+      plateauLength: 0,
     }));
   }
 
@@ -73,6 +88,10 @@ export class PcmMeasurementAccumulator {
       const right = this.#channels >= 2 ? samples[offset + 1] : 0;
       let frameIsDigitalSilence = true;
       let frameHasDiscontinuity = false;
+      let frameIsClipped = false;
+      let frameClippedSamples = 0;
+      let framePeak = 0;
+      const clippedChannels: number[] = [];
 
       for (let channel = 0; channel < this.#channels; channel += 1) {
         const sample = samples[offset + channel];
@@ -97,11 +116,53 @@ export class PcmMeasurementAccumulator {
         if (absolute >= 1) {
           accumulator.clippedSamples += 1;
           this.#clippedSamples += 1;
+          frameIsClipped = true;
+          frameClippedSamples += 1;
+          framePeak = Math.max(framePeak, absolute);
+          clippedChannels.push(channel);
         }
         if (absolute >= nearClipAmplitude) {
           accumulator.nearClippedSamples += 1;
           this.#nearClippedSamples += 1;
         }
+        if (
+          absolute >= 0.5 &&
+          accumulator.previousAbsolute !== null &&
+          Math.abs(absolute - accumulator.previousAbsolute) <= 1e-7
+        ) {
+          accumulator.plateauLength += 1;
+          if (accumulator.plateauLength === 3) {
+            accumulator.scaledClippingCandidateSamples += 3;
+            this.#scaledClippingCandidateSamples += 3;
+          } else if (accumulator.plateauLength > 3) {
+            accumulator.scaledClippingCandidateSamples += 1;
+            this.#scaledClippingCandidateSamples += 1;
+          }
+        } else {
+          accumulator.plateauLength = 1;
+        }
+        accumulator.previousAbsolute = absolute;
+      }
+
+      if (frameIsClipped) {
+        if (!this.#activeClippingEvent) {
+          this.#activeClippingEvent = {
+            startFrame: this.#frames,
+            clippedSamples: 0,
+            peakAmplitude: 0,
+            channels: new Set(),
+          };
+        }
+        this.#activeClippingEvent.clippedSamples += frameClippedSamples;
+        this.#activeClippingEvent.peakAmplitude = Math.max(
+          this.#activeClippingEvent.peakAmplitude,
+          framePeak,
+        );
+        for (const channel of clippedChannels) {
+          this.#activeClippingEvent.channels.add(channel);
+        }
+      } else {
+        this.#finishClippingEvent(this.#frames);
       }
 
       if (frameIsDigitalSilence) {
@@ -145,7 +206,28 @@ export class PcmMeasurementAccumulator {
     }
   }
 
+  #finishClippingEvent(endFrame: number): void {
+    if (!this.#activeClippingEvent) return;
+    if (this.#clippingEvents.length < 500) {
+      this.#clippingEvents.push({
+        startSeconds: roundMeasurement(
+          this.#activeClippingEvent.startFrame / this.#sampleRate,
+        ),
+        endSeconds: roundMeasurement(endFrame / this.#sampleRate),
+        clippedSamples: this.#activeClippingEvent.clippedSamples,
+        peakAmplitude: roundMeasurement(
+          this.#activeClippingEvent.peakAmplitude,
+        ),
+        channels: [...this.#activeClippingEvent.channels],
+      });
+    } else {
+      this.#clippingEventsTruncated = true;
+    }
+    this.#activeClippingEvent = null;
+  }
+
   finish(): SignalMeasurements {
+    this.#finishClippingEvent(this.#frames);
     const totalSamples = this.#frames * this.#channels;
     const perChannel: ChannelMeasurements[] = this.#perChannel.map(
       (channel) => ({
@@ -157,7 +239,13 @@ export class PcmMeasurementAccumulator {
         dcOffset:
           this.#frames > 0 ? roundMeasurement(channel.sum / this.#frames) : 0,
         clippedSamples: channel.clippedSamples,
+        clippedSamplePercent:
+          this.#frames > 0
+            ? roundMeasurement((channel.clippedSamples / this.#frames) * 100)
+            : 0,
         nearClippedSamples: channel.nearClippedSamples,
+        scaledClippingCandidateSamples:
+          channel.scaledClippingCandidateSamples,
       }),
     );
 
@@ -246,6 +334,25 @@ export class PcmMeasurementAccumulator {
       rmsDbfs,
       clippedSamples: this.#clippedSamples,
       nearClippedSamples: this.#nearClippedSamples,
+      clipping: {
+        clippedSamplePercent:
+          totalSamples > 0
+            ? roundMeasurement((this.#clippedSamples / totalSamples) * 100)
+            : 0,
+        eventCount:
+          this.#clippingEvents.length +
+          (this.#clippingEventsTruncated ? 1 : 0),
+        events: this.#clippingEvents,
+        eventsTruncated: this.#clippingEventsTruncated,
+        scaledClippingIndicator:
+          this.#scaledClippingCandidateSamples >= 3
+            ? "possible-scaled-clipping"
+            : "not-detected",
+        scaledClippingCandidateSamples:
+          this.#scaledClippingCandidateSamples,
+        limitation:
+          "Repeated flat sample plateaus can be compatible with previously clipped audio that was later scaled down, but limiting, synthesis, and intentional waveform shapes can produce the same pattern.",
+      },
       stereoCorrelation,
       duplicatedMono,
       stereoAssessment,

@@ -649,7 +649,7 @@ button:focus-visible {
   height: 100%;
   min-height: 190px;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) 18px;
+  grid-template-rows: auto minmax(0, 1fr) 18px 30px;
   gap: 9px;
 }
 
@@ -715,6 +715,8 @@ button:focus-visible {
   display: flex;
   align-items: flex-end;
   gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .spectrogram-controls label {
@@ -738,6 +740,40 @@ button:focus-visible {
 
 .spectrogram-controls button {
   cursor: pointer;
+}
+
+.spectrogram-navigation {
+  padding-left: 56px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font: 600 10px/1 var(--font-data);
+}
+
+.spectrogram-navigation button {
+  width: 26px;
+  height: 24px;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  background: var(--raised);
+  color: var(--text);
+}
+
+.spectrogram-navigation label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.spectrogram-navigation input {
+  width: 130px;
+}
+
+.spectrogram-navigation b {
+  margin-left: auto;
+  color: var(--text);
+  font-weight: 600;
 }
 
 .frequency-axis {
@@ -886,6 +922,67 @@ button:focus-visible {
 
 .loudness-view article {
   padding: 16px;
+}
+
+.loudness-view article.clipping-diagnostics {
+  grid-column: 1 / -1;
+}
+
+.clipping-timeline {
+  position: relative;
+  height: 16px;
+  margin: 12px 0;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.clipping-timeline i {
+  position: absolute;
+  inset-block: 0;
+  min-width: 2px;
+  background: var(--red);
+}
+
+.clipping-diagnostics dl {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.clipping-diagnostics dl > div {
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.clipping-diagnostics dt,
+.clipping-diagnostics dd {
+  display: inline;
+  margin: 0;
+  font: 600 10px/1.3 var(--font-data);
+}
+
+.clipping-diagnostics dt {
+  color: var(--muted);
+}
+
+.clipping-diagnostics dd {
+  margin-left: 6px;
+  color: var(--text);
+}
+
+.clipping-diagnostics small {
+  margin-top: 10px;
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.clipping-diagnostics small.warning {
+  color: var(--amber);
 }
 
 .loudness-view article > strong {
@@ -2306,6 +2403,71 @@ button:focus-visible {
   color: var(--muted);
   font-size: 13px;
   line-height: 1.55;
+}
+
+.capability-grid .validation-disclosure {
+  grid-column: 1 / -1;
+  border-color: color-mix(in srgb, var(--accent), transparent 45%);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent), transparent 90%), transparent 60%),
+    rgba(0, 0, 0, 0.14);
+}
+
+.validation-progress {
+  height: 7px;
+  margin: 2px 0 16px;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.validation-progress i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), #bf9cff);
+  transition: width 180ms ease;
+}
+
+.validation-disclosure dl {
+  margin: 0 0 14px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.validation-disclosure dl > div {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.validation-disclosure dt {
+  color: var(--muted);
+  font: 650 10px/1.3 var(--font-data);
+  text-transform: uppercase;
+}
+
+.validation-disclosure dd {
+  margin: 7px 0 0;
+  color: var(--text);
+  font: 700 13px/1.3 var(--font-data);
+}
+
+.capability-grid .validation-disclosure small {
+  margin-top: 12px;
+  display: block;
+  color: #aeb1bc;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+@media (max-width: 900px) {
+  .validation-disclosure dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-height: 790px) {

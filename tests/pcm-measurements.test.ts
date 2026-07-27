@@ -60,6 +60,30 @@ describe("PcmMeasurementAccumulator", () => {
     expect(result.clippedSamples).toBe(2);
     expect(result.nearClippedSamples).toBe(3);
     expect(result.perChannel[0].clippedSamples).toBe(2);
+    expect(result.clipping.clippedSamplePercent).toBe(50);
+    expect(result.clipping.eventCount).toBe(1);
+    expect(result.clipping.events[0]).toMatchObject({
+      startSeconds: 0,
+      endSeconds: 0.5,
+      clippedSamples: 2,
+      channels: [0],
+    });
+  });
+
+  it("keeps per-channel clipping and scaled-plateau evidence distinct", () => {
+    const analyzer = new PcmMeasurementAccumulator(8, 2);
+    analyzer.pushInterleaved([
+      0.75, 1, 0.75, 1, 0.75, 0, 0.75, 0,
+      0.1, 0, 0.2, 0, 0.3, 0, 0.4, 0,
+    ]);
+    const result = analyzer.finish();
+
+    expect(result.perChannel[0].scaledClippingCandidateSamples).toBe(4);
+    expect(result.perChannel[1].clippedSamples).toBe(2);
+    expect(result.perChannel[1].clippedSamplePercent).toBe(25);
+    expect(result.clipping.scaledClippingIndicator).toBe(
+      "possible-scaled-clipping",
+    );
   });
 
   it("rejects malformed interleaved buffers and non-finite values", () => {

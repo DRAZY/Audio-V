@@ -24,6 +24,12 @@ Contributions are accepted under the [Audio-V Contributor License Agreement](CON
 
 The agreement does not permit contributors to relicense third-party material they do not own. Identify every third-party source and license in the pull request.
 
+## Validation-corpus recordings
+
+Do not add validation audio to a pull request or Git commit. Source masters, derivatives, and personal acceptance records are intentionally ignored.
+
+Recordings require the separate [Audio-V Validation Corpus Contribution Agreement](CORPUS_CONTRIBUTION_AGREEMENT.md), covering both the sound recording and underlying composition. Maintainers import an accepted master with `npm run corpus:import`, generate controlled cases with `npm run corpus:generate`, and publish only the rights-cleared corpus artifacts authorized by the recorded agreement.
+
 ## Licensing and branding
 
 Project code is licensed under `AGPL-3.0-only`. Dependencies and bundled engines retain their own licenses. The Audio-V name, logo, icon, Oracle Engine identity, and official-release designation are governed by [TRADEMARKS.md](TRADEMARKS.md).

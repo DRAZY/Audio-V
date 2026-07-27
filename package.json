@@ -29,16 +29,20 @@
     "test:watch": "vitest",
     "fixtures:fidelity": "node scripts/generate-fidelity-fixtures.mjs",
     "validate:fidelity": "npm run build:electron && node scripts/validate-fidelity-corpus.mjs",
+    "corpus:import": "node scripts/import-validation-master.mjs",
+    "corpus:generate": "node scripts/generate-real-world-corpus.mjs",
+    "validation:status": "node scripts/write-real-world-validation-status.mjs",
+    "validate:real-world": "npm run build:electron && node scripts/evaluate-real-world-corpus.mjs && node scripts/write-real-world-validation-status.mjs",
     "validate:platform": "npm run build:electron && node scripts/write-platform-validation.mjs",
     "verify:accessibility": "npm run build:renderer && electron scripts/verify-accessibility.cjs",
     "verify:worker": "node scripts/verify-oracle-worker.mjs",
     "benchmark:scale": "npm run build:electron && node scripts/benchmark-scale.mjs",
-    "verify": "npm run test && npm run build && electron scripts/verify-accessibility.cjs && node scripts/validate-fidelity-corpus.mjs && npm run verify:worker && npm audit --omit=dev",
+    "verify": "npm run test && npm run build && electron scripts/verify-accessibility.cjs && node scripts/validate-fidelity-corpus.mjs && node scripts/evaluate-real-world-corpus.mjs && node scripts/write-real-world-validation-status.mjs && npm run verify:worker && npm audit --omit=dev",
     "prepare:notices": "node scripts/write-third-party-notices.mjs",
     "prepare:manifest": "node scripts/write-engine-manifest.mjs",
     "provision:engines": "node scripts/provision-engines.mjs",
     "prepare:engines": "node scripts/verify-ffmpeg.mjs",
-    "prepare:release": "npm run prepare:engines && npm run prepare:notices && npm run prepare:manifest",
+    "prepare:release": "npm run prepare:engines && npm run prepare:notices && npm run prepare:manifest && npm run validate:real-world",
     "dist:mac": "npm run prepare:release && npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --publish never --mac dmg --arm64 --universal -c.mac.identity=null -c.mac.hardenedRuntime=false -c.mac.notarize=false",
     "dist:mac:signed": "npm run prepare:release && npm run build && electron-builder --publish never --mac dmg --arm64 --universal",
     "dist:win": "npm run prepare:release && npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --publish never --win nsis portable --x64 -c.win.signExecutable=false",
@@ -112,6 +116,10 @@
       {
         "from": "TRADEMARKS.md",
         "to": "TRADEMARKS.md"
+      },
+      {
+        "from": "build/real-world-validation-latest.json",
+        "to": "real-world-validation.json"
       }
     ],
     "mac": {

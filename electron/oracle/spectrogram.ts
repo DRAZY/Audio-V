@@ -52,6 +52,7 @@ export class SpectrogramAccumulator {
   readonly #binCount: number;
   readonly #maxSlices: number;
   readonly #hopSize: number;
+  readonly #channelMode: SpectrogramMeasurements["channelMode"];
   readonly #rings: Float64Array[];
   readonly #slices: SpectrogramSlice[] = [];
   #writeIndex = 0;
@@ -62,7 +63,11 @@ export class SpectrogramAccumulator {
     sampleRate: number,
     channels: number,
     totalFrames: number,
-    options: { fftSize?: number; maxSlices?: number } = {},
+    options: {
+      fftSize?: number;
+      maxSlices?: number;
+      channelMode?: SpectrogramMeasurements["channelMode"];
+    } = {},
   ) {
     const fftSize = options.fftSize ?? 512;
     if (
@@ -78,6 +83,12 @@ export class SpectrogramAccumulator {
     this.#fftSize = fftSize;
     this.#binCount = fftSize / 2;
     this.#maxSlices = options.maxSlices ?? 180;
+    const requestedChannelMode =
+      options.channelMode ?? "per-channel power average";
+    this.#channelMode =
+      requestedChannelMode !== "per-channel power average" && channels < 2
+        ? "left channel"
+        : requestedChannelMode;
     this.#nextWindowEnd = fftSize;
     this.#rings = Array.from(
       { length: channels },
@@ -113,7 +124,11 @@ export class SpectrogramAccumulator {
   #captureSlice(windowStart: number): void {
     const fftSize = this.#fftSize;
     const powerByBin = new Float64Array(this.#binCount);
-    for (const ring of this.#rings) {
+    const analysisRings =
+      this.#channelMode === "per-channel power average"
+        ? this.#rings
+        : [this.#derivedChannelRing()];
+    for (const ring of analysisRings) {
       const real = new Float64Array(fftSize);
       const imaginary = new Float64Array(fftSize);
       for (let index = 0; index < fftSize; index += 1) {
@@ -136,7 +151,7 @@ export class SpectrogramAccumulator {
     }
 
     const levelsDbfs = Array.from({ length: this.#binCount }, (_, bin) => {
-      const averagePower = powerByBin[bin] / this.#channels;
+      const averagePower = powerByBin[bin] / analysisRings.length;
       return Number(
         Math.max(
           floorDbfs,
@@ -150,6 +165,20 @@ export class SpectrogramAccumulator {
       ),
       levelsDbfs,
     });
+  }
+
+  #derivedChannelRing(): Float64Array {
+    if (this.#channelMode === "left channel") return this.#rings[0];
+    if (this.#channelMode === "right channel") {
+      return this.#rings[Math.min(1, this.#rings.length - 1)];
+    }
+    const difference = new Float64Array(this.#fftSize);
+    const left = this.#rings[0];
+    const right = this.#rings[Math.min(1, this.#rings.length - 1)];
+    for (let index = 0; index < difference.length; index += 1) {
+      difference[index] = (left[index] - right[index]) / 2;
+    }
+    return difference;
   }
 
   finish(): SpectrogramMeasurements {
@@ -223,7 +252,7 @@ export class SpectrogramAccumulator {
     }
     return {
       algorithm: "STFT",
-      channelMode: "per-channel power average",
+      channelMode: this.#channelMode,
       fftSize: this.#fftSize,
       hopSize: this.#hopSize,
       window: "Hann",

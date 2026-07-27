@@ -22,6 +22,10 @@ An **Analysis error** means a tool, resource, probe, measurement, or internal pr
 
 Select a row to inspect its measured spectrogram, loudness, technical profile, evidence chain, Origin Assessment, and Oracle verdict. A Clear result does not prove provenance.
 
+In **Spectrogram**, choose 512, 2,048, 4,096, or 16,384 FFT resolution. Higher settings separate nearby frequencies more precisely but provide coarser time resolution and require an on-demand decode. Choose combined power, left, right, or L−R; use zoom and pan to navigate, drag across the plot for exact time/frequency bounds, and export one PNG or a batch using the current inspection settings. Inferno, magma, and viridis change only the display palette.
+
+In **Loudness**, clipping diagnostics show the percentage of decoded samples at full scale, per-channel counts, contiguous clipping events, their locations on a track timeline, and possible scaled-clipping plateaus. Clipping and possible scaled clipping remain Review findings because intentional mastering and synthesized waveforms can create the same measurements. Failed is reserved for deterministic file-integrity evidence.
+
 ## Origin Assessment
 
 **Heuristic rule strength** shows how strongly a classifiable file matches a versioned rule. It is not a probability that a source history is true.
@@ -60,5 +64,7 @@ Audio-V stores audit sessions locally. History can reopen completed evidence or 
 ## Support diagnostics
 
 Settings can export a privacy-safe diagnostic JSON file containing application/runtime versions, worker count, aggregate session statuses, and the engine manifest. It excludes filenames, source paths, checksums, tags, and report evidence.
+
+Settings also displays the packaged Oracle validation basis: public independent source-master count, contributor groups, controlled cases, corpus version, current claim level, and the first material limitation. “Infrastructure ready · masters pending” means the validation machinery exists but no licensed real-world master has been counted; it is not a hidden calibration score.
 
 For unsigned installation and checksum verification, see [UNSIGNED_INSTALLATION.md](UNSIGNED_INSTALLATION.md).

@@ -66,6 +66,12 @@ The **Oracle Engine** is Audio-V's analysis and evidence layer. It does not make
 
 Heuristic rule strength is not a probability of provenance. Audio-V separately reports evidence coverage and explains when an origin assessment is inconclusive. Microphones, mastering filters, instruments, noise reduction, and intentional processing can resemble codec cutoffs, so spectral evidence remains a reason to investigate—not an accusation.
 
+### Real-world validation disclosure
+
+Audio-V ships the current Oracle validation status with the application and displays it in Settings. The synthetic fidelity suite protects deterministic rule behavior, while a separate licensed, provenance-labeled corpus tracks independent public masters, contributor-group partitions, controlled derivatives, exact 95% binomial intervals, and versioned scorecards. Synthetic fixtures and multiple derivatives of one recording never inflate the independent-master count.
+
+The v0.1 corpus infrastructure is implemented, but the project does not claim real-world probability calibration until licensed masters and an independent challenge evaluation satisfy the published thresholds. See the [validation corpus contract](docs/VALIDATION_CORPUS.md) and [Corpus Contribution Agreement](CORPUS_CONTRIBUTION_AGREEMENT.md).
+
 ## Understanding the verdict
 
 | Verdict | Meaning |
@@ -91,11 +97,11 @@ Findings such as clipping, positive true peak, digital-silence dropout candidate
 
 ### Inspect decoded fidelity
 
-- Measured 512- and 2,048-point Hann-window STFT spectrograms
-- Linear or logarithmic views, selectable display floor, cursor readout, and PNG export
+- Measured 512-, 2,048-, 4,096-, and 16,384-point Hann-window STFT spectrograms
+- Combined-power, left, right, and L−R channel views with zoom, pan, exact region readout, scientific colormaps, and single/batch PNG export
 - EBU R128 integrated loudness and loudness range
 - BS.1770 oversampled true peak
-- Sample peak, RMS, clipping, near clipping, DC offset, and crest factor
+- Sample peak, RMS, clipping percentage, per-channel counts, contiguous-event timeline, possible scaled-clipping review, near clipping, DC offset, and crest factor
 - Exact digital-silence runs, dropout candidates, and steep transition candidates
 - Stereo correlation, side-to-mid energy, dual-mono, and near-mono assessment
 - MP3 packet analysis with observed CBR/VBR behavior
@@ -134,6 +140,7 @@ See the complete [privacy and security model](docs/PRIVACY_SECURITY.md).
 
 - [User guide](docs/USER_GUIDE.md)
 - [Oracle Engine methodology and limitations](docs/METHODOLOGY.md)
+- [Real-world validation corpus](docs/VALIDATION_CORPUS.md)
 - [Product blueprint](docs/PRODUCT_BLUEPRINT.md)
 - [Capability and readiness audit](docs/PRODUCT_AUDIT.md)
 - [Unsigned installation](docs/UNSIGNED_INSTALLATION.md)
@@ -180,6 +187,8 @@ Audio-V uses Electron, Vue 3, TypeScript, Vite, FFmpeg/ffprobe 8.1.2 LGPL builds
 Audio-V source is licensed under the [GNU Affero General Public License version 3 only](LICENSE). Dependencies and bundled engines retain their respective licenses.
 
 Contributions require acceptance of the [Audio-V Contributor License Agreement](CONTRIBUTOR_LICENSE_AGREEMENT.md), which preserves contributor ownership while granting the project explicit relicensing rights. The Audio-V name, logo, icon, Oracle Engine identity, and official-release designation are governed separately by the [trademark policy](TRADEMARKS.md).
+
+Audio recordings submitted for benchmark use require the separate [Validation Corpus Contribution Agreement](CORPUS_CONTRIBUTION_AGREEMENT.md); the software CLA does not grant audio or composition rights.
 
 ---
 

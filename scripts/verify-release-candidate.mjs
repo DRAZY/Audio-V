@@ -29,6 +29,11 @@ await fileCheck("Accessibility result", "build/accessibility-latest.json", (valu
 await fileCheck("Fidelity corpus result", "build/fidelity-validation-latest.json", (value) =>
   JSON.parse(value).passed === true,
 );
+await fileCheck(
+  "Real-world validation infrastructure",
+  "build/real-world-validation-latest.json",
+  (value) => JSON.parse(value).infrastructurePassed === true,
+);
 await fileCheck("Scale benchmark result", "build/performance-latest.json", (value) =>
   JSON.parse(value).passed === true,
 );

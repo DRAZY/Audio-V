@@ -5,6 +5,7 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import type {
   AudioFileRecord,
   AudioSourceSelection,
+  OracleValidationStatus,
   ReportExportRequest,
 } from "../shared/contracts";
 import { createTruePeakSafeCopy } from "./repair-engine";
@@ -16,6 +17,7 @@ import { OracleWorkerPool } from "./oracle/oracle-worker-pool";
 import { runComparisonWorker } from "./oracle/comparison-worker-client";
 import { AuditStorageClient } from "./storage/audit-storage-client";
 import { createPrivacySafeDiagnostics } from "./diagnostics";
+import { inspectSpectrogram } from "./oracle/spectrogram-inspector";
 
 const approvedSelections = new Map<string, AudioSourceSelection>();
 const approvedAudioFiles = new Set<string>();
@@ -208,6 +210,42 @@ function createWindow(): void {
 }
 
 ipcMain.handle("app:platform", () => process.platform);
+
+ipcMain.handle("oracle:validation-status", async (): Promise<OracleValidationStatus> => {
+  const statusPath = app.isPackaged
+    ? path.join(process.resourcesPath, "real-world-validation.json")
+    : path.join(app.getAppPath(), "build", "real-world-validation-latest.json");
+  return fs
+    .readFile(statusPath, "utf8")
+    .then((content) => JSON.parse(content) as OracleValidationStatus)
+    .catch(() => ({
+      schema: "Audio-V real-world validation status v1",
+      generatedAt: new Date(0).toISOString(),
+      corpusVersion: "unavailable",
+      readiness: "awaiting-source-masters",
+      infrastructurePassed: false,
+      milestoneAchieved: false,
+      claimLevel: "synthetic-regression-only",
+      counts: {
+        independentMasters: 0,
+        publicIndependentMasters: 0,
+        privateChallengeMasters: 0,
+        contributorGroups: 0,
+        redistributableMasters: 0,
+        generatedCases: 0,
+        bySplit: {},
+      },
+      thresholds: {
+        pilotIndependentMasters: 25,
+        targetIndependentMasters: 50,
+        minimumCasesPerMaster: 10,
+      },
+      latestScorecard: null,
+      limitations: [
+        "Validation disclosure is unavailable in this build. No real-world calibration claim is permitted.",
+      ],
+    }));
+});
 
 ipcMain.handle("app:export-diagnostics", async () => {
   const result = await dialog.showSaveDialog({
@@ -496,6 +534,38 @@ ipcMain.handle("oracle:analyze-file", async (
   return oracle;
 });
 
+ipcMain.handle(
+  "oracle:inspect-spectrogram",
+  async (
+    _event,
+    requestedPath: unknown,
+    requestedFftSize: unknown,
+    requestedChannelMode: unknown,
+  ) => {
+    if (
+      typeof requestedPath !== "string" ||
+      ![512, 2048, 4096, 16384].includes(Number(requestedFftSize)) ||
+      ![
+        "per-channel power average",
+        "left channel",
+        "right channel",
+        "left-right difference",
+      ].includes(String(requestedChannelMode))
+    ) {
+      throw new TypeError("Valid spectrogram inspection settings are required.");
+    }
+    const filePath = path.resolve(requestedPath);
+    if (!approvedAudioFiles.has(filePath)) {
+      throw new Error("Select this audio file through Audio-V before inspecting it.");
+    }
+    return inspectSpectrogram(
+      filePath,
+      requestedFftSize as 512 | 2048 | 4096 | 16384,
+      requestedChannelMode as Parameters<typeof inspectSpectrogram>[2],
+    );
+  },
+);
+
 ipcMain.handle("files:reveal", (_event, requestedPath: unknown) => {
   if (typeof requestedPath !== "string") {
     throw new TypeError("An audio file path is required.");
@@ -677,6 +747,75 @@ ipcMain.handle(
     }
     await fs.writeFile(result.filePath, bytes);
     return { canceled: false, filePath: result.filePath };
+  },
+);
+
+ipcMain.handle(
+  "reports:export-spectrogram-batch",
+  async (_event, requestedItems: unknown) => {
+    if (
+      !Array.isArray(requestedItems) ||
+      requestedItems.length === 0 ||
+      requestedItems.length > 500
+    ) {
+      throw new TypeError("Choose between 1 and 500 measured spectrograms.");
+    }
+    let aggregateBytes = 0;
+    const decoded = requestedItems.map((item) => {
+      if (
+        !item ||
+        typeof item.fileName !== "string" ||
+        typeof item.dataUrl !== "string" ||
+        !item.dataUrl.startsWith("data:image/png;base64,")
+      ) {
+        throw new TypeError("Every batch item must contain a valid PNG.");
+      }
+      const bytes = Buffer.from(
+        item.dataUrl.slice("data:image/png;base64,".length),
+        "base64",
+      );
+      if (!bytes.length || bytes.length > 20_000_000) {
+        throw new Error("A batch spectrogram is empty or exceeds 20 MB.");
+      }
+      if (
+        bytes.length < 8 ||
+        !bytes.subarray(0, 8).equals(
+          Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+        )
+      ) {
+        throw new Error("A batch spectrogram does not contain a PNG signature.");
+      }
+      aggregateBytes += bytes.length;
+      if (aggregateBytes > 250_000_000) {
+        throw new Error("The batch spectrogram payload exceeds 250 MB.");
+      }
+      const base =
+        path
+          .basename(item.fileName, path.extname(item.fileName))
+          .replace(/[^\w.-]+/g, "-")
+          .slice(0, 100) || "audio";
+      return { base, bytes };
+    });
+    const result = await dialog.showOpenDialog({
+      title: "Choose a folder for batch spectrogram PNGs",
+      properties: ["openDirectory", "createDirectory"],
+    });
+    if (result.canceled || !result.filePaths[0]) {
+      return { canceled: true, filePath: null, exportedCount: 0 };
+    }
+    const directory = result.filePaths[0];
+    for (let index = 0; index < decoded.length; index += 1) {
+      const suffix = decoded.length > 1 ? `-${String(index + 1).padStart(3, "0")}` : "";
+      await fs.writeFile(
+        path.join(directory, `${decoded[index].base}${suffix}-Audio-V-Spectrogram.png`),
+        decoded[index].bytes,
+      );
+    }
+    return {
+      canceled: false,
+      filePath: directory,
+      exportedCount: decoded.length,
+    };
   },
 );
 

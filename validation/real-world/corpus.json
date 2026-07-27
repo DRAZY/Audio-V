@@ -1,0 +1,19 @@
+{
+  "$schema": "./schemas/corpus.schema.json",
+  "schemaVersion": 1,
+  "corpusId": "audio-v-real-world",
+  "corpusVersion": "0.1.0",
+  "description": "Licensed, provenance-labeled source masters for real-world Oracle Engine validation. Synthetic fixtures are not registered here.",
+  "policy": {
+    "splitStrategy": "contributor-group-sha256-v1",
+    "pilotIndependentMasters": 25,
+    "targetIndependentMasters": 50,
+    "minimumCasesPerMaster": 10,
+    "publicLicenses": [
+      "CC0-1.0",
+      "CC-BY-4.0",
+      "Audio-V-CCA-1.0"
+    ]
+  },
+  "masters": []
+}

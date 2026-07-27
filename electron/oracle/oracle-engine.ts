@@ -3,7 +3,7 @@ import { analyzeWithFfmpeg } from "./ffmpeg-analyzer";
 import { assessFidelityOrigin } from "./fidelity-assessment";
 import { classifyOracleFailure } from "./analysis-failure";
 
-export const engineVersion = "0.4.0-oracle-v6";
+export const engineVersion = "0.5.0-oracle-v7";
 
 export async function analyzeAudioFile(
   filePath: string,
@@ -38,8 +38,12 @@ export async function analyzeAudioFile(
     const dropoutConcern =
       measurements.continuity.internalDigitalDropoutCount > 0;
     const silence = measurements.rmsDbfs === null;
+    const scaledClippingConcern =
+      measurements.clipping.scaledClippingIndicator ===
+      "possible-scaled-clipping";
     const requiresReview =
       measurements.clippedSamples > 0 ||
+      scaledClippingConcern ||
       dcOffsetConcern ||
       phaseConcern ||
       stereoAuthenticityConcern ||
@@ -50,7 +54,10 @@ export async function analyzeAudioFile(
       silence;
     const concerns = [
       measurements.clippedSamples > 0
-        ? `${measurements.clippedSamples.toLocaleString()} clipped samples`
+        ? `${measurements.clippedSamples.toLocaleString()} clipped samples across ${measurements.clipping.eventCount.toLocaleString()} contiguous events`
+        : null,
+      scaledClippingConcern
+        ? `${measurements.clipping.scaledClippingCandidateSamples.toLocaleString()} repeated plateau samples compatible with scaled clipping`
         : null,
       dcOffsetConcern ? "material DC offset" : null,
       phaseConcern ? "negative stereo correlation" : null,
@@ -79,7 +86,7 @@ export async function analyzeAudioFile(
     return {
       schemaVersion: 1,
       engineVersion,
-      scope: "oracle-integrity-fidelity-v6",
+      scope: "oracle-integrity-fidelity-v7",
       verdict,
       analysisState: flacMd5Mismatch ? "failed" : "completed",
       failure: flacMd5Mismatch
@@ -180,6 +187,16 @@ export async function analyzeAudioFile(
           disposition: "neutral",
         },
         {
+          id: "clipping-diagnostics",
+          label: "Clipping diagnostics",
+          summary: `${measurements.clippedSamples.toLocaleString()} clipped samples (${measurements.clipping.clippedSamplePercent.toFixed(6)}%), ${measurements.clipping.eventCount.toLocaleString()} contiguous events; scaled-clipping indicator ${measurements.clipping.scaledClippingIndicator}. ${measurements.clipping.limitation}`,
+          kind: "measured",
+          disposition:
+            measurements.clippedSamples > 0 || scaledClippingConcern
+              ? "contradicts"
+              : "neutral",
+        },
+        {
           id: "stereo-authenticity",
           label: "Stereo authenticity assessment",
           summary:
@@ -230,7 +247,7 @@ export async function analyzeAudioFile(
     return {
       schemaVersion: 1,
       engineVersion,
-      scope: "oracle-integrity-fidelity-v6",
+      scope: "oracle-integrity-fidelity-v7",
       verdict: integrityFailure ? "damaged" : "inconclusive",
       analysisState: integrityFailure ? "failed" : "error",
       failure,

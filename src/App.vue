@@ -6,8 +6,10 @@ import type {
   AudioSourceSelection,
   AuditSessionSummary,
   DecodedSignalComparison,
+  OracleValidationStatus,
   OracleVerdict,
   ReportExportFormat,
+  SpectrogramMeasurements,
 } from "../shared/contracts";
 import iconUrl from "../build/icon.svg";
 import { audioFormatLabel } from "../shared/audio-format";
@@ -27,6 +29,7 @@ const scanMessage = ref("Ready for files or a folder");
 const diagnosticsMessage = ref(
   "Diagnostics exclude filenames, paths, checksums, tags, and audio evidence.",
 );
+const validationStatus = ref<OracleValidationStatus | null>(null);
 const isDiscovering = ref(false);
 const isScanPaused = ref(false);
 const historyOpen = ref(false);
@@ -52,8 +55,20 @@ const compareSpectrogramB = ref<HTMLCanvasElement | null>(null);
 const compareSpectrogramDifference = ref<HTMLCanvasElement | null>(null);
 const spectrogramScale = ref<"linear" | "log">("linear");
 const spectrogramFloor = ref<-120 | -100 | -80>(-120);
-const spectrogramFftSize = ref(512);
+const spectrogramFftSize = ref<512 | 2048 | 4096 | 16384>(512);
+const spectrogramChannelMode = ref<SpectrogramMeasurements["channelMode"]>(
+  "per-channel power average",
+);
+const spectrogramColormap = ref<"inferno" | "magma" | "viridis">("inferno");
+const inspectedSpectrum = ref<SpectrogramMeasurements | null>(null);
+const spectrogramInspecting = ref(false);
+const spectrogramInspectionError = ref("");
+const spectrogramZoom = ref(1);
+const spectrogramPan = ref(0);
+const spectrogramSelectionStart = ref<{ x: number; y: number } | null>(null);
+const spectrogramRegion = ref("Drag across the plot to measure a region");
 const spectrogramCursor = ref("Move across the plot for time, frequency, and level");
+let spectrogramInspectionRequest = 0;
 const acknowledgedReviewIds = ref<Set<string>>(new Set());
 const repairingFileId = ref("");
 const repairBitDepthModes = ref<Record<string, RepairBitDepthMode>>({});
@@ -64,6 +79,28 @@ const virtualRowHeight = 38;
 const virtualOverscan = 8;
 const primaryModifier = navigator.platform.includes("Mac") ? "⌘" : "Ctrl";
 
+const validationStatusLabel = computed(() => {
+  const labels: Record<OracleValidationStatus["readiness"], string> = {
+    "awaiting-source-masters": "Infrastructure ready · masters pending",
+    "pilot-building": "Real-world pilot building",
+    "pilot-ready": "Real-world pilot ready",
+    "target-corpus-ready": "Target corpus ready",
+  };
+  return validationStatus.value
+    ? labels[validationStatus.value.readiness]
+    : "Loading validation disclosure…";
+});
+const validationProgress = computed(() => {
+  const status = validationStatus.value;
+  if (!status) return 0;
+  return Math.min(
+    100,
+    (status.counts.publicIndependentMasters /
+      status.thresholds.targetIndependentMasters) *
+      100,
+  );
+});
+
 const selected = computed(
   () => files.value.find((file) => file.id === selectedId.value) ?? files.value[0],
 );
@@ -71,11 +108,27 @@ const canAnalyzeSelected = computed(() => Boolean(selected.value));
 const displaySpectrum = computed(() => {
   const measurements = selected.value?.oracle.measurements;
   if (!measurements) return null;
-  return (
-    measurements.spectrogramPyramid?.find(
-      (spectrum) => spectrum.fftSize === spectrogramFftSize.value,
-    ) ?? measurements.spectrogram
-  );
+  if (
+    inspectedSpectrum.value?.fftSize === spectrogramFftSize.value &&
+    inspectedSpectrum.value.channelMode === spectrogramChannelMode.value
+  ) {
+    return inspectedSpectrum.value;
+  }
+  const persisted = measurements.spectrogramPyramid?.find(
+      (spectrum) =>
+        spectrum.fftSize === spectrogramFftSize.value &&
+        spectrogramChannelMode.value === "per-channel power average",
+    );
+  return persisted ?? null;
+});
+const spectrogramVisibleTimes = computed(() => {
+  const duration = displaySpectrum.value?.durationSeconds ?? 0;
+  const visibleFraction = 1 / spectrogramZoom.value;
+  const start = spectrogramPan.value * Math.max(0, 1 - visibleFraction);
+  return {
+    start: start * duration,
+    end: Math.min(duration, (start + visibleFraction) * duration),
+  };
 });
 
 const visibleFiles = computed(() => {
@@ -305,16 +358,18 @@ function decodeStatusLabel(file: AudioFileRecord): string {
   return "Failed integrity";
 }
 
-function spectralColor(dbfs: number, floor: number): string {
+function spectralColor(
+  dbfs: number,
+  floor: number,
+  colormap = spectrogramColormap.value,
+): string {
   const value = Math.max(0, Math.min(1, (dbfs - floor) / -floor));
-  const stops = [
-    [7, 8, 18],
-    [38, 21, 78],
-    [127, 32, 126],
-    [225, 60, 75],
-    [255, 170, 53],
-    [255, 241, 159],
-  ];
+  const palettes = {
+    inferno: [[7, 8, 18], [38, 21, 78], [127, 32, 126], [225, 60, 75], [255, 170, 53], [255, 241, 159]],
+    magma: [[0, 0, 4], [42, 17, 92], [114, 31, 129], [188, 55, 84], [249, 142, 8], [252, 253, 191]],
+    viridis: [[68, 1, 84], [59, 82, 139], [33, 145, 140], [94, 201, 98], [253, 231, 37]],
+  };
+  const stops = palettes[colormap];
   const scaled = value * (stops.length - 1);
   const index = Math.min(stops.length - 2, Math.floor(scaled));
   const mix = scaled - index;
@@ -324,6 +379,51 @@ function spectralColor(dbfs: number, floor: number): string {
   return `rgb(${color.join(",")})`;
 }
 
+async function loadSpectrogramInspection(): Promise<void> {
+  const file = selected.value;
+  if (!window.audioV || !file?.oracle.measurements) return;
+  const request = ++spectrogramInspectionRequest;
+  const requestedFftSize = spectrogramFftSize.value;
+  const requestedChannelMode = spectrogramChannelMode.value;
+  const persisted = file.oracle.measurements.spectrogramPyramid?.find(
+    (spectrum) =>
+      spectrum.fftSize === requestedFftSize &&
+      requestedChannelMode === "per-channel power average",
+  );
+  if (persisted) {
+    inspectedSpectrum.value = null;
+    spectrogramInspectionError.value = "";
+    return;
+  }
+  const requestedFileId = file.id;
+  spectrogramInspecting.value = true;
+  spectrogramInspectionError.value = "";
+  try {
+    const spectrum = await window.audioV.inspectSpectrogram(
+      file.path,
+      requestedFftSize,
+      requestedChannelMode,
+    );
+    if (
+      request === spectrogramInspectionRequest &&
+      selected.value?.id === requestedFileId &&
+      spectrogramFftSize.value === requestedFftSize &&
+      spectrogramChannelMode.value === requestedChannelMode
+    ) {
+      inspectedSpectrum.value = spectrum;
+    }
+  } catch (error) {
+    if (request === spectrogramInspectionRequest) {
+      spectrogramInspectionError.value =
+        error instanceof Error ? error.message : "Detailed spectrum could not be measured.";
+    }
+  } finally {
+    if (request === spectrogramInspectionRequest) {
+      spectrogramInspecting.value = false;
+    }
+  }
+}
+
 async function renderSpectrogram(): Promise<void> {
   await nextTick();
   const canvas = spectrogramCanvas.value;
@@ -331,12 +431,21 @@ async function renderSpectrogram(): Promise<void> {
   if (!canvas || !spectral || spectral.slices.length === 0) return;
   const bins = spectral.slices[0]?.levelsDbfs.length ?? 0;
   if (!bins) return;
-  canvas.width = spectral.slices.length;
+  const visibleFraction = 1 / spectrogramZoom.value;
+  const startFraction =
+    spectrogramPan.value * Math.max(0, 1 - visibleFraction);
+  const startIndex = Math.floor(startFraction * spectral.slices.length);
+  const endIndex = Math.min(
+    spectral.slices.length,
+    Math.max(startIndex + 1, Math.ceil((startFraction + visibleFraction) * spectral.slices.length)),
+  );
+  const visibleSlices = spectral.slices.slice(startIndex, endIndex);
+  canvas.width = visibleSlices.length;
   canvas.height = bins;
   const context = canvas.getContext("2d");
   if (!context) return;
   const pixels = context.createImageData(canvas.width, canvas.height);
-  for (let x = 0; x < spectral.slices.length; x += 1) {
+  for (let x = 0; x < visibleSlices.length; x += 1) {
     for (let bin = 0; bin < bins; bin += 1) {
       const frequencyFraction = bin / Math.max(1, bins - 1);
       const frequency =
@@ -354,7 +463,7 @@ async function renderSpectrogram(): Promise<void> {
         ),
       );
       const color = spectralColor(
-        spectral.slices[x].levelsDbfs[sourceBin],
+        visibleSlices[x].levelsDbfs[sourceBin],
         spectrogramFloor.value,
       )
         .match(/\d+/g)!
@@ -516,8 +625,27 @@ watch(
     spectrogramScale.value,
     spectrogramFloor.value,
     spectrogramFftSize.value,
+    spectrogramChannelMode.value,
+    spectrogramColormap.value,
+    spectrogramZoom.value,
+    spectrogramPan.value,
   ],
   () => void renderSpectrogram(),
+);
+watch(
+  () => [
+    selected.value?.id,
+    selected.value?.oracle.measuredAt,
+    spectrogramFftSize.value,
+    spectrogramChannelMode.value,
+  ],
+  () => {
+    inspectedSpectrum.value = null;
+    spectrogramZoom.value = 1;
+    spectrogramPan.value = 0;
+    spectrogramRegion.value = "Drag across the plot to measure a region";
+    void loadSpectrogramInspection();
+  },
 );
 watch(
   () => [
@@ -562,6 +690,11 @@ onMounted(() => {
   void renderSpectrogram();
   void renderComparisonVisuals();
   void refreshAuditSessions();
+  void window.audioV
+    ?.validationStatus()
+    .then((status) => {
+      validationStatus.value = status;
+    });
   removeScanProgressListener =
     window.audioV?.onScanProgress((progress) => {
       if (!isDiscovering.value) return;
@@ -895,9 +1028,20 @@ function updateSpectrogramCursor(event: MouseEvent): void {
     spectrogramScale.value === "linear"
       ? frequencyFraction * spectral.maxFrequencyHz
       : 20 * (spectral.maxFrequencyHz / 20) ** frequencyFraction;
+  const visibleFraction = 1 / spectrogramZoom.value;
+  const startFraction =
+    spectrogramPan.value * Math.max(0, 1 - visibleFraction);
+  const startIndex = Math.floor(startFraction * spectral.slices.length);
+  const endIndex = Math.min(
+    spectral.slices.length,
+    Math.max(
+      startIndex + 1,
+      Math.ceil((startFraction + visibleFraction) * spectral.slices.length),
+    ),
+  );
   const sliceIndex = Math.min(
-    spectral.slices.length - 1,
-    Math.round(x * (spectral.slices.length - 1)),
+    endIndex - 1,
+    startIndex + Math.round(x * Math.max(0, endIndex - startIndex - 1)),
   );
   const binIndex = Math.min(
     spectral.slices[sliceIndex].levelsDbfs.length - 1,
@@ -906,10 +1050,49 @@ function updateSpectrogramCursor(event: MouseEvent): void {
         (spectral.slices[sliceIndex].levelsDbfs.length - 1),
     ),
   );
+  const visibleTimes = spectrogramVisibleTimes.value;
+  const timeSeconds =
+    visibleTimes.start + x * (visibleTimes.end - visibleTimes.start);
   spectrogramCursor.value =
-    `${(x * spectral.durationSeconds).toFixed(2)} s · ` +
+    `${timeSeconds.toFixed(2)} s · ` +
     `${frequency >= 1_000 ? `${(frequency / 1_000).toFixed(2)} kHz` : `${Math.round(frequency)} Hz`} · ` +
     `${spectral.slices[sliceIndex].levelsDbfs[binIndex].toFixed(1)} dBFS`;
+}
+
+function spectrogramPoint(event: MouseEvent): { x: number; y: number } | null {
+  const canvas = spectrogramCanvas.value;
+  if (!canvas) return null;
+  const bounds = canvas.getBoundingClientRect();
+  return {
+    x: Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width)),
+    y: Math.max(0, Math.min(1, 1 - (event.clientY - bounds.top) / bounds.height)),
+  };
+}
+
+function beginSpectrogramRegion(event: MouseEvent): void {
+  spectrogramSelectionStart.value = spectrogramPoint(event);
+}
+
+function finishSpectrogramRegion(event: MouseEvent): void {
+  const start = spectrogramSelectionStart.value;
+  const end = spectrogramPoint(event);
+  const spectral = displaySpectrum.value;
+  spectrogramSelectionStart.value = null;
+  if (!start || !end || !spectral) return;
+  const visible = spectrogramVisibleTimes.value;
+  const time = (fraction: number) =>
+    visible.start + fraction * (visible.end - visible.start);
+  const frequency = (fraction: number) =>
+    spectrogramScale.value === "linear"
+      ? fraction * spectral.maxFrequencyHz
+      : 20 * (spectral.maxFrequencyHz / 20) ** fraction;
+  const startTime = Math.min(time(start.x), time(end.x));
+  const endTime = Math.max(time(start.x), time(end.x));
+  const lowFrequency = Math.min(frequency(start.y), frequency(end.y));
+  const highFrequency = Math.max(frequency(start.y), frequency(end.y));
+  spectrogramRegion.value =
+    `${startTime.toFixed(2)}–${endTime.toFixed(2)} s · ` +
+    `${(lowFrequency / 1_000).toFixed(2)}–${(highFrequency / 1_000).toFixed(2)} kHz`;
 }
 
 async function exportSpectrogram(): Promise<void> {
@@ -922,6 +1105,87 @@ async function exportSpectrogram(): Promise<void> {
   scanMessage.value = result.canceled
     ? "Spectrogram export canceled"
     : `Spectrogram exported · ${result.filePath}`;
+}
+
+function spectrogramPng(spectral: SpectrogramMeasurements): string {
+  const canvas = document.createElement("canvas");
+  const bins = spectral.slices[0]?.levelsDbfs.length ?? 0;
+  canvas.width = spectral.slices.length;
+  canvas.height = bins;
+  const context = canvas.getContext("2d");
+  if (!context || !bins) return "";
+  const pixels = context.createImageData(canvas.width, canvas.height);
+  for (let x = 0; x < canvas.width; x += 1) {
+    for (let bin = 0; bin < bins; bin += 1) {
+      const frequencyFraction = bin / Math.max(1, bins - 1);
+      const frequency =
+        spectrogramScale.value === "linear"
+          ? frequencyFraction * spectral.maxFrequencyHz
+          : 20 *
+            (spectral.maxFrequencyHz / 20) ** frequencyFraction;
+      const sourceBin = Math.min(
+        bins - 1,
+        Math.max(
+          0,
+          Math.round(
+            (frequency / spectral.maxFrequencyHz) * (bins - 1),
+          ),
+        ),
+      );
+      const color = spectralColor(
+        spectral.slices[x].levelsDbfs[sourceBin],
+        spectrogramFloor.value,
+      ).match(/\d+/g)!.map(Number);
+      const offset = ((bins - 1 - bin) * canvas.width + x) * 4;
+      pixels.data[offset] = color[0];
+      pixels.data[offset + 1] = color[1];
+      pixels.data[offset + 2] = color[2];
+      pixels.data[offset + 3] = 255;
+    }
+  }
+  context.putImageData(pixels, 0, 0);
+  return canvas.toDataURL("image/png");
+}
+
+async function exportBatchSpectrograms(): Promise<void> {
+  if (!window.audioV) return;
+  const measuredFiles = files.value.filter(
+    (file) => file.oracle.measurements?.spectrogram.slices.length,
+  );
+  if (!measuredFiles.length) {
+    scanMessage.value = "No measured spectrograms are available to export";
+    return;
+  }
+  try {
+    const items: Array<{ fileName: string; dataUrl: string }> = [];
+    for (let index = 0; index < measuredFiles.length; index += 1) {
+      const file = measuredFiles[index];
+      scanMessage.value =
+        `Preparing spectrogram ${index + 1} of ${measuredFiles.length} · ${file.name}`;
+      const persisted = file.oracle.measurements!.spectrogramPyramid?.find(
+        (spectrum) =>
+          spectrum.fftSize === spectrogramFftSize.value &&
+          spectrogramChannelMode.value === "per-channel power average",
+      );
+      const spectral =
+        persisted ??
+        await window.audioV.inspectSpectrogram(
+          file.path,
+          spectrogramFftSize.value,
+          spectrogramChannelMode.value,
+        );
+      items.push({ fileName: file.name, dataUrl: spectrogramPng(spectral) });
+    }
+    const result = await window.audioV.exportSpectrogramBatch(items);
+    scanMessage.value = result.canceled
+      ? "Batch spectrogram export canceled"
+      : `${result.exportedCount.toLocaleString()} spectrogram PNGs exported · ${result.filePath}`;
+  } catch (error) {
+    scanMessage.value =
+      error instanceof Error
+        ? `Batch spectrogram export failed · ${error.message}`
+        : "Batch spectrogram export failed";
+  }
 }
 
 function comparisonValue(
@@ -1528,13 +1792,18 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
                   <div class="spectrogram-controls">
                     <label>Resolution
                       <select v-model.number="spectrogramFftSize">
-                        <option
-                          v-for="spectrum in selected.oracle.measurements?.spectrogramPyramid ?? []"
-                          :key="spectrum.fftSize"
-                          :value="spectrum.fftSize"
-                        >
-                          {{ spectrum.fftSize === 512 ? "Overview" : "Detail" }} · {{ spectrum.fftSize }} FFT
-                        </option>
+                        <option :value="512">Overview · 512 FFT</option>
+                        <option :value="2048">Detail · 2,048 FFT</option>
+                        <option :value="4096">Precision · 4,096 FFT</option>
+                        <option :value="16384">Hi-Fi · 16,384 FFT</option>
+                      </select>
+                    </label>
+                    <label>Channels
+                      <select v-model="spectrogramChannelMode">
+                        <option value="per-channel power average">Combined power</option>
+                        <option value="left channel">Left</option>
+                        <option value="right channel" :disabled="(selected.channels ?? 1) < 2">Right</option>
+                        <option value="left-right difference" :disabled="(selected.channels ?? 1) < 2">L−R difference</option>
                       </select>
                     </label>
                     <label>Scale
@@ -1550,7 +1819,15 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
                         <option :value="-80">−80 dBFS</option>
                       </select>
                     </label>
+                    <label>Color
+                      <select v-model="spectrogramColormap">
+                        <option value="inferno">Inferno</option>
+                        <option value="magma">Magma</option>
+                        <option value="viridis">Viridis</option>
+                      </select>
+                    </label>
                     <button @click="exportSpectrogram">Export PNG</button>
+                    <button @click="exportBatchSpectrograms">Batch PNG</button>
                   </div>
                 </div>
                 <div class="spectrogram-frame">
@@ -1564,13 +1841,27 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
                     role="img"
                     aria-label="Measured audio spectrogram"
                     @mousemove="updateSpectrogramCursor"
+                    @mousedown="beginSpectrogramRegion"
+                    @mouseup="finishSpectrogramRegion"
                   >Measured full-track audio spectrogram.</canvas>
                 </div>
                 <div class="spectrogram-time">
-                  <span>0:00</span>
+                  <span>{{ formatDuration(spectrogramVisibleTimes.start) }}</span>
                   <b>{{ spectrogramCursor }}</b>
-                  <span>{{ formatDuration(displaySpectrum.durationSeconds) }}</span>
+                  <span>{{ formatDuration(spectrogramVisibleTimes.end) }}</span>
                 </div>
+                <div class="spectrogram-navigation">
+                  <button :disabled="spectrogramZoom === 1" @click="spectrogramZoom = Math.max(1, spectrogramZoom / 2)">−</button>
+                  <span>{{ spectrogramZoom }}× zoom</span>
+                  <button :disabled="spectrogramZoom === 16" @click="spectrogramZoom = Math.min(16, spectrogramZoom * 2)">+</button>
+                  <label>Pan <input v-model.number="spectrogramPan" type="range" min="0" max="1" step="0.01" :disabled="spectrogramZoom === 1"></label>
+                  <b>{{ spectrogramRegion }}</b>
+                </div>
+              </div>
+              <div v-else-if="spectrogramInspecting" class="analysis-pending">
+                <span>FFT</span>
+                <strong>Measuring detailed spectrum…</strong>
+                <p>The selected channel view is decoded on demand so library audits remain bounded.</p>
               </div>
               <div v-else class="analysis-pending">
                 <span>STFT</span>
@@ -1581,7 +1872,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
                       ? "Metadata Inventory does not decode signal data. Re-run this file with the Oracle Engine to measure its spectrogram."
                       : oracleAnalysisState(selected) === "error"
                         ? `Analysis stopped at ${failureStageLabel(selected)}. No file-integrity conclusion was made.`
-                        : "The deterministic integrity failure prevented a complete spectrogram. Review the exact decoder evidence."
+                        : spectrogramInspectionError || "The deterministic integrity failure prevented a complete spectrogram. Review the exact decoder evidence."
                   }}
                 </p>
               </div>
@@ -1623,10 +1914,35 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
                   <strong>{{ selected.oracle.measurements.crestFactorDb === null ? "—" : `${selected.oracle.measurements.crestFactorDb.toFixed(1)} dB` }}</strong>
                   <p>Decoded sample peak relative to overall RMS.</p>
                 </article>
-                <article>
+                <article
+                  v-if="selected.oracle.measurements.clipping"
+                  class="clipping-diagnostics"
+                >
                   <span class="eyebrow">Clipped samples</span>
-                  <strong>{{ selected.oracle.measurements.clippedSamples.toLocaleString() }}</strong>
-                  <p>{{ selected.oracle.measurements.nearClippedSamples.toLocaleString() }} at or above −0.1 dBFS.</p>
+                  <strong>{{ selected.oracle.measurements.clippedSamples.toLocaleString() }} · {{ selected.oracle.measurements.clipping.clippedSamplePercent.toFixed(6) }}%</strong>
+                  <p>{{ selected.oracle.measurements.clipping.eventCount.toLocaleString() }} contiguous events · {{ selected.oracle.measurements.nearClippedSamples.toLocaleString() }} samples at or above −0.1 dBFS.</p>
+                  <div class="clipping-timeline" role="img" :aria-label="`${selected.oracle.measurements.clipping.eventCount} clipping events across the track timeline`">
+                    <i
+                      v-for="(event, index) in selected.oracle.measurements.clipping.events"
+                      :key="index"
+                      :style="{
+                        left: `${(event.startSeconds / selected.oracle.measurements.durationSeconds) * 100}%`,
+                        width: `${Math.max(0.25, ((event.endSeconds - event.startSeconds) / selected.oracle.measurements.durationSeconds) * 100)}%`
+                      }"
+                      :title="`${event.startSeconds.toFixed(3)}–${event.endSeconds.toFixed(3)} s · ${event.clippedSamples} samples · channels ${event.channels.map((channel) => channel + 1).join(', ')}`"
+                    ></i>
+                  </div>
+                  <dl>
+                    <div v-for="(channel, index) in selected.oracle.measurements.perChannel" :key="index">
+                      <dt>Channel {{ index + 1 }}</dt>
+                      <dd>{{ channel.clippedSamples.toLocaleString() }} · {{ channel.clippedSamplePercent.toFixed(6) }}%</dd>
+                    </div>
+                  </dl>
+                  <small :class="{ warning: selected.oracle.measurements.clipping.scaledClippingIndicator === 'possible-scaled-clipping' }">
+                    {{ selected.oracle.measurements.clipping.scaledClippingIndicator === "possible-scaled-clipping"
+                      ? `Possible scaled clipping · ${selected.oracle.measurements.clipping.scaledClippingCandidateSamples.toLocaleString()} repeated plateau samples`
+                      : "No repeated plateau pattern detected" }}
+                  </small>
                 </article>
                 <article>
                   <span class="eyebrow">Stereo correlation</span>
@@ -2151,6 +2467,21 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
           <article><span>Broadcast loudness</span><strong>EBU R128 / BS.1770</strong><p>Integrated LUFS, loudness range, and oversampled true peak are measured by the bundled engine.</p></article>
           <article><span>Codec integrity</span><strong>FLAC audio MD5</strong><p>The decoded PCM is independently compared with the checksum stored in STREAMINFO; mismatch is a deterministic failure.</p></article>
           <article><span>Spectral origin</span><strong>Conservative review classifier</strong><p>Measured cutoffs can flag compatible patterns with rule strength, evidence coverage, reason codes, and explicit mastering limitations.</p></article>
+          <article class="validation-disclosure">
+            <span>Oracle validation basis</span>
+            <strong>{{ validationStatusLabel }}</strong>
+            <div class="validation-progress" role="progressbar" aria-label="Public independent licensed source masters acquired" :aria-valuenow="validationStatus?.counts.publicIndependentMasters ?? 0" aria-valuemin="0" :aria-valuemax="validationStatus?.thresholds.targetIndependentMasters ?? 50">
+              <i :style="{ width: `${validationProgress}%` }"></i>
+            </div>
+            <dl>
+              <div><dt>Public masters</dt><dd>{{ validationStatus?.counts.publicIndependentMasters ?? 0 }} / {{ validationStatus?.thresholds.targetIndependentMasters ?? 50 }}</dd></div>
+              <div><dt>Contributor groups</dt><dd>{{ validationStatus?.counts.contributorGroups ?? 0 }}</dd></div>
+              <div><dt>Controlled cases</dt><dd>{{ validationStatus?.counts.generatedCases ?? 0 }}</dd></div>
+              <div><dt>Current claim</dt><dd>{{ validationStatus?.claimLevel === "synthetic-regression-only" ? "Regression tested only" : validationStatus?.claimLevel === "pilot-real-world-evidence" ? "Pilot evidence" : "Corpus present · not calibrated" }}</dd></div>
+            </dl>
+            <p>{{ validationStatus?.limitations[0] ?? "Audio-V is loading the packaged corpus and scorecard disclosure." }}</p>
+            <small>Corpus {{ validationStatus?.corpusVersion ?? "—" }} · Synthetic fixtures and derivatives never increase the independent-master count.</small>
+          </article>
           <article><span>Open-source license</span><strong>AGPL-3.0-only</strong><p>Code remains available under strong copyleft. Audio-V and Oracle Engine names and artwork remain governed by the trademark policy.</p></article>
           <article><span>Support diagnostics</span><strong>Privacy-safe export</strong><p>{{ diagnosticsMessage }}</p><button class="secondary-action" @click="exportDiagnostics">Export diagnostics</button></article>
           <article><span>Keyboard workflow</span><strong>Fast navigation</strong><p>Use {{ primaryModifier }}+O for files, {{ primaryModifier }}+Shift+O for a folder, and {{ primaryModifier }}+1–5 for workspaces.</p></article>
@@ -2160,7 +2491,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
       <footer class="statusbar">
         <span role="status" aria-live="polite"><i></i>{{ scanMessage }}</span>
         <span>{{ files.length.toLocaleString() }} files in session</span>
-        <span>Oracle integrity &amp; fidelity scope v6</span>
+        <span>Oracle integrity &amp; fidelity scope v7</span>
       </footer>
     </main>
   </div>

@@ -12,6 +12,8 @@ Audio-V separates deterministic integrity checks, direct measurements, and heuri
 ## Signal and loudness measurements
 
 - Sample peak, RMS, per-channel DC offset, clipping, near clipping, stereo correlation, duplicated mono, and crest factor are calculated from streamed 64-bit decoded PCM.
+- A clipped sample is a decoded sample whose absolute amplitude is at least 1.0 full scale. Audio-V reports total and per-channel counts and percentages, and groups adjacent frames containing clipped samples into contiguous events. The event timeline retains at most 500 event records while preserving the complete aggregate count.
+- Possible scaled clipping is a conservative plateau indicator: three or more consecutive samples with the same absolute amplitude within \(10^{-7}\), at or above 0.5 full scale. It may find a clipped waveform that was later attenuated, but square waves, synthesis, limiting, and quantization can produce the same shape. It therefore produces **Review**, never **Failed**, and is not described as reconstructed proof.
 - Integrated loudness, loudness range, and oversampled true peak are measured with FFmpeg's EBU R128 filter. Peak-to-loudness ratio is true peak minus integrated LUFS. These descriptors follow [EBU R 128](https://tech.ebu.ch/publications/r128) and its [streaming supplement](https://tech.ebu.ch/files/live/sites/tech/files/shared/r/r128s2v1_0.pdf).
 - An internal dropout candidate is an exact digital-zero run of at least 100 ms surrounded by non-zero signal. It produces **Review**, not **Failed**, because intentional edits can contain the same pattern.
 - A discontinuity candidate is a channel sample-to-sample jump of at least 0.95 full scale. It is reported as a measurement and does not currently affect the verdict.
@@ -22,7 +24,9 @@ Metadata Inventory is a deliberate non-decoding workflow. It records declared co
 
 ## Spectral analysis
 
-- The displayed spectrogram is measured, not decorative. The overview tier uses a 512-point Hann-window STFT with at most 180 full-track slices; the detail tier uses a 2,048-point Hann-window STFT with at most 90 slices. Both disclose their dynamic floor, frequency range, hop size, and resolution. Stereo and multichannel spectra are combined as an average of per-channel power, so opposite-polarity channels do not cancel before measurement.
+- The displayed spectrogram is measured, not decorative. Every completed audit persists a 512-point overview and 2,048-point detail tier. The inspector can decode the selected file on demand for 4,096- or 16,384-point analysis without expanding every batch record. Every tier discloses its dynamic floor, frequency range, hop size, and resolution.
+- Combined mode averages per-channel power, so opposite-polarity channels do not cancel before measurement. Left and right modes isolate the first two channels. L−R measures the side signal \((L-R)/2\); mono requests resolve to the available left channel.
+- Zoom and pan select a bounded time window from the measured slices. Drag selection reports exact visible time and frequency bounds. Inferno, magma, and viridis palettes affect presentation only; FFT data and verdict logic are unchanged. Batch PNG export applies the selected FFT resolution, channel mode, floor, and colormap to each decoded file.
 - The waveform overview is a per-channel envelope: its extrema preserve the minimum and maximum sample across channels, while RMS uses average channel power. It is not a mono downmix.
 - Compare alignment decodes up to the first 120 seconds of each selected file into an 8 kHz mono analysis preview. It estimates a bounded ±5 second offset from energy-envelope correlation, then measures aligned sample correlation, polarity, relative gain, and residual energy. This is decoded-signal relationship evidence, not a full-track null test or source-provenance claim.
 - Effective bandwidth is the highest locally sustained bin within 60 dB of the strongest average bin, bounded by −90 dBFS.
@@ -45,7 +49,7 @@ An inconclusive assessment has no rule-strength score and includes a machine-rea
 
 ## Reproducibility
 
-Reports include file identity, engine version, decoded measurements, analysis settings, evidence disposition, and classifier limitations. Raw spectrogram matrices are omitted from batch JSON exports to keep reports bounded; PNG exports preserve the selected linear/log scale and display floor.
+Reports include file identity, engine version, decoded measurements, analysis settings, evidence disposition, clipping diagnostics, and classifier limitations. Raw spectrogram matrices are omitted from batch JSON exports to keep reports bounded; PNG exports preserve the selected FFT resolution, channel mode, colormap, and display floor.
 
 ## Non-destructive level remediation
 

@@ -1,0 +1,56 @@
+name: Validation corpus contribution
+description: Offer an original source master for Audio-V's licensed real-world validation corpus.
+title: "Corpus contribution: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping validate the Oracle Engine on real recordings.
+
+        **Do not attach or publicly link audio, contracts, personal information, or private acceptance records to this issue.** This form records interest only. A maintainer will arrange a private transfer and the separate Corpus Contribution Agreement.
+  - type: input
+    id: artist
+    attributes:
+      label: Artist or contributor name
+      description: A public artist name or stable contributor identifier is sufficient.
+    validations:
+      required: true
+  - type: input
+    id: masters
+    attributes:
+      label: Number and format of available masters
+      placeholder: "For example: 3 tracks, 24-bit/96 kHz WAV"
+    validations:
+      required: true
+  - type: dropdown
+    id: provenance
+    attributes:
+      label: Master provenance
+      options:
+        - Direct export from the recording or mastering session
+        - Render from owned multitrack stems
+        - Documented analog transfer
+        - Other documented source
+    validations:
+      required: true
+  - type: dropdown
+    id: rights
+    attributes:
+      label: Rights position
+      description: The contributor must control both the sound recording and the composition, or use a public-domain composition.
+      options:
+        - I control the sound recording and composition
+        - I control the sound recording and the composition is public domain
+        - Multiple rights holders can provide permission
+        - Rights need clarification
+    validations:
+      required: true
+  - type: checkboxes
+    id: acknowledgement
+    attributes:
+      label: Contribution acknowledgement
+      options:
+        - label: I understand that this issue does not transfer rights or accept audio into the corpus.
+          required: true
+        - label: I will not post audio files, private download links, or personal acceptance records in this public issue.
+          required: true

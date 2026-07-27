@@ -11,6 +11,8 @@ build/platform-validation-*.json
 tests/.tmp-*/
 tmp/
 vendor/ffmpeg/
+validation/real-world/.audio/
+validation/real-world/generated/
 .env
 .env.*
 !.env.example

@@ -31,10 +31,20 @@ const api: AudioVDesktopApi = {
   cancelScan: () => ipcRenderer.invoke("library:cancel-scan"),
   analyzeFile: (filePath, sessionId) =>
     ipcRenderer.invoke("oracle:analyze-file", filePath, sessionId),
+  inspectSpectrogram: (filePath, fftSize, channelMode) =>
+    ipcRenderer.invoke(
+      "oracle:inspect-spectrogram",
+      filePath,
+      fftSize,
+      channelMode,
+    ),
   exportReport: (request, format) =>
     ipcRenderer.invoke("reports:export", request, format),
   exportSpectrogram: (fileName, dataUrl) =>
     ipcRenderer.invoke("reports:export-spectrogram", fileName, dataUrl),
+  exportSpectrogramBatch: (items) =>
+    ipcRenderer.invoke("reports:export-spectrogram-batch", items),
+  validationStatus: () => ipcRenderer.invoke("oracle:validation-status"),
   exportDiagnostics: () => ipcRenderer.invoke("app:export-diagnostics"),
   revealFile: (filePath) => ipcRenderer.invoke("files:reveal", filePath),
   createTruePeakSafeCopy: (filePath, targetBitDepth) =>

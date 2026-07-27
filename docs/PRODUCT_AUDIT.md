@@ -34,8 +34,8 @@ The official [AudioAuditor website](https://audioauditor.org/) and [source repos
 | AI-generated audio detection | Research-gated | Generic “AI detected” verdict excluded until a validated corpus exists; provenance metadata, C2PA, and known watermark indicators remain candidates for a deterministic indicator layer |
 | MQA detection | Evidence-gated | Planned only as marker/profile disclosure; Audio-V will not imply MQA authenticity or decoding without a reproducible method |
 | Fake stereo detection | Adopt with neutral language | Implemented as mono, sample-identical dual-mono, near-mono, distinct-stereo, or inconclusive using correlation and side-to-mid energy |
-| Clipping analysis | Adopt | Implemented for sample clipping, near clipping, and BS.1770 true peak; destructive peak reconstruction is never promised |
-| Spectrogram viewer | Adopt and deepen | Implemented full-track STFT with disclosed FFT/window/hop/floor, cursor inspection, scale/floor controls, and PNG export |
+| Clipping analysis | Adopt | Implemented total/per-channel percentages, contiguous events and timeline, near clipping, BS.1770 true peak, and conservative scaled-clipping review; destructive peak reconstruction is never promised |
+| Spectrogram viewer | Adopt and deepen | Implemented 512/2,048/4,096/16,384-point STFT, combined/L/R/L−R views, zoom/pan/region measurement, scientific colormaps, and single/batch PNG export |
 | Waveform and spectrogram compare | Adopt without playback | Implemented independent File A/B loading, bounded waveform envelopes, paired spectra, normalized spectral-difference heatmap, and measurement table |
 | Audio player, equalizer, lyrics | Exclude | No player, EQ, lyrics, queue playback, or transport code |
 | CSV / PDF / XLSX / DOCX export | Adopt and add JSON | Implemented from one evidence model; JSON remains the lossless machine-readable format |
@@ -155,6 +155,7 @@ Gate 2 is complete for the repository-level scale foundation. Market-readiness s
 - A versioned golden-corpus manifest covers native wideband controls, known MP3-to-FLAC and upsample transformations, intentional low-pass material, digital silence, insufficient duration, and narrow-band tonal content.
 - `npm run validate:fidelity` executes the compiled Oracle against the corpus, blocks regressions, and records a machine-readable scorecard in `build/fidelity-validation-latest.json`.
 - Changing the failure semantics advanced the engine/cache identity to `0.4.0-oracle-v6`, preventing older catch-all damage interpretations from appearing under the new model.
+- Deep spectrogram inspection and clipping-event evidence advance the current identity to `0.5.0-oracle-v7`, invalidating cached v6 measurements that do not contain the expanded evidence model.
 
 Gate 3 now has an enforceable validation foundation, but it is not statistically calibrated. The included corpus is synthetic and deliberately small. Production-grade provenance confidence requires a licensed, ground-truth library across genres, recording eras, mastering processes, analog transfers, speech, silence, sample rates, codecs, bitrates, resampling methods, and intentional filtering, with train/calibration/test separation and published per-class false-positive and false-negative results. Until that corpus exists, Audio-V will continue to use **possible**, **bandwidth limited**, or **inconclusive** language instead of claiming universal origin verdicts.
 
@@ -162,7 +163,7 @@ Gate 3 now has an enforceable validation foundation, but it is not statistically
 
 - Binary distribution is explicitly **unsigned by project policy**, not accidentally unsigned because a credential was missing. The default macOS build disables identity discovery, notarization, and Hardened Runtime; the default Windows build disables executable signing.
 - Separate future signed build commands retain macOS Hardened Runtime/notarization and Windows Authenticode integration without requiring credentials for open-source development releases.
-- Package inspection verifies the two required DMGs, Windows installer, Windows portable executable, embedded application archive, FFmpeg/ffprobe engines, notices, engine manifest, PE signatures, and both Intel/Apple Silicon architectures in the Universal application and engines. Packaged-runtime smoke tests then launch the native application, fully analyze a real FLAC fixture, verify the Oracle v5 result, and exit through a guarded QA channel.
+- Package inspection verifies the two required DMGs, Windows installer, Windows portable executable, embedded application archive, FFmpeg/ffprobe engines, notices, engine manifest, PE signatures, and both Intel/Apple Silicon architectures in the Universal application and engines. Packaged-runtime smoke tests then launch the native application, fully analyze a real FLAC fixture, verify the current Oracle engine identity, and exit through a guarded QA channel.
 - Every release receives SHA-256 checksums and `UNSIGNED_RELEASE_MANIFEST.json`, which declares the distribution and signing policy for each exact artifact.
 - Pull requests and main-branch updates run the full suite on macOS and Windows. Both platforms produce Oracle snapshots over identical fixtures, and a separate parity job compares deterministic values exactly and measured values within documented tolerances.
 - Tagged-release publication is downstream of correctness, packaging, artifact inspection, and cross-platform parity. Tag/package version mismatch or a missing project license blocks public publication.
@@ -182,6 +183,17 @@ Gate 4 is complete at the repository and local-package level. Actual macOS-versu
 - `npm run verify:release-candidate` produces a machine-readable automated readiness result from licensing, documentation, accessibility, fidelity, scale, and artifact evidence.
 
 Gate 5 is complete for automated repository readiness and local macOS validation. It is not yet honest to call the application market-ready: the manual clean-environment matrix in `docs/RELEASE_CANDIDATE_CHECKLIST.md`, actual Windows packaged runtime, Windows/macOS parity CI, Intel hardware launch, VoiceOver/Narrator workflow review, display scaling, upgrade/uninstall, and real-library performance remain external acceptance work. Signing/notarization is an explicit policy waiver rather than a failure.
+
+### Real-world validation milestone status
+
+- Corpus governance is separated from the software CLA through `CORPUS_CONTRIBUTION_AGREEMENT.md`.
+- The source-master registry enforces rights records, SHA-256 identity, chain of custody, public-versus-private disposition, and contributor-group partitions.
+- Deterministic recipes generate at least ten native, lossy-transcode, upsample, and intentional-filter cases per imported master.
+- Evaluation records accepted classifications, detector confusion counts, inconclusive behavior, and exact 95% Clopper-Pearson binomial intervals.
+- Settings reads the exact status shipped with the package and exposes master, contributor-group, case, corpus-version, and claim-level information.
+- Reports state that heuristic rule strength is not a probability-calibrated provenance claim.
+
+Infrastructure is complete, while source acquisition remains factual external work. With no licensed masters present, the enforced state is `awaiting-source-masters` and the claim level is `synthetic-regression-only`.
 
 Recommended layers:
 
@@ -229,7 +241,7 @@ No build may be called a beta until:
 - Source warnings no longer abort all valid files in a mixed selection.
 - Packaged FFmpeg/ffprobe 8.1.2 LGPL engines perform complete multi-codec stream decoding and technical probing on macOS and Windows.
 - Real sample peak, RMS, DC offset, clipping, near-clipping, stereo correlation, duplicate-mono, EBU R128 integrated loudness/LRA, and BS.1770 true-peak metrics run automatically during batch ingest.
-- A measured full-track 512-point Hann-window STFT spectrogram exposes its FFT size, hop, slice count, frequency range, and −120 dBFS display floor for every successfully decoded format.
+- Measured 512- and 2,048-point Hann-window STFT tiers are persisted for every successfully decoded format; 4,096- and 16,384-point combined/L/R/L−R views decode on demand and expose zoom, pan, region measurement, scientific colormaps, and batch PNG export.
 - MP3 packet analysis distinguishes CBR from VBR and reports observed packet-rate bounds.
 - Native FLAC files receive an independent canonical decoded-PCM comparison against the MD5 stored in STREAMINFO.
 - Exact digital-silence runs, internal dropout candidates, steep transition candidates, crest factor, and peak-to-loudness ratio are measured and disclosed.
@@ -239,7 +251,8 @@ No build may be called a beta until:
 - Deterministic decoder corruption and decoded-audio checksum mismatches finish as **Failed** with a stage and exact evidence. Tool, timeout, resource, probe, measurement, and internal failures finish as **Analysis error** without making a damage claim.
 - Metadata Inventory is an explicit non-decoding workflow whose records remain **Not analyzed** until a Full Oracle Audit runs; it is no longer represented in verdict distribution as “Metadata only.”
 - Batch audits can terminate active decoders, preserve completed rows, and restore unchanged v3 results from a persistent size/mtime-invalidated cache.
-- Spectrogram inspection supports linear/log frequency display, −120/−100/−80 dBFS floors, cursor time/frequency/level readout, and PNG export.
+- Spectrogram inspection supports linear/log frequency display, −120/−100/−80 dBFS floors, cursor time/frequency/level readout, zoom/pan, exact dragged regions, combined/left/right/L−R views, scientific colormaps, and single/batch PNG export.
+- Clipping evidence includes total and per-channel percentages, contiguous event grouping, a location timeline, and a conservative repeated-plateau indicator for possible scaled clipping. These remain Review findings unless independent deterministic integrity evidence establishes failure.
 - Review now explains the exact trigger, distinguishes integrity failure from measured or heuristic warnings, and offers acknowledgement, evidence export, source reveal, re-analysis, and Repair routing.
 - Repair Lab provides a visible diagnose/choose/verify process. Positive true-peak findings can create a separate −1 dBTP FLAC working copy that is automatically decoded and audited; sources are never overwritten, and the UI explicitly states that gain reduction does not reconstruct clipped peaks.
 - Origin Assessment separates container-declared profile data from measured spectral evidence and exposes the classification, heuristic rule strength, evidence coverage, measured bandwidth, cutoff data, supporting basis, and provenance limitation.

@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/DRAZY/Audio-V/validation/real-world/schemas/corpus.schema.json",
+  "title": "Audio-V real-world corpus",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "corpusId", "corpusVersion", "policy", "masters"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "corpusId": { "const": "audio-v-real-world" },
+    "corpusVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "description": { "type": "string" },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["splitStrategy", "pilotIndependentMasters", "targetIndependentMasters", "minimumCasesPerMaster", "publicLicenses"],
+      "properties": {
+        "splitStrategy": { "const": "contributor-group-sha256-v1" },
+        "pilotIndependentMasters": { "type": "integer", "minimum": 1 },
+        "targetIndependentMasters": { "type": "integer", "minimum": 1 },
+        "minimumCasesPerMaster": { "type": "integer", "minimum": 1 },
+        "publicLicenses": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      }
+    },
+    "masters": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/master" }
+    }
+  },
+  "$defs": {
+    "master": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "groupId", "split", "title", "artist", "file", "sha256", "rights", "provenance", "technical"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^AVC-M-[A-Z0-9-]+$" },
+        "groupId": { "type": "string", "minLength": 2 },
+        "split": { "enum": ["development", "calibration", "test", "challenge"] },
+        "title": { "type": "string", "minLength": 1 },
+        "artist": { "type": "string", "minLength": 1 },
+        "file": { "type": "string", "pattern": "^\\.audio/masters/" },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "rights": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["license", "agreementId", "acceptedAt", "redistributable", "attribution"],
+          "properties": {
+            "license": { "enum": ["CC0-1.0", "CC-BY-4.0", "Audio-V-CCA-1.0"] },
+            "agreementId": { "type": "string", "minLength": 3 },
+            "acceptedAt": { "type": "string", "format": "date" },
+            "redistributable": { "type": "boolean" },
+            "attribution": { "type": "string" }
+          }
+        },
+        "provenance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "acquiredAt", "chainOfCustody"],
+          "properties": {
+            "kind": { "enum": ["direct-master-export", "multitrack-render", "analog-transfer", "licensed-research-dataset"] },
+            "acquiredAt": { "type": "string", "format": "date" },
+            "chainOfCustody": { "type": "string", "minLength": 10 }
+          }
+        },
+        "technical": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["format", "sampleRate", "bitDepth", "channels"],
+          "properties": {
+            "format": { "type": "string", "minLength": 2 },
+            "sampleRate": { "type": "integer", "minimum": 8000 },
+            "bitDepth": { "type": "integer", "enum": [16, 24, 32, 64] },
+            "channels": { "type": "integer", "minimum": 1, "maximum": 32 }
+          }
+        }
+      }
+    }
+  }
+}

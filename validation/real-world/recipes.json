@@ -1,0 +1,102 @@
+{
+  "$schema": "./schemas/recipes.schema.json",
+  "schemaVersion": 1,
+  "recipeSetVersion": "0.1.0",
+  "recipes": [
+    {
+      "id": "native-flac-control",
+      "truthClass": "native-control",
+      "acceptedClassifications": ["no-strong-spectral-anomaly", "bandwidth-limited", "inconclusive"],
+      "description": "Lossless FLAC container conversion without an intentional bandwidth change."
+    },
+    {
+      "id": "mp3-96-to-flac",
+      "truthClass": "lossy-to-lossless",
+      "acceptedClassifications": ["possible-lossy-transcode"],
+      "description": "LAME 96 kbps MP3 intermediate converted to FLAC."
+    },
+    {
+      "id": "mp3-128-to-flac",
+      "truthClass": "lossy-to-lossless",
+      "acceptedClassifications": ["possible-lossy-transcode"],
+      "description": "LAME 128 kbps MP3 intermediate converted to FLAC."
+    },
+    {
+      "id": "mp3-192-to-flac",
+      "truthClass": "lossy-to-lossless",
+      "acceptedClassifications": ["possible-lossy-transcode"],
+      "description": "LAME 192 kbps MP3 intermediate converted to FLAC."
+    },
+    {
+      "id": "aac-96-to-flac",
+      "truthClass": "lossy-to-lossless",
+      "acceptedClassifications": ["possible-lossy-transcode"],
+      "description": "AAC 96 kbps intermediate converted to FLAC."
+    },
+    {
+      "id": "aac-128-to-flac",
+      "truthClass": "lossy-to-lossless",
+      "acceptedClassifications": ["possible-lossy-transcode"],
+      "description": "AAC 128 kbps intermediate converted to FLAC."
+    },
+    {
+      "id": "aac-192-to-flac",
+      "truthClass": "lossy-to-lossless",
+      "acceptedClassifications": ["possible-lossy-transcode"],
+      "description": "AAC 192 kbps intermediate converted to FLAC."
+    },
+    {
+      "id": "opus-96-to-flac",
+      "truthClass": "lossy-to-lossless",
+      "acceptedClassifications": ["possible-lossy-transcode"],
+      "description": "Opus 96 kbps intermediate converted to FLAC."
+    },
+    {
+      "id": "upsample-to-96k",
+      "truthClass": "upsample",
+      "acceptedClassifications": ["possible-upsample"],
+      "description": "Source resampled to 96 kHz without creating new high-frequency information."
+    },
+    {
+      "id": "intentional-lowpass-16k",
+      "truthClass": "intentional-lowpass",
+      "acceptedClassifications": ["bandwidth-limited", "no-strong-spectral-anomaly", "inconclusive"],
+      "description": "Native lossless material intentionally low-pass filtered at 16 kHz as a false-positive control."
+    },
+    {
+      "id": "intentional-lowpass-18k",
+      "truthClass": "intentional-lowpass",
+      "acceptedClassifications": ["bandwidth-limited", "no-strong-spectral-anomaly", "inconclusive"],
+      "description": "Native lossless material intentionally low-pass filtered at 18 kHz as a false-positive control."
+    },
+    {
+      "id": "hard-clipping-control",
+      "truthClass": "clipping",
+      "acceptedClassifications": [],
+      "expected": {
+        "analysisStates": ["completed"],
+        "minimumClippedSamples": 1
+      },
+      "description": "Gain-driven hard clipping control that must produce measured clipped samples without becoming deterministic corruption."
+    },
+    {
+      "id": "dual-mono-control",
+      "truthClass": "channel-transformation",
+      "acceptedClassifications": [],
+      "expected": {
+        "analysisStates": ["completed"],
+        "stereoAssessments": ["dual-mono"]
+      },
+      "description": "A two-channel copy of the left channel that must be identified as sample-identical dual mono."
+    },
+    {
+      "id": "truncated-flac-control",
+      "truthClass": "deterministic-corruption",
+      "acceptedClassifications": [],
+      "expected": {
+        "analysisStates": ["failed"]
+      },
+      "description": "A valid FLAC derivative truncated after encoding to exercise deterministic stream-integrity failure behavior."
+    }
+  ]
+}

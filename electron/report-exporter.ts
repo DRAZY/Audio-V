@@ -127,6 +127,24 @@ export function audioFileReportRow(file: AudioFileRecord): ReportRow {
       "Peak-to-loudness LU": display(signal?.peakToLoudnessRatioLu),
       "Crest factor dB": display(signal?.crestFactorDb),
       "Clipped samples": display(signal?.clippedSamples),
+      "Clipped sample percent": display(
+        signal?.clipping?.clippedSamplePercent,
+      ),
+      "Clipping events": display(signal?.clipping?.eventCount),
+      "Scaled clipping indicator": display(
+        signal?.clipping?.scaledClippingIndicator,
+      ),
+      "Scaled clipping candidate samples": display(
+        signal?.clipping?.scaledClippingCandidateSamples,
+      ),
+      "Per-channel clipping": signal
+        ? (signal.perChannel ?? [])
+            .map(
+              (channel, index) =>
+                `CH${index + 1}:${channel.clippedSamples}:${channel.clippedSamplePercent ?? ""}%`,
+            )
+            .join(" | ")
+        : "",
       "Near-clipped samples": display(signal?.nearClippedSamples),
       "Stereo correlation": display(signal?.stereoCorrelation),
       "Stereo assessment": display(signal?.stereoAssessment),
@@ -146,10 +164,14 @@ export function audioFileReportRow(file: AudioFileRecord): ReportRow {
       "Origin assessment": display(file.oracle.fidelity?.classification),
       "Origin confidence": display(file.oracle.fidelity?.confidence),
       "Origin confidence type": display(file.oracle.fidelity?.confidenceType),
+      "Origin validation basis": file.oracle.fidelity
+        ? "Versioned rule strength; not a probability-calibrated provenance claim"
+        : "",
       "Origin evidence coverage": display(
         file.oracle.fidelity?.evidenceCoverage,
       ),
       "Origin reason": display(file.oracle.fidelity?.reasonCode),
+      "Origin limitation": display(file.oracle.fidelity?.limitation),
       "Observed bandwidth Hz": display(spectrum?.effectiveBandwidthHz),
       "Strongest cutoff Hz": display(spectrum?.strongestCutoffHz),
       "Cutoff drop dB": display(spectrum?.cutoffDropDb),

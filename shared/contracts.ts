@@ -62,7 +62,29 @@ export interface ChannelMeasurements {
   rmsDbfs: number | null;
   dcOffset: number;
   clippedSamples: number;
+  clippedSamplePercent: number;
   nearClippedSamples: number;
+  scaledClippingCandidateSamples: number;
+}
+
+export interface ClippingEvent {
+  startSeconds: number;
+  endSeconds: number;
+  clippedSamples: number;
+  peakAmplitude: number;
+  channels: number[];
+}
+
+export interface ClippingDiagnostics {
+  clippedSamplePercent: number;
+  eventCount: number;
+  events: ClippingEvent[];
+  eventsTruncated: boolean;
+  scaledClippingIndicator:
+    | "not-detected"
+    | "possible-scaled-clipping";
+  scaledClippingCandidateSamples: number;
+  limitation: string;
 }
 
 export interface SpectrogramSlice {
@@ -72,7 +94,11 @@ export interface SpectrogramSlice {
 
 export interface SpectrogramMeasurements {
   algorithm: "STFT";
-  channelMode: "per-channel power average";
+  channelMode:
+    | "per-channel power average"
+    | "left channel"
+    | "right channel"
+    | "left-right difference";
   fftSize: number;
   hopSize: number;
   window: "Hann";
@@ -135,6 +161,7 @@ export interface SignalMeasurements {
   rmsDbfs: number | null;
   clippedSamples: number;
   nearClippedSamples: number;
+  clipping: ClippingDiagnostics;
   stereoCorrelation: number | null;
   duplicatedMono: boolean | null;
   stereoAssessment:
@@ -217,7 +244,8 @@ export interface OracleResult {
     | "oracle-integrity-fidelity-v3"
     | "oracle-integrity-fidelity-v4"
     | "oracle-integrity-fidelity-v5"
-    | "oracle-integrity-fidelity-v6";
+    | "oracle-integrity-fidelity-v6"
+    | "oracle-integrity-fidelity-v7";
   verdict: OracleVerdict;
   analysisState?: OracleAnalysisState;
   failure?: OracleFailure | null;
@@ -326,6 +354,10 @@ export interface ReportExportResult {
   filePath: string | null;
 }
 
+export interface BatchSpectrogramExportResult extends ReportExportResult {
+  exportedCount: number;
+}
+
 export type ReportExportFormat = "json" | "csv" | "pdf" | "xlsx" | "docx";
 
 export type ReportExportRequest =
@@ -342,6 +374,48 @@ export interface RepairCopyResult {
   canceled: boolean;
   filePath: string | null;
   file: AudioFileRecord | null;
+}
+
+export interface OracleValidationStatus {
+  schema: "Audio-V real-world validation status v1";
+  generatedAt: string;
+  corpusVersion: string;
+  readiness:
+    | "awaiting-source-masters"
+    | "pilot-building"
+    | "pilot-ready"
+    | "target-corpus-ready";
+  infrastructurePassed: boolean;
+  milestoneAchieved: boolean;
+  claimLevel:
+    | "synthetic-regression-only"
+    | "pilot-real-world-evidence"
+    | "real-world-corpus-present-not-probability-calibrated";
+  counts: {
+    independentMasters: number;
+    publicIndependentMasters: number;
+    privateChallengeMasters: number;
+    contributorGroups: number;
+    redistributableMasters: number;
+    generatedCases: number;
+    bySplit: Record<string, number>;
+  };
+  thresholds: {
+    pilotIndependentMasters: number;
+    targetIndependentMasters: number;
+    minimumCasesPerMaster: number;
+  };
+  latestScorecard: {
+    status: string;
+    engineVersion: string;
+    measuredAt: string;
+    acceptedClassificationRate: {
+      numerator: number;
+      denominator: number;
+      percent: number | null;
+    };
+  } | null;
+  limitations: string[];
 }
 
 export type DesktopPlatform = "aix" | "android" | "darwin" | "freebsd" | "haiku" | "linux" | "openbsd" | "sunos" | "win32" | "cygwin" | "netbsd";
@@ -363,6 +437,11 @@ export interface AudioVDesktopApi {
   resumeScan(): Promise<boolean>;
   cancelScan(): Promise<boolean>;
   analyzeFile(filePath: string, sessionId?: string): Promise<OracleResult>;
+  inspectSpectrogram(
+    filePath: string,
+    fftSize: 512 | 2048 | 4096 | 16384,
+    channelMode: SpectrogramMeasurements["channelMode"],
+  ): Promise<SpectrogramMeasurements>;
   exportReport(
     request: ReportExportRequest,
     format?: ReportExportFormat,
@@ -371,6 +450,10 @@ export interface AudioVDesktopApi {
     fileName: string,
     dataUrl: string,
   ): Promise<ReportExportResult>;
+  exportSpectrogramBatch(
+    items: Array<{ fileName: string; dataUrl: string }>,
+  ): Promise<BatchSpectrogramExportResult>;
+  validationStatus(): Promise<OracleValidationStatus>;
   exportDiagnostics(): Promise<ReportExportResult>;
   revealFile(filePath: string): Promise<boolean>;
   createTruePeakSafeCopy(

@@ -72,7 +72,7 @@ try {
     result.discovered !== 1 ||
     result.completed !== 1 ||
     !["verified", "review"].includes(result.verdicts?.[0]) ||
-    result.engineVersions?.[0] !== "0.4.0-oracle-v6"
+    result.engineVersions?.[0] !== "0.5.0-oracle-v7"
   ) {
     throw new Error(
       `Packaged runtime returned an unexpected audit result: ${JSON.stringify(result)}`,

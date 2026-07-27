@@ -24,7 +24,7 @@ const manifest = {
   projectLicense: packageJson.license,
   sourceRevision,
   oracleEngine: {
-    version: "0.4.0-oracle-v6",
+    version: "0.5.0-oracle-v7",
     schemaVersion: 1,
     decoderBundled: "FFmpeg-and-ffprobe-8.1.2-LGPL",
     capabilities: {
@@ -39,8 +39,11 @@ const manifest = {
       bitrateMode: "implemented-for-mp3-packet-analysis",
       loudnessBs1770: "implemented-ebur128",
       truePeak: "implemented-bs1770-oversampled",
-      spectrogram: "implemented-multicodec-stft-512-hann",
-      spectrogramControls: "implemented-linear-log-floor-cursor-png-export",
+      spectrogram: "implemented-multicodec-stft-512-2048-4096-16384-hann",
+      spectrogramControls:
+        "implemented-zoom-pan-region-channel-colormap-and-batch-png-export",
+      clippingDiagnostics:
+        "implemented-per-channel-percent-events-timeline-and-scaled-plateau-review",
       signalContinuity: "implemented-exact-zero-dropout-and-transition-candidates",
       stereoAuthenticity:
         "implemented-correlation-side-to-mid-dual-and-near-mono-review",
@@ -51,7 +54,7 @@ const manifest = {
       fidelityGoldenCorpus: "implemented-regression-only-not-probability-calibrated",
       persistentCache: "implemented-versioned-size-mtime-invalidated",
       batchCancellation: "implemented-active-process-termination",
-      scopedVerdictRules: "implemented-for-oracle-integrity-fidelity-v6",
+      scopedVerdictRules: "implemented-for-oracle-integrity-fidelity-v7",
       compareWorkflow:
         "implemented-independent-files-waveforms-spectra-and-difference-heatmap",
       repairTriage: "implemented-actions-evidence-reveal-acknowledge",
