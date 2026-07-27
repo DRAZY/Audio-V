@@ -1,6 +1,6 @@
 # Audio-V product audit and capability contract
 
-Last reviewed: 2026-07-26
+Last reviewed: 2026-07-27
 
 This document is the product truth source between the approved vision, the original request, competing applications, and what the repository actually implements. A feature is not considered present because a mock-up displays it.
 
@@ -52,36 +52,36 @@ Status meanings:
 - **Planned** — specified and prioritized, but not implemented.
 - **Excluded** — intentionally outside the core product.
 
-| Capability | User value | Status before this audit | Release target |
+| Capability | User value | v0.3.0 status | Disposition |
 | --- | --- | --- | --- |
-| File and folder ingest | Analyze one track or a full library | Folder only | Preview 2 |
-| Recursive bounded discovery | Avoid freezing on large trees | Implemented | Preview 1 |
-| Technical metadata | Codec, container, rate, depth, channels, duration | Implemented with gaps | Preview 1 |
-| CBR/VBR/ABR mode | Verify encoding details requested by Jota | Incorrectly mapped from codec profile | Preview 2 |
-| Frame-level bitrate statistics | Show exact average/min/max and inconsistency | Missing | Preview 3 |
-| Full decode integrity | Detect truncation and malformed frames | Missing | Preview 2 |
-| FLAC STREAMINFO MD5 | Deterministic lossless integrity evidence | Schema/demo only | Preview 2 |
-| Sample peak and RMS | Requested objective level measurements | Placeholder | Preview 2 |
-| Integrated LUFS and LRA | Standards-based loudness and variation | Placeholder | Preview 2 |
-| True peak | Detect inter-sample peaks | Placeholder | Preview 2 |
-| Clipping and near-clipping | Find damaged or overly limited masters | Missing | Preview 2 |
-| DC offset, silence, dropout | Diagnose signal defects | Missing | Preview 3 |
-| Channel layout and codec mode | Stereo, mono, 5.1, joint stereo | Channel count only | Preview 2 |
-| Stereo correlation / duplicate mono | Detect phase and fake stereo issues | Missing | Preview 3 |
-| Full-track spectrogram | Direct visual inspection | Decorative placeholder | Preview 2 |
-| Adjustable analysis settings | Reproducible visual evidence | Decorative label only | Preview 3 |
-| Effective-bandwidth estimate | Support upsample/transcode review | Demo only | Preview 3 |
-| Evidence-backed verdict | Explain facts versus heuristics | Schema only | Preview 3 |
-| Batch queue, pause, resume, cancel | Library-scale workflow | Missing | Preview 3 |
-| Saved cache and sessions | Resume audits and avoid repeated work | Missing | Beta 1 |
-| CSV/JSON/HTML reports | Share and automate results | Missing | Beta 1 |
-| File/edition comparison | Distinguish masters and encodes | Navigation placeholder | Beta 2 |
+| File and folder ingest | Analyze one track or a full library | Implemented | Current |
+| Recursive bounded discovery | Avoid freezing on large trees | Implemented | Current |
+| Technical metadata | Codec, container, rate, depth, channels, duration | Implemented | Current |
+| CBR/VBR/ABR mode | Verify encoding details requested by Jota | Implemented from packet evidence where the demuxer exposes it | Current |
+| Frame-level bitrate statistics | Show average, percentile range, deviation, and coverage | Implemented for demuxers that expose packet size and duration | Current |
+| Full decode integrity | Detect truncation and malformed frames | Implemented | Current |
+| FLAC STREAMINFO MD5 | Deterministic lossless integrity evidence | Implemented | Current |
+| Sample peak and RMS | Requested objective level measurements | Implemented | Current |
+| Integrated LUFS and LRA | Standards-based loudness and variation | Implemented | Current |
+| True peak | Detect inter-sample peaks | Implemented | Current |
+| Clipping and near-clipping | Find damaged or overly limited masters | Implemented with per-channel events and timeline | Current |
+| DC offset, silence, dropout | Diagnose signal defects | Implemented | Current |
+| Channel layout and codec mode | Stereo, mono, 5.1, joint stereo | Implemented from probe and decoded evidence | Current |
+| Stereo correlation / duplicate mono | Detect phase and fake stereo issues | Implemented | Current |
+| Full-track spectrogram | Direct visual inspection | Implemented with multichannel inspection and export | Current |
+| Adjustable analysis settings | Reproducible visual evidence | Implemented | Current |
+| Effective-bandwidth estimate | Support upsample/transcode review | Implemented as conservative heuristic evidence | Current |
+| Evidence-backed verdict | Explain facts versus heuristics | Implemented with scoped Clear, Review, Failed, and Analysis error outcomes | Current |
+| Batch queue, pause, resume, cancel | Library-scale workflow | Implemented | Current |
+| Saved cache and sessions | Resume audits and avoid repeated work | Implemented with SQLite persistence | Current |
+| PDF/XLSX/DOCX/CSV/JSON reports | Share and automate results | Implemented from a shared evidence model | Current |
+| File/edition comparison | Distinguish masters and encodes | Implemented with independent loading and full-overlap multichannel null testing | Current |
 | Duplicate fingerprints | Find identical audio across containers and sessions | Implemented with persistent SQLite index | Current |
-| External MD5/SHA manifests | Verify file identity against supplied sidecars | Implemented | Preview 3 |
-| AccurateRip/CTDB verification | Verify CD extraction provenance when context exists | Missing | Post-1.0 |
-| AI-generated audio detection | Experimental and difficult to validate responsibly | Missing | Research only |
-| Full music-player features | Does not improve the central verdict | Missing | Excluded |
-| Metadata editing | Risks turning inspection into mutation | Missing | Excluded from 1.x |
+| External MD5/SHA manifests | Verify file identity against supplied sidecars | Implemented | Current |
+| AccurateRip/CTDB verification | Verify CD extraction provenance when context exists | Planned | Post-1.0 |
+| AI-generated audio detection | Experimental and difficult to validate responsibly | Deterministic provenance indicators implemented; statistical classifier deferred | Research only |
+| Full music-player features | Does not improve the central verdict | Excluded | Excluded |
+| Metadata editing | Risks turning inspection into mutation | Excluded | Excluded from 1.x |
 
 ## Competitive findings
 
@@ -130,7 +130,7 @@ The Oracle Engine must be an independent, versioned worker rather than renderer 
 - Compare now runs a separate decoded-signal worker that measures offset, gain, polarity, correlation, residual energy, and relationship.
 - Spectrum analysis now stores a selectable 512-point overview and 2,048-point detail tier.
 
-Gate 1 is functionally complete at the foundation level. A full-track, multichannel null-test mode remains a forensic Compare enhancement beyond the bounded alignment preview.
+Gate 1 is complete at the repository level. Compare uses bounded alignment estimation and then null-tests the complete overlapping decoded tracks across every matching channel; channel-count mismatches are disclosed instead of silently coerced.
 
 ### Gate 2 implementation status
 
@@ -143,7 +143,7 @@ Gate 1 is functionally complete at the foundation level. A full-track, multichan
 - Compiled-worker verification now exercises Oracle analysis, comparison, durable storage, and streamed report export.
 - `npm run benchmark:scale` enforces repeatable persistence and restoration budgets for synthetic 100-, 1,000-, and 10,000-record sessions and records the latest result in `build/performance-latest.json`.
 
-The 2026-07-26 local benchmark completed 10,000 batch inserts in 48.54 ms and restored the session in 17.83 ms. These figures validate the storage and state-retrieval architecture on the development Mac; they do not represent full audio decode throughput.
+The latest local benchmark completed 10,000 batch inserts in 55.79 ms and restored the session in 18.83 ms. These figures validate the storage and state-retrieval architecture on the development Mac; they do not represent full audio decode throughput.
 
 Gate 2 is complete for the repository-level scale foundation. Market-readiness still requires hardware and clean-VM profiling on Apple Silicon macOS and supported Windows versions with real 100/1,000/10,000-file libraries, removable/network volumes, long-duration files, constrained memory, cancellation under load, and thermal throttling. Discovery still retains a sorted path list, renderer filters remain linear in session size, and rich document exports remain whole-session operations inside the storage worker. Those are measured optimization candidates rather than hidden claims of unlimited scale.
 
@@ -177,7 +177,7 @@ Gate 4 is complete at the repository and local-package level. Actual macOS-versu
 - The Contributor License Agreement preserves contributor ownership while granting DRAZY the explicit sublicensing and relicensing authority needed for continued AGPL distribution, commercial editions, and dual licensing. Pull requests must record affirmative agreement.
 - The Audio-V name, logo/icon, Oracle Engine identity, and official-release claims are reserved separately from the code license; compliant forks must use distinct branding.
 - Primary navigation, verdict filters, analysis tabs, virtual result rows, canvases, and live scan state expose keyboard and assistive-technology semantics. A skip link, visible focus, reduced-motion behavior, and Command/Ctrl keyboard workflow are implemented.
-- An automated axe-core gate checks the production renderer and fails on serious or critical accessibility violations. The current empty-state audit passes 38 rules with no serious or critical violations.
+- An automated axe-core gate checks the production renderer and fails on serious or critical accessibility violations. The current empty-state audit passes 41 rules with no serious or critical violations.
 - Settings exports a privacy-safe diagnostic record containing application/runtime versions, aggregate session status, and engine capabilities without accepting filenames, paths, hashes, tags, or audio evidence. A unit test enforces the aggregate-only boundary.
 - User, privacy/security, unsigned-installation, release, methodology, contribution, and release-candidate documentation now cover the complete product workflow and limitations.
 - `npm run verify:release-candidate` produces a machine-readable automated readiness result from licensing, documentation, accessibility, fidelity, scale, and artifact evidence.
@@ -279,6 +279,6 @@ No build may be called a beta until:
 - Compare renders bounded full-track waveform envelopes, paired measured spectrograms, and a normalized B-minus-A spectral heatmap alongside identity, format, loudness, clipping, bandwidth, stereo, and checksum values; no playback surface was introduced.
 - Audit and per-file evidence export to PDF, XLSX, DOCX, CSV, or JSON from a shared 40+ column evidence model. Production dependencies remain free of known audit advisories.
 - The desktop typography floor is 11px for utility labels and 12–14px for working text, with larger rows, controls, and analysis panels.
-- The first 40 regression tests cover discovery, malformed metadata, PCM math, internal WAVE decoding, spectral-bin detection, multi-codec full decoding, FLAC audio-MD5 mismatch, loudness/true peak, continuity, MP3 CBR/VBR, fidelity controls, cache invalidation, process cancellation, source-preserving 16/24-bit repair output, attached-artwork retention, source preservation, truncation, and verdict truthfulness.
+- The 92-test regression suite covers discovery, malformed metadata, PCM math, internal WAVE decoding, spectral-bin detection, multi-codec full decoding, FLAC audio-MD5 mismatch, loudness/true peak, continuity, packet-rate behavior, fidelity controls, persistent fingerprints, cue segments, calculated ReplayGain, resource enforcement, cache invalidation, process cancellation, source-preserving repair output, attached-artwork retention, source preservation, truncation, and verdict truthfulness.
 - Production dependencies pass `npm audit --omit=dev`; remaining advisories are confined to the upstream packaging toolchain.
 - Release packages contain third-party notices and a machine-readable engine capability manifest.

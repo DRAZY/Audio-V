@@ -34,14 +34,14 @@ Audio-V is deliberately not a music player, tag editor, or mastering suite. It i
 
 ## Download
 
-The `v0.1.1` development release provides all four requested desktop packages:
+The `v0.3.0` development release provides all four requested desktop packages:
 
 | Platform | Package | Intended system |
 |---|---|---|
-| macOS | [Apple Silicon DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.1.1/Audio-V-0.1.1-mac-arm64.dmg) | Native Apple Silicon |
-| macOS | [Universal DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.1.1/Audio-V-0.1.1-mac-universal.dmg) | Apple Silicon and Intel |
-| Windows | [x64 installer](https://github.com/DRAZY/Audio-V/releases/download/v0.1.1/Audio-V-0.1.1-win-x64.exe) | Guided desktop installation |
-| Windows | [x64 portable](https://github.com/DRAZY/Audio-V/releases/download/v0.1.1/Audio-V-Portable-0.1.1-x64.exe) | Run without installing the application |
+| macOS | [Apple Silicon DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.3.0/Audio-V-0.3.0-mac-arm64.dmg) | Native Apple Silicon |
+| macOS | [Universal DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.3.0/Audio-V-0.3.0-mac-universal.dmg) | Apple Silicon and Intel |
+| Windows | [x64 installer](https://github.com/DRAZY/Audio-V/releases/download/v0.3.0/Audio-V-0.3.0-win-x64.exe) | Guided desktop installation |
+| Windows | [x64 portable](https://github.com/DRAZY/Audio-V/releases/download/v0.3.0/Audio-V-Portable-0.3.0-x64.exe) | Run without installing the application |
 
 Every release also includes `SHA256SUMS.txt`, block maps, and `UNSIGNED_RELEASE_MANIFEST.json`. Read the [unsigned installation guide](docs/UNSIGNED_INSTALLATION.md) before opening a build.
 
@@ -94,7 +94,7 @@ Findings such as clipping, positive true peak, digital-silence dropout candidate
 - Process work concurrently with pause, cancellation, saved sessions, and cache reuse
 - Normalize codec/container labels and expose sample rate, bit depth, channel layout, bitrate, profile, duration, and encoder information
 - Calculate SHA-256 identity and verify adjacent or folder-level MD5, SHA-1, SHA-256, and SHA-512 manifests
-- Accept 39 FFmpeg-backed audio/container extensions, including AAC, AC-3/E-AC-3, AIFF, ALAC, AMR, APE, AU, CAF, DSF, FLAC, Matroska/WebM, M4A/M4B, MP2/MP3, Musepack, OGG/Opus/Speex, TAK, TTA, VOC, WAV, WMA, and WavPack. Every extension runs through a native macOS and Windows routing/capability fixture gate; 25 have locally generated native-codec fixtures.
+- Accept 39 FFmpeg-backed audio/container extensions, including AAC, AC-3/E-AC-3, AIFF, ALAC, AMR, APE, AU, CAF, DSF, FLAC, Matroska/WebM, M4A/M4B, MP2/MP3, Musepack, OGG/Opus/Speex, TAK, TTA, VOC, WAV, WMA, and WavPack. Every extension runs through a native macOS and Windows routing/capability fixture gate; 29 have generated or committed native-codec fixtures.
 
 ### Inspect decoded fidelity
 

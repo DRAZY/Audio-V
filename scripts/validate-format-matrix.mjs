@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
@@ -59,6 +59,13 @@ const decoderOnlyDemuxers = {
   ".tak": "tak",
 };
 
+const repositoryFixtures = {
+  ".mp3": "reference-cbr.mp3",
+  ".oga": "reference.ogg",
+  ".ogg": "reference.ogg",
+  ".opus": "reference.opus",
+};
+
 const temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), "audio-v-formats-"));
 const ffmpeg = enginePath("ffmpeg");
 const demuxers = spawnSync(ffmpeg, ["-hide_banner", "-demuxers"], {
@@ -80,11 +87,18 @@ try {
     const recipe = matrix[extension];
     let fixtureKind = "native-generated";
     let generationError = null;
-    if (recipe) {
+    const repositoryFixture = repositoryFixtures[extension];
+    if (repositoryFixture) {
+      fixtureKind = "native-repository";
+      await copyFile(
+        path.join(process.cwd(), "tests", "fixtures", "audio-engine", repositoryFixture),
+        fixturePath,
+      );
+    } else if (recipe) {
       const generated = spawnSync(ffmpeg, [
         "-nostdin", "-hide_banner", "-v", "error",
         "-f", "lavfi", "-i", "sine=frequency=997:sample_rate=48000:duration=0.25",
-        "-f", recipe[0], "-c:a", recipe[1], "-y", fixturePath,
+        "-f", recipe[0], "-c:a", recipe[1], "-strict", "experimental", "-y", fixturePath,
       ], { encoding: "utf8" });
       if (generated.status !== 0) {
         fixtureKind = "extension-routing-probe";
@@ -103,6 +117,7 @@ try {
     entries.push({
       extension,
       fixtureKind,
+      nativeCodecFixture: fixtureKind !== "extension-routing-probe",
       nativeFixtureGenerated: fixtureKind === "native-generated",
       requiredDemuxer,
       demuxerCapability,
@@ -122,12 +137,12 @@ const report = {
   platform: process.platform,
   architecture: process.arch,
   advertisedExtensions: AUDIO_EXTENSIONS.length,
-  nativeCodecFixtures: entries.filter((entry) => entry.nativeFixtureGenerated).length,
-  routingPlusCapabilityFixtures: entries.filter((entry) => !entry.nativeFixtureGenerated).length,
+  nativeCodecFixtures: entries.filter((entry) => entry.nativeCodecFixture).length,
+  routingPlusCapabilityFixtures: entries.filter((entry) => !entry.nativeCodecFixture).length,
   passed: entries.filter((entry) => entry.pass).length,
   entries,
   limitation:
-    "Native-generated fixtures exercise the advertised container/codec end to end. Decoder-only formats use an extension-routing fixture plus a bundled-demuxer capability assertion; checksum-pinned native corpus samples remain preferable for those rows.",
+    "Native-generated and committed repository fixtures exercise the advertised container/codec end to end. Remaining decoder-only formats use an extension-routing fixture plus a bundled-demuxer capability assertion; checksum-pinned native corpus samples remain preferable for those rows.",
 };
 await writeFile(
   path.join(
