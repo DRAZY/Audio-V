@@ -16,6 +16,29 @@ describe("createVirtualWindow", () => {
     const items = Array.from({ length: 100 }, (_, index) => index);
 
     expect(createVirtualWindow(items, -100, 380, 38, 4).start).toBe(0);
-    expect(createVirtualWindow(items, 99_999, 380, 38, 4).end).toBe(100);
+    const lastWindow = createVirtualWindow(items, 99_999, 380, 38, 4);
+    expect(lastWindow.end).toBe(100);
+    expect(lastWindow.items.length).toBeGreaterThan(0);
+    expect(lastWindow.paddingBottom).toBe(0);
+  });
+
+  it("keeps rows rendered when an incremental update leaves a stale scroll offset", () => {
+    const items = Array.from({ length: 2_525 }, (_, index) => index);
+    const window = createVirtualWindow(items, 999_999, 418, 38, 8);
+
+    expect(window.items.length).toBeGreaterThan(0);
+    expect(window.end).toBe(items.length);
+    expect(window.items.at(-1)).toBe(items.at(-1));
+    expect(window.paddingBottom).toBe(0);
+  });
+
+  it("returns an empty zero-height window for an empty result set", () => {
+    expect(createVirtualWindow([], 50_000, 418, 38, 8)).toEqual({
+      items: [],
+      start: 0,
+      end: 0,
+      paddingTop: 0,
+      paddingBottom: 0,
+    });
   });
 });

@@ -820,12 +820,51 @@ watch(
   () => [compareA.value?.id, compareB.value?.id],
   () => resetComparisonChannelMappings(),
 );
+let tableResizeObserver: ResizeObserver | null = null;
+let tableViewportFrame: number | null = null;
+
+function measureTableViewport(): void {
+  const element = tableBody.value;
+  if (!element) return;
+  const viewportHeight = element.clientHeight;
+  const maximumScrollTop = Math.max(
+    0,
+    visibleFiles.value.length * virtualRowHeight - viewportHeight,
+  );
+  if (element.scrollTop > maximumScrollTop) {
+    element.scrollTop = maximumScrollTop;
+  }
+  tableScrollTop.value = element.scrollTop;
+  tableViewportHeight.value = viewportHeight;
+}
+
+function scheduleTableViewportMeasurement(): void {
+  if (tableViewportFrame !== null) return;
+  tableViewportFrame = requestAnimationFrame(() => {
+    tableViewportFrame = null;
+    measureTableViewport();
+  });
+}
+
 watch(filter, () => {
   tableScrollTop.value = 0;
   if (tableBody.value) tableBody.value.scrollTop = 0;
+  scheduleTableViewportMeasurement();
 });
 watch(activeWorkspace, (workspace) => {
   if (workspace === "library") void refreshFingerprintLibrary();
+  if (workspace === "audit") scheduleTableViewportMeasurement();
+});
+watch(tableBody, (element) => {
+  tableResizeObserver?.disconnect();
+  tableResizeObserver = null;
+  if (!element) return;
+  tableResizeObserver = new ResizeObserver(scheduleTableViewportMeasurement);
+  tableResizeObserver.observe(element);
+  scheduleTableViewportMeasurement();
+});
+watch(() => visibleFiles.value.length, () => {
+  scheduleTableViewportMeasurement();
 });
 let removeScanProgressListener: (() => void) | null = null;
 let progressFrame: number | null = null;
@@ -841,6 +880,7 @@ function flushQueuedProgressFiles(): void {
   for (const entry of queuedProgressFiles) merged.set(entry.id, entry);
   queuedProgressFiles = [];
   files.value = [...merged.values()];
+  scheduleTableViewportMeasurement();
 }
 
 function queueProgressFile(file: AudioFileRecord): void {
@@ -852,6 +892,7 @@ function queueProgressFile(file: AudioFileRecord): void {
     queuedProgressFiles = [];
     files.value = [...merged.values()];
     progressFrame = null;
+    scheduleTableViewportMeasurement();
   });
 }
 
@@ -960,11 +1001,14 @@ onMounted(() => {
     if (source) void scanSource(source);
   });
   window.addEventListener("keydown", handleGlobalKeydown);
+  scheduleTableViewportMeasurement();
 });
 
 onUnmounted(() => {
   removeScanProgressListener?.();
   if (progressFrame !== null) cancelAnimationFrame(progressFrame);
+  if (tableViewportFrame !== null) cancelAnimationFrame(tableViewportFrame);
+  tableResizeObserver?.disconnect();
   window.removeEventListener("keydown", handleGlobalKeydown);
 });
 

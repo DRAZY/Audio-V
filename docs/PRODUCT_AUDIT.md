@@ -52,7 +52,7 @@ Status meanings:
 - **Planned** — specified and prioritized, but not implemented.
 - **Excluded** — intentionally outside the core product.
 
-| Capability | User value | v0.4.9 source status | Disposition |
+| Capability | User value | v0.4.10 source status | Disposition |
 | --- | --- | --- | --- |
 | File and folder ingest | Analyze one track or a full library | Implemented | Current |
 | Recursive bounded discovery | Avoid freezing on large trees | Implemented | Current |
@@ -290,6 +290,6 @@ No build may be called a beta until:
 - Compare renders bounded full-track waveform envelopes, paired measured spectrograms, and a normalized B-minus-A spectral heatmap alongside identity, format, loudness, clipping, bandwidth, stereo, and checksum values; no playback surface was introduced.
 - Audit and per-file evidence export to PDF, XLSX, DOCX, CSV, or JSON from a shared 40+ column evidence model. Production dependencies remain free of known audit advisories.
 - The desktop typography floor is 11px for utility labels and 12–14px for working text, with larger rows, controls, and analysis panels.
-- The 113-test regression suite covers discovery, mounted-source staging and identity preservation, malformed metadata, PCM math, internal WAVE decoding, spectral-bin detection, multi-codec full decoding, FLAC audio-MD5 mismatch, loudness/true peak, continuity, packet-rate behavior, fidelity controls, persistent fingerprint management, cue programme/pregap segments, calculated ReplayGain eligibility, explicit comparison channel mapping, resource enforcement, cache invalidation, prompt cancellation of blocked workers, process cancellation, source-preserving repair output, attached-artwork retention, source preservation, truncation, and verdict truthfulness.
+- The 115-test regression suite covers discovery, mounted-source staging and identity preservation, malformed metadata, PCM math, internal WAVE decoding, spectral-bin detection, multi-codec full decoding, FLAC audio-MD5 mismatch, loudness/true peak, continuity, packet-rate behavior, fidelity controls, persistent fingerprint management, cue programme/pregap segments, calculated ReplayGain eligibility, explicit comparison channel mapping, resource enforcement, cache invalidation, prompt cancellation of blocked workers, virtualized large-session viewport recovery, process cancellation, source-preserving repair output, attached-artwork retention, source preservation, truncation, and verdict truthfulness.
 - Production dependencies pass `npm audit --omit=dev`; remaining advisories are confined to the upstream packaging toolchain.
 - Release packages contain third-party notices and a machine-readable engine capability manifest.
