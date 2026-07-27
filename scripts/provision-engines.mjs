@@ -9,9 +9,9 @@ const sourceUrl = "https://ffmpeg.org/releases/ffmpeg-8.1.2.tar.xz";
 const sourceSha256 =
   "464beb5e7bf0c311e68b45ae2f04e9cc2af88851abb4082231742a74d97b524c";
 const windowsUrl =
-  "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n8.1-latest-win64-lgpl-8.1.zip";
+  "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-07-26-13-28/ffmpeg-n8.1.2-31-g8c9502e9b0-win64-lgpl-8.1.zip";
 const windowsSha256 =
-  "8f0b8b2f4bb2ac6530557f57a25bc84ddacba62cd9ac6cd62f7320919e25e979";
+  "923522df4e21c84cf6bd533ad690ea9b134087b38a95535a35abd786c25445c9";
 
 async function download(url, destination, expectedSha256) {
   const response = await fetch(url, { redirect: "follow" });

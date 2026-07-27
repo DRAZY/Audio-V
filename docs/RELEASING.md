@@ -60,7 +60,7 @@ The tag starts independent macOS and Windows builds. Each runner executes the fu
 
 The workflow attaches the `.dmg` and `.exe` files, block maps, `SHA256SUMS.txt`, and `UNSIGNED_RELEASE_MANIFEST.json` to the versioned GitHub Release.
 
-The release workflow provisions engines before packaging. macOS builds FFmpeg 8.1.2 from the checksum-pinned official source with GPL/nonfree features disabled; Windows downloads a checksum-pinned BtbN n8.1 LGPL static build. `prepare:engines` then verifies binary provenance and licensing policy before a package can be created.
+The release workflow provisions engines before packaging. macOS builds FFmpeg 8.1.2 from the checksum-pinned official source with GPL/nonfree features disabled; Windows downloads the immutable, checksum-pinned BtbN `autobuild-2026-07-26-13-28` n8.1 LGPL static build. `prepare:engines` then verifies binary provenance and licensing policy before a package can be created.
 
 ## Release policy
 
