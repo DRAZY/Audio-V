@@ -1,0 +1,51 @@
+# Oracle Engine methodology
+
+Audio-V separates deterministic integrity checks, direct measurements, and heuristic interpretation. A successful heuristic never upgrades a file to proven authentic, and a spectral anomaly alone is never called proof of a transcode or upsample.
+
+## Deterministic integrity
+
+- The selected primary audio stream is decoded from beginning to end with FFmpeg using fatal error handling. Truncation, malformed frames, and decoder failures produce **Failed**.
+- Native FLAC files expose the 128-bit MD5 stored in STREAMINFO. Audio-V decodes to the canonical little-endian PCM width, calculates the audio MD5, and compares it with STREAMINFO. A mismatch produces **Failed** even when frames remain decodable. The [FLAC format overview](https://xiph.org/flac/documentation_format_overview.html) identifies this signature as the checksum of unencoded audio; the [reference `flac` tool documentation](https://xiph.org/flac/documentation_tools_flac.html) likewise distinguishes bitstream errors from decoded-audio MD5 mismatch.
+- SHA-256 identifies the exact file bytes. Declared duration is compared with decoded frame duration, allowing 100 ms for normal codec delay and container rounding.
+
+## Signal and loudness measurements
+
+- Sample peak, RMS, per-channel DC offset, clipping, near clipping, stereo correlation, duplicated mono, and crest factor are calculated from streamed 64-bit decoded PCM.
+- Integrated loudness, loudness range, and oversampled true peak are measured with FFmpeg's EBU R128 filter. Peak-to-loudness ratio is true peak minus integrated LUFS. These descriptors follow [EBU R 128](https://tech.ebu.ch/publications/r128) and its [streaming supplement](https://tech.ebu.ch/files/live/sites/tech/files/shared/r/r128s2v1_0.pdf).
+- An internal dropout candidate is an exact digital-zero run of at least 100 ms surrounded by non-zero signal. It produces **Review**, not **Failed**, because intentional edits can contain the same pattern.
+- A discontinuity candidate is a channel sample-to-sample jump of at least 0.95 full scale. It is reported as a measurement and does not currently affect the verdict.
+
+## Spectral analysis
+
+- The displayed spectrogram is measured, not decorative. The overview tier uses a 512-point Hann-window STFT with at most 180 full-track slices; the detail tier uses a 2,048-point Hann-window STFT with at most 90 slices. Both disclose their dynamic floor, frequency range, hop size, and resolution. Stereo and multichannel spectra are combined as an average of per-channel power, so opposite-polarity channels do not cancel before measurement.
+- The waveform overview is a per-channel envelope: its extrema preserve the minimum and maximum sample across channels, while RMS uses average channel power. It is not a mono downmix.
+- Compare alignment decodes up to the first 120 seconds of each selected file into an 8 kHz mono analysis preview. It estimates a bounded ±5 second offset from energy-envelope correlation, then measures aligned sample correlation, polarity, relative gain, and residual energy. This is decoded-signal relationship evidence, not a full-track null test or source-provenance claim.
+- Effective bandwidth is the highest locally sustained bin within 60 dB of the strongest average bin, bounded by −90 dBFS.
+- The strongest upper-band cutoff compares six bins below and above each candidate frequency. Upper-band level is the mean power over the top 15% of the declared Nyquist range.
+- A possible upsample review requires at least two seconds of content, sample rate at least 88.2 kHz, a cutoff from 18–28 kHz, at least an 18 dB cliff, no more than 65% Nyquist occupancy, and upper-band level at or below −85 dBFS.
+- A possible lossy-transcode review requires a lossless output codec at no more than 50 kHz, a cutoff from 14–21.5 kHz, at least a 25 dB cliff, and no more than 90% Nyquist occupancy.
+
+The thresholds are regression-tested against deterministic native-wideband, MP3-to-FLAC, 44.1-to-96 kHz, intentional low-pass, silence, short-duration, and narrow-band tonal controls. They are deliberately labeled **possible**: microphones, mastering filters, instrument bandwidth, noise reduction, and artistic processing can create similar spectra. A broader real-music corpus is required before Audio-V may use a stronger “likely” classification.
+
+### Rule strength and evidence coverage
+
+Origin Assessment reports two separate quantities:
+
+- **Heuristic rule strength** indicates how strongly the measured values satisfy the current versioned rule. It is not the probability that the inferred source history is true. The current values are fixed rule strengths and must not be described as statistically calibrated confidence.
+- **Evidence coverage** indicates how much of the classifier's required input was usable: sufficient decoded duration, measurable effective bandwidth, a stable cutoff and drop, and upper-band energy. Every successfully decoded file with an Origin Assessment receives coverage from 0–100%, including inconclusive files.
+
+An inconclusive assessment has no rule-strength score and includes a machine-readable reason: insufficient duration, unmeasurable bandwidth, or no stable cutoff. Assigning a probability in those cases would manufacture certainty. Stronger confidence requires a large provenance-labeled corpus and held-out calibration; additional spectral features alone cannot prove whether an identical cutoff came from lossy encoding or intentional production filtering.
+
+`npm run validate:fidelity` runs the versioned corpus manifest at `validation/fidelity-corpus.json`, fails on an unsafe classifier regression, and writes the exact result to `build/fidelity-validation-latest.json`. The initial synthetic corpus is a regression suite, not probability calibration.
+
+## Reproducibility
+
+Reports include file identity, engine version, decoded measurements, analysis settings, evidence disposition, and classifier limitations. Raw spectrogram matrices are omitted from batch JSON exports to keep reports bounded; PNG exports preserve the selected linear/log scale and display floor.
+
+## Non-destructive level remediation
+
+- True-peak remediation always creates a new FLAC working copy and never overwrites the selected source.
+- The default output word length preserves a declared 16-bit or 24-bit source. Sources without a reliable word-length declaration use a 24-bit working copy.
+- Gain processing is performed before explicit output quantization. Sixteen-bit output uses triangular dither; 24-bit FLAC uses a 24-bit output word length. Choosing 24-bit for a 16-bit source preserves processing headroom but does not recover source detail.
+- Sample rate and channel layout remain unchanged. Container metadata and attached artwork are mapped into the output where the FLAC container supports them.
+- The completed copy is decoded and audited again. Audio-V rejects the operation if the verified output word length does not match the user’s selection.

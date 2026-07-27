@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Audio-V — UI Direction Deck</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --deck: #090a0e;
+      --panel: #111218;
+      --raised: #181920;
+      --soft: #20212b;
+      --line: #2b2d38;
+      --text: #f5f6fa;
+      --muted: #858995;
+      --accent: #8d64ff;
+      --accent2: #42dfe5;
+      --glow: rgba(141,100,255,.18);
+      --green: #51e19b;
+      --amber: #f2bc45;
+      --red: #ff665f;
+      --radius: 10px;
+      --font: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-width: 1120px; min-height: 100%; background: var(--deck); color: var(--text); font-family: var(--font); }
+    body {
+      background:
+        radial-gradient(circle at 10% 6%, var(--glow), transparent 32rem),
+        radial-gradient(circle at 88% 0, rgba(53,224,189,.07), transparent 28rem),
+        var(--deck);
+    }
+    button { color: inherit; font: inherit; cursor: pointer; }
+    .deck { padding: 25px 30px 34px; }
+    .deck-head { max-width: 1640px; margin: 0 auto 20px; display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; }
+    .kicker, .eyebrow { color: var(--muted); font: 700 9px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; }
+    h1 { margin: 7px 0 3px; font-size: 39px; letter-spacing: -.045em; }
+    .deck-head p { margin: 0; color: #8d909c; font-size: 13px; }
+    .switcher { display: flex; gap: 5px; padding: 5px; border: 1px solid #282a34; border-radius: 13px; background: rgba(16,17,22,.9); }
+    .switcher button { padding: 10px 14px; border: 0; border-radius: 8px; background: transparent; color: #858894; font-size: 12px; }
+    .switcher button.active { background: #2a2c35; color: #fff; }
+    .switcher i { width: 11px; height: 11px; margin-right: 7px; display: inline-block; border-radius: 3px; vertical-align: -1px; }
+    .switcher .obs { background: linear-gradient(135deg,#8d64ff,#42dfe5); }
+    .switcher .sig { background: linear-gradient(135deg,#51e19b,#d3a540); }
+    .stage { max-width: 1640px; margin: auto; }
+    .window {
+      height: calc(100vh - 150px); min-height: 700px; overflow: hidden;
+      border: 1px solid #343642; border-radius: var(--radius); background: var(--panel);
+      box-shadow: 0 34px 90px rgba(0,0,0,.48), inset 0 1px rgba(255,255,255,.025);
+    }
+    .signal {
+      --panel: #0a100e; --raised: #101814; --soft: #17211d; --line: #26362f;
+      --text: #eff8f2; --muted: #7f9488; --accent: #58e396; --accent2: #c5a348;
+      --glow: rgba(73,222,141,.12); --radius: 3px;
+    }
+    .native { height: 42px; padding: 0 14px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); }
+    .brand { display: flex; align-items: center; gap: 9px; font-size: 13px; }
+    .mark { width: 21px; height: 21px; display: grid; place-items: center; border-radius: 6px; background: linear-gradient(135deg,var(--accent),var(--accent2)); color: #080a0d; font: 900 9px var(--mono); box-shadow: 0 0 20px var(--glow); }
+    .signal .mark { border: 1px solid var(--accent); border-radius: 2px; background: #09120e; color: var(--accent); }
+    .pill { padding: 3px 7px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font: 700 7px var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+    .signal .pill { border-radius: 2px; color: var(--accent); }
+    .window-controls { color: var(--muted); font: 500 12px var(--mono); letter-spacing: .75em; }
+    .shell { height: calc(100% - 69px); display: grid; grid-template-columns: 76px 1fr; }
+    .rail { padding: 13px 8px; display: flex; flex-direction: column; gap: 6px; border-right: 1px solid var(--line); background: rgba(0,0,0,.12); }
+    .rail button { min-height: 57px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--muted); font: 600 8px var(--mono); text-transform: uppercase; }
+    .rail button b { display: block; margin-bottom: 5px; font-size: 20px; font-weight: 400; }
+    .rail button.active { border-color: color-mix(in srgb,var(--accent),transparent 65%); background: var(--glow); color: var(--text); }
+    .signal .rail button { border-radius: 2px; }
+    .signal .rail button.active { box-shadow: inset 3px 0 var(--accent); }
+    .rail .settings { margin-top: auto; min-height: 38px; }
+    .workspace {
+      min-width: 0; padding: 13px 15px; display: grid;
+      grid-template-rows: 43px 122px minmax(210px,1fr) minmax(255px,1.25fr); gap: 10px;
+      background: radial-gradient(circle at 83% 9%,var(--glow),transparent 24rem),var(--panel);
+    }
+    .command { display: flex; gap: 8px; }
+    .path { flex: 1; padding: 0 12px; display: flex; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: calc(var(--radius) - 3px); background: var(--raised); }
+    .path em { color: var(--accent); font-style: normal; }
+    .path small { color: var(--muted); font: 600 8px var(--mono); text-transform: uppercase; }
+    .path strong { color: #c9cbd3; font: 500 10px var(--mono); }
+    .path span:last-child { margin-left: auto; color: var(--muted); }
+    .start { min-width: 125px; padding: 0 14px; border: 1px solid var(--accent); border-radius: calc(var(--radius) - 3px); background: linear-gradient(135deg,var(--accent),color-mix(in srgb,var(--accent),#000 25%)); color: #fff; font: 700 9px var(--mono); text-transform: uppercase; }
+    .signal .start { color: #07100c; }
+    .more { width: 42px; border: 1px solid var(--line); border-radius: calc(var(--radius) - 3px); background: var(--raised); color: var(--muted); }
+    .summary { display: grid; grid-template-columns: 115px minmax(315px,.85fr) 1fr; align-items: center; border: 1px solid var(--line); border-radius: var(--radius); background: var(--raised); overflow: hidden; }
+    .ring { width: 77px; height: 77px; margin-left: 19px; display: grid; place-items: center; border-radius: 50%; background: radial-gradient(circle,var(--raised) 54%,transparent 56%),conic-gradient(var(--green) 0 309deg,var(--amber) 309deg 344deg,var(--red) 344deg); }
+    .ring div { text-align: center; } .ring strong,.ring span { display: block; } .ring strong { font: 800 18px var(--mono); } .ring span { color: var(--muted); font: 700 7px var(--mono); text-transform: uppercase; }
+    .distribution,.selected { height: 100%; padding: 14px 18px; }
+    .distribution { border-right: 1px solid var(--line); }
+    .legend { margin-top: 11px; display: grid; grid-template-columns: 1fr 1fr; gap: 9px 20px; }
+    .legend span { display: grid; grid-template-columns: 7px 1fr auto; gap: 7px; align-items: center; color: #c2c5cd; font: 600 8px var(--mono); text-transform: uppercase; }
+    .legend i { width: 7px; height: 7px; border-radius: 2px; } .legend b { color: var(--muted); font-weight: 500; }
+    .selected h2 { margin: 8px 0; font-size: 16px; }
+    .chips { display: flex; gap: 6px; } .chips span { padding: 4px 6px; border-radius: 4px; background: var(--soft); color: #c6c8d0; font: 700 8px var(--mono); } .chips span:first-child { color: var(--accent); }
+    .selected p { margin: 8px 0 5px; color: #b8bbc5; font: 500 9px var(--mono); } .selected small { color: var(--muted); font: 500 8px var(--mono); }
+    .tablebox,.analysis { min-height: 0; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: var(--raised); }
+    .filters { height: 35px; padding: 0 10px; display: flex; align-items: center; gap: 5px; border-bottom: 1px solid var(--line); }
+    .filters .eyebrow { margin-right: 8px; }
+    .filters button { padding: 5px 8px; border: 1px solid transparent; border-radius: 5px; background: transparent; color: var(--muted); font: 600 8px var(--mono); }
+    .filters button.active { border-color: var(--line); background: var(--soft); color: var(--text); }
+    .search { margin-left: auto; padding: 5px 9px; border: 1px solid var(--line); border-radius: 5px; color: var(--muted); font: 600 8px var(--mono); }
+    .row { display: grid; grid-template-columns: minmax(190px,1.8fr) .55fr .72fr .63fr .55fr .7fr .7fr .7fr; align-items: center; padding: 0 10px; font: 500 8px var(--mono); }
+    .thead { height: 26px; color: #696d79; font-size: 7px; text-transform: uppercase; }
+    .track { width: 100%; min-height: 23px; border: 0; border-top: 1px solid color-mix(in srgb,var(--line),transparent 45%); background: transparent; color: #aeb1bc; text-align: left; }
+    .track:hover { background: rgba(255,255,255,.025); }
+    .track.selected-row { background: linear-gradient(90deg,var(--glow),transparent 80%); box-shadow: inset 3px 0 var(--accent); color: #fff; }
+    .track span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .status { display: flex; align-items: center; gap: 5px; } .status i { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .track.review .status i { background: var(--amber); box-shadow: none; } .track.likely .status i { background: var(--red); box-shadow: none; }
+    .analysis { display: grid; grid-template-rows: 35px 1fr; }
+    .tabs { padding: 0 10px; display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--line); }
+    .tabs button { height: 100%; padding: 0 12px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); font: 700 8px var(--mono); text-transform: uppercase; }
+    .tabs button.active { border-color: var(--accent); color: var(--accent); }
+    .tabs small { margin-left: auto; color: #656975; font: 500 7px var(--mono); }
+    .analysis-body { min-height: 0; display: grid; grid-template-columns: 1fr 230px; }
+    .visual { min-width: 0; padding: 12px; border-right: 1px solid var(--line); }
+    .metrics { padding: 12px 14px; display: flex; flex-direction: column; }
+    .metrics dl { margin: 9px 0; } .metrics dl div { display: flex; justify-content: space-between; padding: 3px 0; font: 500 8px var(--mono); } dt { color: var(--muted); } dd { margin: 0; color: #c6c8d0; }
+    .verdict { margin-top: auto; padding: 10px; display: flex; align-items: center; gap: 10px; border: 1px solid color-mix(in srgb,var(--green),transparent 58%); border-radius: 6px; background: color-mix(in srgb,var(--green),transparent 92%); }
+    .verdict.review { border-color: color-mix(in srgb,var(--amber),transparent 52%); background: color-mix(in srgb,var(--amber),transparent 92%); }
+    .verdict.likely { border-color: color-mix(in srgb,var(--red),transparent 52%); background: color-mix(in srgb,var(--red),transparent 93%); }
+    .shield { width: 31px; height: 31px; display: grid; place-items: center; border: 1px solid var(--green); border-radius: 50%; color: var(--green); }
+    .verdict.review .shield { border-color: var(--amber); color: var(--amber); } .verdict.likely .shield { border-color: var(--red); color: var(--red); }
+    .verdict small,.verdict strong,.verdict span { display: block; } .verdict small { color: var(--muted); font: 700 7px var(--mono); text-transform: uppercase; } .verdict strong { margin: 3px 0; font-size: 10px; } .verdict span { color: var(--muted); font: 500 7px var(--mono); }
+    .spectrogram { height: 100%; min-height: 180px; display: grid; grid-template-columns: 34px 1fr; grid-template-rows: 1fr 17px; }
+    .freq { padding-right: 6px; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; color: #666a75; font: 500 7px var(--mono); }
+    .specfield { position: relative; overflow: hidden; border: 1px solid #29283a; border-radius: 3px; background: radial-gradient(ellipse at 50% 100%,#ffd547 0,#ff602d 14%,#c5217a 27%,#4a1d78 45%,#11112e 67%,#060810 100%); }
+    .specfield:before { content:""; position:absolute; inset:0; opacity:.82; background: repeating-linear-gradient(90deg,transparent 0 1.1%,rgba(255,224,90,.85) 1.15% 1.3%,transparent 1.4% 2.7%,rgba(255,78,96,.5) 2.75% 3%,transparent 3.1% 5.2%),repeating-linear-gradient(0deg,transparent 0 6%,rgba(255,105,70,.26) 6.2% 6.8%,transparent 7% 14%); mask-image:linear-gradient(to top,#000 0 66%,transparent 98%); }
+    .specfield:after { content:""; position:absolute; inset:0; opacity:.32; background: repeating-linear-gradient(0deg,transparent 0 calc(20% - 1px),rgba(255,255,255,.24) 20%),repeating-linear-gradient(90deg,transparent 0 calc(16.66% - 1px),rgba(255,255,255,.17) 16.66%); }
+    .times { grid-column:2; display:flex; justify-content:space-between; align-items:flex-end; color:#666a75; font:500 7px var(--mono); }
+    .evidence-view { height:100%; display:none; grid-template-columns:1fr 1fr; gap:8px; }
+    .evidence-view .ev { padding:12px; border:1px solid var(--line); border-radius:6px; color:var(--muted); font:500 8px/1.45 var(--mono); }
+    .ev b { display:block; margin-bottom:5px; color:#d0d2da; } .ev b:before { content:"✓"; margin-right:7px; color:var(--green); }
+    .loudness-view { height:100%; display:none; grid-template-columns:1fr 1fr 1.5fr; gap:9px; }
+    .meter { padding:15px; border:1px solid var(--line); border-radius:6px; } .meter strong { display:block; margin:20px 0 14px; font:700 26px var(--mono); } .meter strong small { color:var(--muted); font-size:9px; }
+    .bar { height:5px; overflow:hidden; border-radius:5px; background:var(--line); } .bar i { display:block; height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); }
+    .history { padding:14px; display:flex; align-items:flex-end; gap:3px; border:1px solid var(--line); border-radius:6px; } .history i { flex:1; background:linear-gradient(to top,var(--accent),var(--accent2)); opacity:.65; }
+    .statusbar { height:27px; padding:0 12px; display:flex; align-items:center; border-top:1px solid var(--line); color:var(--muted); font:600 8px var(--mono); text-transform:uppercase; }
+    .statusbar span:first-child:before { content:""; width:7px; height:7px; margin-right:7px; display:inline-block; border-radius:50%; background:var(--green); box-shadow:0 0 8px var(--green); }
+    .statusbar span:nth-child(2) { margin-left:auto; padding:0 20px; border-left:1px solid var(--line); border-right:1px solid var(--line); } .statusbar span:last-child { margin-left:20px; }
+    .notes { max-width:1640px; margin:17px auto 0; display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+    .notes div { padding:10px 13px; border:1px solid #242731; border-radius:8px; background:rgba(18,19,24,.72); color:#80838f; font-size:10px; } .notes b { color:#c5c7cf; }
+    @media(max-height:820px){ .window{height:670px;min-height:670px}.workspace{grid-template-rows:43px 112px minmax(190px,1fr) minmax(230px,1.15fr)}.track:nth-of-type(n+8){display:none} }
+  </style>
+</head>
+<body>
+  <div class="deck">
+    <header class="deck-head">
+      <div><span class="kicker">Audio-V · Interactive visual direction study</span><h1 id="theme-title">Obsidian Spectrum</h1><p id="theme-subtitle">Editorial precision with a dramatic spectral core</p></div>
+      <div class="switcher" aria-label="Theme switcher">
+        <button class="active" data-theme="obsidian"><i class="obs"></i>Obsidian Spectrum</button>
+        <button data-theme="signal"><i class="sig"></i>Signal Deck</button>
+      </div>
+    </header>
+    <main class="stage">
+      <section class="window" id="app-window">
+        <div class="native">
+          <div class="brand"><span class="mark">AV</span><strong>Audio-V</strong><span class="pill">Oracle Engine</span></div>
+          <div class="window-controls">− □ ×</div>
+        </div>
+        <div class="shell">
+          <nav class="rail">
+            <button class="active"><b>⌁</b>Audit</button><button><b>⇄</b>Compare</button><button><b>▤</b>Reports</button><button><b>◴</b>Sessions</button><button class="settings"><b>⚙</b></button>
+          </nav>
+          <div class="workspace">
+            <div class="command">
+              <div class="path"><em>▰</em><small>Audit source</small><strong>D:\Music Library\Lossless\Studio Masters</strong><span>⌄</span></div>
+              <button class="start" id="start">Start audit</button><button class="more">•••</button>
+            </div>
+            <div class="summary">
+              <div class="ring"><div><strong id="file-count">1,246</strong><span>files</span></div></div>
+              <div class="distribution"><span class="eyebrow">Verdict distribution</span><div class="legend">
+                <span><i style="background:var(--green)"></i>Integrity verified <b>1,067</b></span><span><i style="background:#91b35b"></i>Minor issues <b>104</b></span>
+                <span><i style="background:var(--amber)"></i>Review suggested <b>48</b></span><span><i style="background:var(--red)"></i>Failed <b>27</b></span>
+              </div></div>
+              <div class="selected"><span class="eyebrow">Selected file</span><h2 id="selected-name">05 — Refractions.flac</h2><div class="chips"><span>FLAC</span><span>96 kHz</span><span>24-bit</span></div><p><span id="selected-size">192.4 MB</span> · <span id="selected-duration">6:37</span></p><small>Studio Masters / <span id="selected-path">05 — Refractions.flac</span></small></div>
+            </div>
+            <div class="tablebox">
+              <div class="filters"><span class="eyebrow">Audit results</span><button class="active">All 1,246</button><button>Verified 1,067</button><button>Review 48</button><button>Failed 27</button><span class="search">⌕ Filter files</span></div>
+              <div class="row thead"><span>File name</span><span>Format</span><span>Sample rate</span><span>Bit depth</span><span>Duration</span><span>Loudness</span><span>True peak</span><span>Verdict</span></div>
+              <div id="track-list"></div>
+            </div>
+            <div class="analysis">
+              <div class="tabs"><button class="active" data-panel="spectrogram">Spectrogram</button><button data-panel="loudness">Loudness</button><button data-panel="evidence">Evidence</button><small>FFT 16,384 · BLACKMAN–HARRIS · −130 dB</small></div>
+              <div class="analysis-body">
+                <div class="visual">
+                  <div class="spectrogram panel" data-view="spectrogram"><div class="freq"><span>48k</span><span>24k</span><span>12k</span><span>6k</span><span>1.5k</span><span>0 Hz</span></div><div class="specfield"></div><div class="times"><span>0:00</span><span>1:06</span><span>2:12</span><span>3:18</span><span>4:24</span><span>5:30</span><span>6:37</span></div></div>
+                  <div class="loudness-view panel" data-view="loudness"><div class="meter"><span class="eyebrow">Integrated loudness</span><strong><span id="loudness-large">−11.8</span> <small>LUFS</small></strong><div class="bar"><i style="width:68%"></i></div></div><div class="meter"><span class="eyebrow">True peak</span><strong><span id="peak-large">−0.7</span> <small>dBTP</small></strong><div class="bar"><i style="width:87%;background:linear-gradient(90deg,var(--green),var(--amber))"></i></div></div><div class="history" id="history"></div></div>
+                  <div class="evidence-view panel" data-view="evidence"><div class="ev"><b>Stream integrity</b>FLAC STREAMINFO MD5 matches the fully decoded audio.</div><div class="ev"><b>Bit-depth utilization</b>Signal energy extends through the expected noise floor.</div><div class="ev"><b>Spectral bandwidth</b>Energy distribution agrees with the declared quality profile.</div><div class="ev"><b>Codec artifacts</b>No high-confidence lossy pre-echo signature was found.</div></div>
+                </div>
+                <aside class="metrics"><span class="eyebrow">Measured profile</span><dl><div><dt>Integrated</dt><dd id="metric-lufs">−11.8 LUFS</dd></div><div><dt>True peak</dt><dd id="metric-peak">−0.7 dBTP</dd></div><div><dt>Loudness range</dt><dd>7.5 LU</dd></div><div><dt>Sample rate</dt><dd>96 kHz</dd></div><div><dt>Bit depth</dt><dd>24-bit</dd></div><div><dt>Channels</dt><dd>2 · Stereo</dd></div><div><dt>Integrity</dt><dd>100%</dd></div></dl>
+                  <div class="verdict" id="verdict"><span class="shield">◇</span><div><small>Oracle verdict</small><strong id="verdict-name">Authentic profile</strong><span id="confidence">98% confidence</span></div></div>
+                </aside>
+              </div>
+            </div>
+          </div>
+        </div>
+        <footer class="statusbar"><span id="status-copy">Audit complete</span><span id="worker-copy">1,246 files audited</span><span id="time-copy">elapsed 00:02:47</span></footer>
+      </section>
+    </main>
+    <section class="notes"><div><b>Click a file</b> to change its Oracle verdict and measured profile.</div><div><b>Switch analysis tabs</b> to see spectral, loudness, and evidence concepts.</div><div><b>Start audit</b> to preview the live Oracle Engine scanning state.</div></section>
+  </div>
+  <script>
+    const tracks = [
+      ["05 — Refractions.flac","6:37","−11.8","−0.7","192.4 MB","verified","Authentic profile",98],
+      ["01 — Awakening.flac","4:12","−12.6","−0.8","126.7 MB","verified","Authentic profile",96],
+      ["02 — Signals.flac","5:03","−11.2","−0.6","158.2 MB","verified","Authentic profile",99],
+      ["03 — Horizon.flac","7:18","−10.9","−0.7","214.8 MB","verified","Authentic profile",97],
+      ["04 — Pulse.flac","5:46","−11.5","−0.3","171.1 MB","review","Review suggested",72],
+      ["06 — Equinox.flac","6:02","−12.0","−0.8","184.6 MB","verified","Authentic profile",100],
+      ["07 — Afterlight.flac","4:58","−11.7","−0.7","149.3 MB","likely","Likely upsample",88]
+    ];
+    const list = document.getElementById("track-list");
+    function renderTracks(selected = 0) {
+      list.innerHTML = tracks.map((t,i) => `<button class="row track ${t[5]} ${i===selected?"selected-row":""}" data-index="${i}"><span>${t[0]}</span><span>FLAC</span><span>96 kHz</span><span>24-bit</span><span>${t[1]}</span><span>${t[2]} LUFS</span><span>${t[3]} dBTP</span><span class="status"><i></i>${t[5]==="verified"?"Pass":t[5]==="review"?"Review":"Likely"}</span></button>`).join("");
+      document.querySelectorAll(".track").forEach(el => el.onclick = () => selectTrack(+el.dataset.index));
+    }
+    function selectTrack(i) {
+      const t = tracks[i]; renderTracks(i);
+      document.getElementById("selected-name").textContent=t[0]; document.getElementById("selected-path").textContent=t[0];
+      document.getElementById("selected-size").textContent=t[4]; document.getElementById("selected-duration").textContent=t[1];
+      document.getElementById("metric-lufs").textContent=t[2]+" LUFS"; document.getElementById("metric-peak").textContent=t[3]+" dBTP";
+      document.getElementById("loudness-large").textContent=t[2]; document.getElementById("peak-large").textContent=t[3];
+      document.getElementById("verdict-name").textContent=t[6]; document.getElementById("confidence").textContent=t[7]+"% confidence";
+      const verdict=document.getElementById("verdict"); verdict.className="verdict "+(t[5]==="verified"?"":t[5]);
+    }
+    document.querySelectorAll(".switcher button").forEach(btn => btn.onclick = () => {
+      document.querySelectorAll(".switcher button").forEach(b=>b.classList.remove("active")); btn.classList.add("active");
+      const signal=btn.dataset.theme==="signal"; document.getElementById("app-window").classList.toggle("signal",signal);
+      document.getElementById("theme-title").textContent=signal?"Signal Deck":"Obsidian Spectrum";
+      document.getElementById("theme-subtitle").textContent=signal?"A tactile evolution of the Deemix Signal Deck":"Editorial precision with a dramatic spectral core";
+    });
+    document.querySelectorAll(".tabs button").forEach(btn => btn.onclick = () => {
+      document.querySelectorAll(".tabs button").forEach(b=>b.classList.remove("active")); btn.classList.add("active");
+      document.querySelectorAll(".panel").forEach(p=>p.style.display=p.dataset.view===btn.dataset.panel?(p.dataset.view==="spectrogram"?"grid":p.dataset.view==="loudness"?"grid":"grid"):"none");
+    });
+    const history=document.getElementById("history"); for(let i=0;i<44;i++) history.innerHTML+=`<i style="height:${28+(i*29)%62}%"></i>`;
+    document.getElementById("start").onclick = () => {
+      let p=12; const button=document.getElementById("start"); const count=document.getElementById("file-count");
+      document.getElementById("status-copy").textContent="Oracle analysis in progress"; document.getElementById("worker-copy").textContent="8 workers active"; document.getElementById("time-copy").textContent="00:01:48 remaining";
+      const timer=setInterval(()=>{ p=Math.min(100,p+2); button.textContent=`Auditing ${p}%`; count.textContent=Math.round(1246*p/100).toLocaleString(); if(p===100){clearInterval(timer);button.textContent="Start audit";document.getElementById("status-copy").textContent="Audit complete";document.getElementById("worker-copy").textContent="1,246 files audited";document.getElementById("time-copy").textContent="elapsed 00:02:47";}},90);
+    };
+    renderTracks();
+  </script>
+</body>
+</html>

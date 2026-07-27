@@ -1,0 +1,176 @@
+{
+  "name": "audio-v",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "engines": {
+    "node": ">=22"
+  },
+  "description": "Cross-platform audio integrity and fidelity workstation powered by the Oracle Engine.",
+  "author": {
+    "name": "DRAZY"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DRAZY/Audio-V.git"
+  },
+  "homepage": "https://github.com/DRAZY/Audio-V#readme",
+  "bugs": {
+    "url": "https://github.com/DRAZY/Audio-V/issues"
+  },
+  "main": "dist-electron/electron/main.js",
+  "scripts": {
+    "dev": "npm run build:electron && concurrently -k \"vite --host 127.0.0.1\" \"tsc -p tsconfig.electron.json --watch --preserveWatchOutput\" \"wait-on http://127.0.0.1:5173 && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .\"",
+    "build:renderer": "vite build",
+    "build:electron": "tsc -p tsconfig.electron.json",
+    "build": "npm run typecheck && npm run build:renderer && npm run build:electron",
+    "typecheck": "vue-tsc --noEmit && tsc -p tsconfig.electron.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "fixtures:fidelity": "node scripts/generate-fidelity-fixtures.mjs",
+    "validate:fidelity": "npm run build:electron && node scripts/validate-fidelity-corpus.mjs",
+    "validate:platform": "npm run build:electron && node scripts/write-platform-validation.mjs",
+    "verify:accessibility": "npm run build:renderer && electron scripts/verify-accessibility.cjs",
+    "verify:worker": "node scripts/verify-oracle-worker.mjs",
+    "benchmark:scale": "npm run build:electron && node scripts/benchmark-scale.mjs",
+    "verify": "npm run test && npm run build && electron scripts/verify-accessibility.cjs && node scripts/validate-fidelity-corpus.mjs && npm run verify:worker && npm audit --omit=dev",
+    "prepare:notices": "node scripts/write-third-party-notices.mjs",
+    "prepare:manifest": "node scripts/write-engine-manifest.mjs",
+    "provision:engines": "node scripts/provision-engines.mjs",
+    "prepare:engines": "node scripts/verify-ffmpeg.mjs",
+    "prepare:release": "npm run prepare:engines && npm run prepare:notices && npm run prepare:manifest",
+    "dist:mac": "npm run prepare:release && npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg --arm64 --universal -c.mac.identity=null -c.mac.hardenedRuntime=false -c.mac.notarize=false",
+    "dist:mac:signed": "npm run prepare:release && npm run build && electron-builder --mac dmg --arm64 --universal",
+    "dist:win": "npm run prepare:release && npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win nsis portable --x64 -c.win.signExecutable=false",
+    "dist:win:signed": "npm run prepare:release && npm run build && electron-builder --win nsis portable --x64",
+    "dist:win:arm64": "npm run prepare:release && npm run build && electron-builder --win nsis portable --arm64",
+    "verify:artifacts:mac": "node scripts/verify-release-artifacts.mjs mac",
+    "verify:artifacts:win": "node scripts/verify-release-artifacts.mjs win",
+    "verify:runtime:mac": "node scripts/verify-packaged-runtime.mjs mac",
+    "verify:runtime:win": "node scripts/verify-packaged-runtime.mjs win",
+    "verify:release-policy": "node scripts/verify-release-policy.mjs",
+    "verify:contributor-policy": "node scripts/verify-contributor-policy.mjs",
+    "verify:release-candidate": "node scripts/verify-release-candidate.mjs",
+    "release:checksums": "node scripts/write-checksums.mjs",
+    "release:manifest": "node scripts/write-release-manifest.mjs"
+  },
+  "dependencies": {
+    "docx": "^9.5.1",
+    "jszip": "^3.10.1",
+    "music-metadata": "^11.12.3",
+    "pdfkit": "^0.17.2",
+    "vue": "^3.5.32"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.19",
+    "@types/pdfkit": "^0.17.5",
+    "@vitejs/plugin-vue": "^6.0.0",
+    "axe-core": "^4.12.1",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "electron": "^39.8.5",
+    "electron-builder": "^26.8.1",
+    "typescript": "^5.9.3",
+    "vite": "^7.2.4",
+    "vitest": "^3.2.7",
+    "vue-tsc": "^3.2.1",
+    "wait-on": "^9.0.3"
+  },
+  "build": {
+    "appId": "app.audiov.desktop",
+    "productName": "Audio-V",
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "build/THIRD_PARTY_NOTICES.txt",
+        "to": "THIRD_PARTY_NOTICES.txt"
+      },
+      {
+        "from": "build/engine-manifest.json",
+        "to": "engine-manifest.json"
+      },
+      {
+        "from": "LICENSE",
+        "to": "LICENSE.txt"
+      },
+      {
+        "from": "NOTICE",
+        "to": "NOTICE.txt"
+      },
+      {
+        "from": "SOURCE_OFFER.md",
+        "to": "SOURCE_OFFER.md"
+      },
+      {
+        "from": "TRADEMARKS.md",
+        "to": "TRADEMARKS.md"
+      }
+    ],
+    "mac": {
+      "icon": "build/icon.png",
+      "category": "public.app-category.music",
+      "extraResources": [
+        {
+          "from": "vendor/ffmpeg/mac-universal",
+          "to": "engine"
+        }
+      ],
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "universal"
+          ]
+        }
+      ],
+      "hardenedRuntime": true,
+      "notarize": true,
+      "gatekeeperAssess": false
+    },
+    "dmg": {
+      "title": "Audio-V ${version}"
+    },
+    "win": {
+      "icon": "build/icon.png",
+      "extraResources": [
+        {
+          "from": "vendor/ffmpeg/win-${arch}",
+          "to": "engine"
+        }
+      ],
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "license": "LICENSE"
+    },
+    "portable": {
+      "artifactName": "${productName}-Portable-${version}-${arch}.${ext}"
+    }
+  }
+}

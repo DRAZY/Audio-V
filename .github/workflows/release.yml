@@ -1,0 +1,99 @@
+name: Build desktop releases
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.label }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: macOS Apple Silicon and Universal DMGs
+            os: macos-latest
+            command: dist:mac
+            platform: mac
+            artifacts: |
+              release/*.dmg
+              release/*.dmg.blockmap
+              build/platform-validation-*.json
+          - label: Windows installer and portable
+            os: windows-latest
+            command: dist:win
+            platform: win
+            artifacts: |
+              release/*.exe
+              release/*.exe.blockmap
+              build/platform-validation-*.json
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run provision:engines
+      - run: npm run verify
+      - run: npm run validate:platform
+      - run: npm run ${{ matrix.command }}
+      - run: npm run verify:artifacts:${{ matrix.platform }}
+      - run: npm run verify:runtime:${{ matrix.platform }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.label }}
+          path: ${{ matrix.artifacts }}
+          if-no-files-found: error
+
+  parity:
+    name: Verify macOS and Windows Oracle parity
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: parity
+      - name: Compare platform snapshots
+        shell: bash
+        run: |
+          mapfile -t snapshots < <(find parity -type f -name 'platform-validation-*.json' | sort)
+          test "${#snapshots[@]}" -eq 2
+          node scripts/compare-platform-validation.mjs "${snapshots[0]}" "${snapshots[1]}"
+
+  publish:
+    name: Publish tagged release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [build, parity]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify public open-source release policy
+        run: node scripts/verify-release-policy.mjs --public
+      - uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+      - name: Create checksum manifest
+        shell: bash
+        run: |
+          find release -maxdepth 1 -type f \( -name '*.dmg' -o -name '*.exe' \) -print0 |
+            sort -z |
+            xargs -0 sha256sum > release/SHA256SUMS.txt
+      - name: Write unsigned release policy manifest
+        run: node scripts/write-release-manifest.mjs
+      - name: Attach builds to GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --generate-notes
+          find release -maxdepth 1 -type f \( -name '*.dmg' -o -name '*.dmg.blockmap' -o -name '*.exe' -o -name '*.exe.blockmap' -o -name 'SHA256SUMS.txt' -o -name 'UNSIGNED_RELEASE_MANIFEST.json' \) -print0 |
+            xargs -0 gh release upload "$GITHUB_REF_NAME" --clobber

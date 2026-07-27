@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Audio-V — Logo Concepts</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #090a0e; color: #f5f6fa; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 54px; background: radial-gradient(circle at 72% 0, #251c47 0, transparent 34rem), #090a0e; }
+    header { max-width: 1180px; margin: 0 auto 34px; }
+    .eyebrow { color: #9b7aff; font: 700 11px/1.2 ui-monospace, monospace; letter-spacing: .16em; text-transform: uppercase; }
+    h1 { margin: 10px 0 8px; font-size: clamp(34px, 5vw, 68px); letter-spacing: -.055em; }
+    header p { max-width: 680px; color: #9699a7; font-size: 16px; line-height: 1.55; }
+    .grid { max-width: 1180px; margin: auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+    article { min-width: 0; padding: 28px; border: 1px solid #2b2d38; border-radius: 22px; background: linear-gradient(145deg, rgba(28,29,38,.94), rgba(14,15,20,.94)); }
+    article.selected { border-color: #7856da; box-shadow: 0 22px 70px rgba(91,58,187,.18); }
+    .icon { aspect-ratio: 1; display: grid; place-items: center; border-radius: 25%; background: #0b0c11; box-shadow: inset 0 0 0 1px #343642, 0 25px 50px #050507; overflow: hidden; }
+    .icon svg { width: 88%; height: 88%; }
+    h2 { margin: 26px 0 7px; font-size: 20px; letter-spacing: -.02em; }
+    article p { min-height: 63px; color: #858995; font-size: 13px; line-height: 1.55; }
+    .tag { display: inline-flex; padding: 6px 9px; border: 1px solid #343642; border-radius: 999px; color: #b8bac5; font: 700 9px/1 ui-monospace, monospace; text-transform: uppercase; }
+    .selected .tag { border-color: rgba(141,100,255,.5); color: #a987ff; background: rgba(141,100,255,.1); }
+    .lockups { max-width: 1180px; margin: 18px auto 0; padding: 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; border: 1px solid #2b2d38; border-radius: 22px; background: #111218; }
+    .lockup { display: flex; align-items: center; gap: 17px; }
+    .mini { width: 58px; height: 58px; display: grid; place-items: center; border-radius: 15px; background: linear-gradient(145deg, #8d64ff, #42dfe5); color: #090a0e; font: 900 28px/1 ui-monospace, monospace; }
+    .word strong { display: block; font-size: 25px; letter-spacing: -.04em; }
+    .word small { color: #858995; font: 700 9px/1.6 ui-monospace, monospace; letter-spacing: .1em; text-transform: uppercase; }
+    @media (max-width: 860px) { body { padding: 28px; } .grid { grid-template-columns: 1fr; } article p { min-height: auto; } .lockups { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="eyebrow">Audio-V · Brand exploration 01</span>
+    <h1>Three signals. One verdict.</h1>
+    <p>Initial app-icon directions designed for the Obsidian Spectrum interface. Each avoids small lettering and is intended to survive reduction from a storefront tile to a 16-pixel system icon.</p>
+  </header>
+  <main class="grid">
+    <article class="selected">
+      <div class="icon">
+        <svg viewBox="0 0 300 300" aria-label="Oracle V">
+          <defs><linearGradient id="a" x1="30" y1="30" x2="270" y2="270"><stop stop-color="#a77bff"/><stop offset="1" stop-color="#42dfe5"/></linearGradient></defs>
+          <circle cx="150" cy="148" r="102" fill="none" stroke="url(#a)" stroke-width="15" stroke-dasharray="160 18 44 20" stroke-linecap="round"/>
+          <path d="M86 82 147 221c3 8 12 8 16 0l61-139" fill="none" stroke="#f6f7fb" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="155" cy="220" r="7" fill="#42dfe5"/>
+        </svg>
+      </div>
+      <h2>01 · Oracle V</h2>
+      <p>A decisive V held inside a spectral inspection ring. This is the strongest bridge between the product name, fidelity analysis, and the Oracle Engine.</p>
+      <span class="tag">Provisional package icon</span>
+    </article>
+    <article>
+      <div class="icon">
+        <svg viewBox="0 0 300 300" aria-label="Spectral aperture">
+          <defs><linearGradient id="b" x1="40" y1="50" x2="250" y2="250"><stop stop-color="#9c70ff"/><stop offset=".5" stop-color="#6152f1"/><stop offset="1" stop-color="#43dde5"/></linearGradient></defs>
+          <path d="M150 48 239 99 239 201 150 252 61 201 61 99Z" fill="none" stroke="#333542" stroke-width="11"/>
+          <path d="m83 106 61 109c3 6 11 6 14 0l60-109M97 101h106M78 151h144M97 201h106" fill="none" stroke="url(#b)" stroke-width="14" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <h2>02 · Spectral Aperture</h2>
+      <p>A laboratory-grade aperture built from frequency bands. More technical and instrument-like, with less emphasis on the Oracle personality.</p>
+      <span class="tag">Technical direction</span>
+    </article>
+    <article>
+      <div class="icon">
+        <svg viewBox="0 0 300 300" aria-label="Signal verdict">
+          <defs><linearGradient id="c" x1="40" y1="150" x2="260" y2="150"><stop stop-color="#a77bff"/><stop offset="1" stop-color="#42dfe5"/></linearGradient></defs>
+          <path d="M38 151h39l15-45 24 92 28-131 29 164 26-117 20 74 15-37h48" fill="none" stroke="url(#c)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="m92 92 53 123c3 8 13 8 17 0l52-123" fill="none" stroke="#f5f6fa" stroke-width="23" stroke-linecap="round" stroke-linejoin="round" opacity=".92"/>
+        </svg>
+      </div>
+      <h2>03 · Signal Verdict</h2>
+      <p>The V is constructed directly from an analyzed waveform. Energetic and unmistakably audio-first, but busier at the smallest system sizes.</p>
+      <span class="tag">Expressive direction</span>
+    </article>
+  </main>
+  <section class="lockups">
+    <div class="lockup"><div class="mini">V</div><div class="word"><strong>Audio-V</strong><small>Powered by Oracle Engine</small></div></div>
+    <div class="lockup"><div class="mini">V</div><div class="word"><strong>AUDIO‑V</strong><small>Know what is really in the file.</small></div></div>
+  </section>
+</body>
+</html>

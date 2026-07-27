@@ -1,0 +1,60 @@
+name: Verify desktop source
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  contributor-policy:
+    name: Contributor agreement
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node scripts/verify-contributor-policy.mjs
+
+  verify:
+    name: ${{ matrix.os }} correctness
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - macos-latest
+          - windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run provision:engines
+      - run: npm run verify
+      - run: npm run validate:platform
+      - uses: actions/upload-artifact@v4
+        with:
+          name: platform-validation-${{ runner.os }}
+          path: build/platform-validation-*.json
+          if-no-files-found: error
+
+  parity:
+    name: Cross-platform Oracle parity
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: parity
+      - name: Compare platform snapshots
+        shell: bash
+        run: |
+          mapfile -t snapshots < <(find parity -type f -name 'platform-validation-*.json' | sort)
+          test "${#snapshots[@]}" -eq 2
+          node scripts/compare-platform-validation.mjs "${snapshots[0]}" "${snapshots[1]}"

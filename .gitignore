@@ -1,0 +1,16 @@
+node_modules/
+dist/
+dist-electron/
+release/
+build/THIRD_PARTY_NOTICES.txt
+build/engine-manifest.json
+build/*-latest.json
+build/platform-validation-*.json
+.DS_Store
+*.log
+tests/.tmp-*/
+tmp/
+vendor/ffmpeg/
+.env
+.env.*
+!.env.example

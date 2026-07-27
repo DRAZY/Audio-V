@@ -1,0 +1,73 @@
+import { access, readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
+
+const root = process.cwd();
+const checks = [];
+
+async function fileCheck(name, relativePath, validate = () => true) {
+  try {
+    const content = await readFile(path.join(root, relativePath), "utf8");
+    checks.push({ name, passed: Boolean(validate(content)), detail: relativePath });
+  } catch {
+    checks.push({ name, passed: false, detail: `${relativePath} missing` });
+  }
+}
+
+await fileCheck("AGPL license", "LICENSE", (value) =>
+  value.includes("GNU AFFERO GENERAL PUBLIC LICENSE") &&
+  value.includes("Version 3, 19 November 2007"),
+);
+await fileCheck("Contributor agreement", "CONTRIBUTOR_LICENSE_AGREEMENT.md");
+await fileCheck("Trademark policy", "TRADEMARKS.md");
+await fileCheck("Corresponding-source notice", "SOURCE_OFFER.md");
+await fileCheck("User guide", "docs/USER_GUIDE.md");
+await fileCheck("Privacy model", "docs/PRIVACY_SECURITY.md");
+await fileCheck("Release-candidate checklist", "docs/RELEASE_CANDIDATE_CHECKLIST.md");
+await fileCheck("Accessibility result", "build/accessibility-latest.json", (value) =>
+  JSON.parse(value).passed === true,
+);
+await fileCheck("Fidelity corpus result", "build/fidelity-validation-latest.json", (value) =>
+  JSON.parse(value).passed === true,
+);
+await fileCheck("Scale benchmark result", "build/performance-latest.json", (value) =>
+  JSON.parse(value).passed === true,
+);
+
+try {
+  await access(path.join(root, "release", "UNSIGNED_RELEASE_MANIFEST.json"));
+  checks.push({
+    name: "Unsigned release manifest",
+    passed: true,
+    detail: "release/UNSIGNED_RELEASE_MANIFEST.json",
+  });
+} catch {
+  checks.push({
+    name: "Unsigned release manifest",
+    passed: false,
+    detail: "Run npm run release:manifest after packaging.",
+  });
+}
+
+const failed = checks.filter((check) => !check.passed);
+const report = {
+  schema: "Audio-V release candidate readiness v1",
+  measuredAt: new Date().toISOString(),
+  automatedChecks: {
+    total: checks.length,
+    passed: checks.length - failed.length,
+    failed: failed.length,
+  },
+  checks,
+  manualAcceptance:
+    "Required clean-OS, assistive-technology, scaling, upgrade, and failure-mode checks are tracked in docs/RELEASE_CANDIDATE_CHECKLIST.md.",
+  passed: failed.length === 0,
+};
+await writeFile(
+  path.join(root, "build", "release-readiness-latest.json"),
+  `${JSON.stringify(report, null, 2)}\n`,
+);
+for (const check of checks) {
+  console.log(`${check.passed ? "PASS" : "FAIL"} ${check.name}: ${check.detail}`);
+}
+if (failed.length) process.exitCode = 1;
+else console.log(`Release-candidate automated readiness: ${checks.length}/${checks.length} passed.`);

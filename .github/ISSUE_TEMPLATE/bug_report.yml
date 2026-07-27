@@ -1,0 +1,57 @@
+name: Defect report
+description: Report a reproducible Audio-V application or Oracle Engine defect.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not attach private audio, credentials, personal paths, or unpublished evidence. Use GitHub private vulnerability reporting for security issues.
+  - type: input
+    id: version
+    attributes:
+      label: Audio-V version
+      placeholder: 0.1.0 / Oracle 0.3.0-oracle-v5
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - macOS Apple Silicon
+        - macOS Intel
+        - Windows installer
+        - Windows portable
+        - Source development build
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Observed behavior
+      description: State what happened and what You expected.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Provide the smallest repeatable sequence and a redistributable fixture description.
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Privacy-safe diagnostics
+      description: Paste or attach the Settings diagnostic export after reviewing it.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Submission checks
+      options:
+        - label: I removed private audio, credentials, and personal information.
+          required: true
+        - label: I searched existing issues for this behavior.
+          required: true

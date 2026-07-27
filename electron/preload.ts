@@ -1,0 +1,49 @@
+import { contextBridge, ipcRenderer } from "electron";
+import type { AudioVDesktopApi } from "../shared/contracts";
+
+const api: AudioVDesktopApi = {
+  ...(process.env.AUDIO_V_ENABLE_QA === "1" &&
+  process.env.AUDIO_V_QA_SOURCE
+    ? {
+        qaLoadConfiguredSource: () =>
+          ipcRenderer.invoke("qa:configured-source"),
+      }
+    : {}),
+  selectFiles: () => ipcRenderer.invoke("library:select-files"),
+  selectCompareFile: () => ipcRenderer.invoke("comparison:select-file"),
+  selectFolder: () => ipcRenderer.invoke("library:select-folder"),
+  scanSelection: (source) => ipcRenderer.invoke("library:scan-selection", source),
+  onScanProgress: (listener) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      progress: Parameters<typeof listener>[0],
+    ) => listener(progress);
+    ipcRenderer.on("library:scan-progress", handler);
+    return () => ipcRenderer.removeListener("library:scan-progress", handler);
+  },
+  listAuditSessions: () => ipcRenderer.invoke("sessions:list"),
+  openAuditSession: (sessionId) =>
+    ipcRenderer.invoke("sessions:open", sessionId),
+  compareSignals: (leftPath, rightPath) =>
+    ipcRenderer.invoke("comparison:analyze-signals", leftPath, rightPath),
+  pauseScan: () => ipcRenderer.invoke("library:pause-scan"),
+  resumeScan: () => ipcRenderer.invoke("library:resume-scan"),
+  cancelScan: () => ipcRenderer.invoke("library:cancel-scan"),
+  analyzeFile: (filePath, sessionId) =>
+    ipcRenderer.invoke("oracle:analyze-file", filePath, sessionId),
+  exportReport: (request, format) =>
+    ipcRenderer.invoke("reports:export", request, format),
+  exportSpectrogram: (fileName, dataUrl) =>
+    ipcRenderer.invoke("reports:export-spectrogram", fileName, dataUrl),
+  exportDiagnostics: () => ipcRenderer.invoke("app:export-diagnostics"),
+  revealFile: (filePath) => ipcRenderer.invoke("files:reveal", filePath),
+  createTruePeakSafeCopy: (filePath, targetBitDepth) =>
+    ipcRenderer.invoke(
+      "repair:create-true-peak-copy",
+      filePath,
+      targetBitDepth,
+    ),
+  platform: () => ipcRenderer.invoke("app:platform"),
+};
+
+contextBridge.exposeInMainWorld("audioV", api);

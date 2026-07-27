@@ -1,0 +1,55 @@
+{
+  "schema": "Audio-V fidelity validation corpus v1",
+  "description": "Deterministic controls for classifier regression. This small synthetic corpus validates rule behavior but is not large or representative enough to calibrate provenance probabilities.",
+  "cases": [
+    {
+      "file": "native-wideband-96.flac",
+      "truth": "native wideband synthetic control",
+      "acceptedClassifications": ["no-strong-spectral-anomaly"]
+    },
+    {
+      "file": "wideband-source-44.flac",
+      "truth": "native 44.1 kHz wideband synthetic control",
+      "acceptedClassifications": ["no-strong-spectral-anomaly"]
+    },
+    {
+      "file": "wideband-source-48.flac",
+      "truth": "native 48 kHz wideband synthetic control",
+      "acceptedClassifications": ["no-strong-spectral-anomaly"]
+    },
+    {
+      "file": "mp3-128-transcoded-to-flac.flac",
+      "truth": "known MP3-to-FLAC transformation",
+      "acceptedClassifications": ["possible-lossy-transcode"]
+    },
+    {
+      "file": "upsampled-44-to-96.flac",
+      "truth": "known 44.1-to-96 kHz upsample",
+      "acceptedClassifications": ["possible-upsample"]
+    },
+    {
+      "file": "intentional-lowpass-44.flac",
+      "truth": "intentionally filtered native lossless control",
+      "acceptedClassifications": [
+        "bandwidth-limited",
+        "no-strong-spectral-anomaly",
+        "inconclusive"
+      ]
+    },
+    {
+      "file": "digital-silence-44.flac",
+      "truth": "digital silence with no spectral provenance evidence",
+      "acceptedClassifications": ["inconclusive"]
+    },
+    {
+      "file": "short-wideband-44.flac",
+      "truth": "insufficient-duration wideband control",
+      "acceptedClassifications": ["inconclusive"]
+    },
+    {
+      "file": "tonal-source-44.flac",
+      "truth": "narrow-band tonal source that must not be called a transcode",
+      "acceptedClassifications": ["bandwidth-limited", "inconclusive"]
+    }
+  ]
+}
