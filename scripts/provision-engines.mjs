@@ -116,18 +116,10 @@ async function provisionWindowsEngine(temporaryRoot) {
   const extracted = path.join(temporaryRoot, "extracted");
   const output = path.join(root, "vendor", "ffmpeg", "win-x64");
   await download(windowsUrl, archive, windowsSha256);
-  execFileSync(
-    "powershell.exe",
-    [
-      "-NoProfile",
-      "-NonInteractive",
-      "-Command",
-      "Expand-Archive -LiteralPath $args[0] -DestinationPath $args[1] -Force",
-      archive,
-      extracted,
-    ],
-    { stdio: "inherit" },
-  );
+  await fs.mkdir(extracted, { recursive: true });
+  execFileSync("tar.exe", ["-xf", archive, "-C", extracted], {
+    stdio: "inherit",
+  });
   const entries = [];
   async function visit(directory) {
     for (const entry of await fs.readdir(directory, { withFileTypes: true })) {
