@@ -85,7 +85,12 @@ async function buildMacEngines(temporaryRoot) {
       cwd: build,
       stdio: "inherit",
     });
-    execFileSync("make", ["install"], { cwd: build, stdio: "inherit" });
+    await fs.mkdir(output, { recursive: true });
+    for (const executable of ["ffmpeg", "ffprobe"]) {
+      const destination = path.join(output, executable);
+      await fs.copyFile(path.join(build, executable), destination);
+      await fs.chmod(destination, 0o755);
+    }
     await writeEngineNotices(output, sourceUrl);
   }
   const universalOutput = path.join(
