@@ -2203,7 +2203,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
                       : "No repeated plateau pattern detected" }}
                   </small>
                 </article>
-                <article>
+                <article class="stereo-diagnostic">
                   <span class="eyebrow">Stereo correlation</span>
                   <strong>{{ formatCorrelation(selected.oracle.measurements.stereoCorrelation) }}</strong>
                   <p>
@@ -2216,7 +2216,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
                     }}
                   </p>
                 </article>
-                <article>
+                <article class="stereo-diagnostic">
                   <span class="eyebrow">Stereo authenticity</span>
                   <strong>{{ selected.oracle.measurements.stereoAssessment.replaceAll("-", " ") }}</strong>
                   <p>

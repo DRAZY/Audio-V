@@ -101,6 +101,77 @@ app.whenReady().then(async () => {
     );
   }
 
+  window.setContentSize(scenarios[0].width, scenarios[0].height);
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  const loudnessGrid = await window.webContents.executeJavaScript(`
+    (() => {
+      const grid = document.createElement("div");
+      grid.className = "loudness-view measured";
+      grid.style.width = "900px";
+      grid.style.position = "fixed";
+      grid.style.inset = "0 auto auto -2000px";
+      for (let index = 0; index < 9; index += 1) {
+        grid.append(document.createElement("article"));
+      }
+      for (let index = 0; index < 2; index += 1) {
+        const diagnostic = document.createElement("article");
+        diagnostic.className = "clipping-diagnostics";
+        grid.append(diagnostic);
+      }
+      for (let index = 0; index < 2; index += 1) {
+        const stereo = document.createElement("article");
+        stereo.className = "stereo-diagnostic";
+        grid.append(stereo);
+      }
+      document.body.append(grid);
+      const rect = (element) => {
+        const value = element.getBoundingClientRect();
+        return {
+          left: value.left,
+          right: value.right,
+          top: value.top,
+          width: value.width,
+        };
+      };
+      const articles = [...grid.querySelectorAll("article")].map(rect);
+      const result = {
+        grid: rect(grid),
+        standard: articles.slice(0, 9),
+        diagnostics: articles.slice(9, 11),
+        stereo: articles.slice(11, 13),
+      };
+      grid.remove();
+      return result;
+    })()
+  `);
+  const tolerance = 1;
+  const threeEqualColumns =
+    Math.abs(loudnessGrid.standard[0].width - loudnessGrid.standard[1].width) <= tolerance &&
+    Math.abs(loudnessGrid.standard[1].width - loudnessGrid.standard[2].width) <= tolerance &&
+    Math.abs(loudnessGrid.standard[0].top - loudnessGrid.standard[2].top) <= tolerance;
+  const diagnosticsFillRows = loudnessGrid.diagnostics.every(
+    (card) =>
+      Math.abs(card.left - loudnessGrid.grid.left) <= tolerance &&
+      Math.abs(card.right - loudnessGrid.grid.right) <= tolerance,
+  );
+  const stereoFillsBalancedRow =
+    Math.abs(loudnessGrid.stereo[0].width - loudnessGrid.stereo[1].width) <= tolerance &&
+    Math.abs(loudnessGrid.stereo[0].top - loudnessGrid.stereo[1].top) <= tolerance &&
+    Math.abs(loudnessGrid.stereo[0].left - loudnessGrid.grid.left) <= tolerance &&
+    Math.abs(loudnessGrid.stereo[1].right - loudnessGrid.grid.right) <= tolerance;
+  const loudnessPassed =
+    threeEqualColumns && diagnosticsFillRows && stereoFillsBalancedRow;
+  results.push({
+    name: "loudness-grid",
+    measurement: loudnessGrid,
+    checks: {
+      threeEqualColumns,
+      diagnosticsFillRows,
+      stereoFillsBalancedRow,
+    },
+    passed: loudnessPassed,
+  });
+
   const failed = results.filter((result) => !result.passed);
   await writeFile(
     path.join(process.cwd(), "build", "responsive-layout-latest.json"),
@@ -121,7 +192,7 @@ app.whenReady().then(async () => {
     );
   } else {
     console.log(
-      "Responsive layout passed at default and minimum supported desktop sizes.",
+      "Responsive layout passed at default and minimum desktop sizes, including the loudness diagnostics grid.",
     );
   }
   window.destroy();

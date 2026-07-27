@@ -912,9 +912,17 @@ button:focus-visible {
 }
 
 .loudness-view.measured {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  align-items: stretch;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  place-items: stretch;
   gap: 9px;
+}
+
+.loudness-view.measured > article {
+  grid-column: span 2;
+}
+
+.loudness-view.measured > article.stereo-diagnostic {
+  grid-column: span 3;
 }
 
 .analysis-pending {
@@ -962,6 +970,21 @@ button:focus-visible {
 
 .loudness-view article.clipping-diagnostics {
   grid-column: 1 / -1;
+}
+
+@media (max-width: 1250px) {
+  .loudness-view.measured {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .loudness-view.measured > article,
+  .loudness-view.measured > article.stereo-diagnostic {
+    grid-column: span 1;
+  }
+
+  .loudness-view.measured > article.clipping-diagnostics {
+    grid-column: 1 / -1;
+  }
 }
 
 .clipping-timeline {
