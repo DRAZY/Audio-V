@@ -52,13 +52,26 @@ Cross-building Windows packages from macOS may work when the required compatibil
 3. Create and push a matching tag:
 
    ```bash
-   git tag v0.2.0
+   git tag v0.4.0
    git push origin main --tags
    ```
 
 The tag starts independent macOS and Windows builds. Each runner executes the full verification suite, fidelity corpus, platform snapshot, package build, and artifact inspection. A parity job compares deterministic identities and measurements within documented tolerances before publication.
 
 The workflow attaches the `.dmg` and `.exe` files, block maps, `SHA256SUMS.txt`, and `UNSIGNED_RELEASE_MANIFEST.json` to the versioned GitHub Release.
+
+## Maintainer synchronization policy
+
+For maintainer-directed feature work, a verified implementation is not considered synchronized until its source commit is pushed to `main` and its matching native packages are published through the tagged release workflow. The tag must match `package.json`; macOS and Windows correctness, packaged-runtime verification, and Oracle parity must pass before GitHub publishes the binaries.
+
+GitHub Releases preserve prior versions as the project’s historical distribution record. The local ignored `release/` directory is a current-build workspace, not an archive. After a release succeeds:
+
+1. Download the exact published assets for the current version.
+2. Verify `SHA256SUMS.txt` against all four application packages.
+3. Remove older-version installers, portable executables, DMGs, block maps, update metadata, and unpacked staging directories from local `release/`.
+4. Retain only the current Apple Silicon DMG, Universal DMG, Windows installer, Windows portable executable, available block maps, `SHA256SUMS.txt`, and `UNSIGNED_RELEASE_MANIFEST.json`.
+
+This prevents stale local binaries from being confused with the source version while keeping reproducible historical downloads in GitHub.
 
 The release workflow provisions engines before packaging. macOS builds FFmpeg 8.1.2 from the checksum-pinned official source with GPL/nonfree features disabled; Windows downloads the immutable, checksum-pinned BtbN `autobuild-2026-07-26-13-28` n8.1 LGPL static build. It also downloads checksum-pinned C2PA Tool 0.27.3 and Chromaprint fpcalc 1.6.0 archives from their official releases, writes offline C2PA policy and license files into every target engine directory, and verifies their executable hashes. `prepare:engines` blocks packaging when provenance, licensing policy, versions, or offline settings disagree.
 
