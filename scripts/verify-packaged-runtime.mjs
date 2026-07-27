@@ -7,6 +7,14 @@ const target = process.argv[2];
 if (!["mac", "win"].includes(target)) {
   throw new Error("Usage: node scripts/verify-packaged-runtime.mjs <mac|win>");
 }
+if (
+  (target === "mac" && process.platform !== "darwin") ||
+  (target === "win" && process.platform !== "win32")
+) {
+  throw new Error(
+    `${target === "mac" ? "macOS" : "Windows"} packaged-runtime verification must run on its native operating system. Cross-built artifacts can be structurally inspected here, but execution is intentionally not simulated.`,
+  );
+}
 const root = process.cwd();
 const executable =
   target === "mac"
