@@ -30,7 +30,18 @@ const engines = {
   },
 };
 
-for (const [target, metadata] of Object.entries(engines)) {
+const platformTargets =
+  process.platform === "darwin"
+    ? ["mac-arm64", "mac-x64", "mac-universal"]
+    : process.platform === "win32"
+      ? ["win-x64"]
+      : [];
+if (platformTargets.length === 0) {
+  throw new Error(`Engine verification is not supported on ${process.platform}.`);
+}
+
+for (const target of platformTargets) {
+  const metadata = engines[target];
   const directory = path.join(process.cwd(), "vendor", "ffmpeg", target);
   const provenance = { target, source: metadata.source, binaries: {} };
   for (const [name, expected] of Object.entries(metadata)) {

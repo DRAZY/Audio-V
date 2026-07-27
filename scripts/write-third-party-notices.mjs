@@ -9,8 +9,8 @@ const sections = [
   "Audio-V third-party software notices",
   "Generated from production dependencies in package-lock.json.",
   "",
-  "The Audio-V project license has not yet been selected. The notices below",
-  "cover third-party runtime packages and do not grant a license to Audio-V.",
+  "Audio-V project source is licensed under AGPL-3.0-only. The notices below",
+  "cover third-party runtime packages under their respective license terms.",
   "",
 ];
 
