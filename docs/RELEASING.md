@@ -52,7 +52,7 @@ Cross-building Windows packages from macOS may work when the required compatibil
 3. Create and push a matching tag:
 
    ```bash
-   git tag v0.4.2
+   git tag v0.4.3
    git push origin main --tags
    ```
 
