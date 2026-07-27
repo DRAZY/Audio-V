@@ -1,93 +1,187 @@
-# Audio-V
+<div align="center">
+  <img src="build/icon.png" alt="Audio-V logo" width="112">
+  <h1>Audio-V</h1>
+  <p><strong>The audio integrity and fidelity workstation powered by the Oracle Engine.</strong></p>
+  <p>Decode every stream. Measure the signal. Inspect the evidence. Reach a defensible verdict.</p>
 
-Audio-V is a cross-platform audio integrity and fidelity workstation powered by the Oracle Engine.
+  <p>
+    <a href="https://github.com/DRAZY/Audio-V/actions/workflows/verify.yml"><img alt="Desktop verification" src="https://img.shields.io/github/actions/workflow/status/DRAZY/Audio-V/verify.yml?branch=main&style=for-the-badge&label=Desktop%20verification"></a>
+    <a href="https://github.com/DRAZY/Audio-V/releases"><img alt="Development release" src="https://img.shields.io/github/v/release/DRAZY/Audio-V?include_prereleases&style=for-the-badge&color=8b5cf6"></a>
+    <a href="LICENSE"><img alt="AGPL 3.0 only" src="https://img.shields.io/badge/license-AGPL--3.0--only-8b5cf6?style=for-the-badge"></a>
+    <img alt="macOS and Windows" src="https://img.shields.io/badge/platforms-macOS%20%7C%20Windows-252532?style=for-the-badge">
+  </p>
 
-This directory is the repository root for the application.
+  <p>
+    <a href="#download">Download</a> ·
+    <a href="#meet-the-oracle-engine">Oracle Engine</a> ·
+    <a href="#what-audio-v-can-do">Features</a> ·
+    <a href="#understanding-the-verdict">Verdicts</a> ·
+    <a href="docs/USER_GUIDE.md">User guide</a> ·
+    <a href="docs/METHODOLOGY.md">Methodology</a>
+  </p>
+</div>
 
-## Current milestone
+![Audio-V library audit, verdict distribution, and measured spectrogram](docs/assets/audio-v-library-audit.png)
 
-The first production foundation includes:
+## Know what is actually inside your audio files
 
-- Electron, Vue 3, TypeScript, and Vite
-- Approved Obsidian Spectrum desktop interface with an 11px minimum label size
-- Secure context-isolated preload API
-- Native multi-file and folder choosers
-- Recursive audio discovery with bounded probing and automatic full-stream analysis
-- Versioned Oracle Engine result schema
-- Bundled FFmpeg 8.1.2 LGPL decoder/probe engine for macOS and Windows
-- Complete multi-codec decode-integrity validation
-- Independent FLAC STREAMINFO decoded-audio MD5 verification
-- Adjacent and folder-level MD5, SHA-1, SHA-256, and SHA-512 manifest verification
-- Decoder-independent PCM measurement core with regression tests
-- EBU R128 integrated loudness/LRA and BS.1770 true peak
-- Measured full-track STFT spectrograms for every successfully decoded format
-- MP3 packet analysis with CBR/VBR classification
-- Dropout, exact-digital-silence, discontinuity-candidate, crest-factor, and PLR measurements
-- Conservative spectral-origin review for possible lossy transcodes and upsampling
-- Persistent versioned result cache with file-change invalidation
-- Live cancellation that terminates active decoder processes
-- Linear/log spectrogram views, adjustable display floor, cursor readout, and PNG export
-- Guided Review workflow with acknowledgement, evidence export, source reveal, and Repair routing
-- Declared-versus-measured Origin Assessment with heuristic rule strength, evidence coverage, reason codes, spectral basis, and limitations
-- Independent Compare file slots with full-track waveform envelopes, paired spectra, and spectral-difference heatmap
-- Clickable per-file reports with identity, measurements, origin evidence, and workflow actions
-- Non-destructive −1 dBTP FLAC working-copy creation with source-preserving bit depth, explicit 16/24-bit choices, dithering, artwork retention, and automatic re-audit
-- Scoped Clear, Review, and Failed Oracle verdicts
-- Working Compare, attention/remediation, detailed Reports, and capability views
-- PDF, XLSX, DOCX, CSV, and lossless JSON audit-report export
-- a native Apple silicon DMG and a universal macOS DMG supporting Intel and Apple silicon
-- Windows x64 NSIS installer and portable build targets
-- Explicit unsigned open-source development release policy with checksum manifests, artifact inspection, and future credential-driven signing paths
+Audio-V is a local, cross-platform workstation for assessing audio-file integrity, decoded-signal behavior, fidelity indicators, and file identity. Point it at one file, several files, or an entire folder and it will completely decode each supported stream before presenting a scoped **Clear**, **Review**, or **Failed** verdict.
 
-The scanner discovers files and runs every supported stream through the bundled engine from beginning to end. It combines deterministic decode-integrity and checksum results with technical probing, sample peak, RMS, DC offset, clipping, continuity, stereo correlation, mid/side energy, dual/near-mono assessment, EBU R128 loudness, BS.1770 true peak, a bounded waveform envelope, and a 512-point Hann-window STFT spectrogram. The Oracle reports **Clear**, **Review**, or **Failed** within the disclosed `oracle-integrity-fidelity-v5` scope.
+Audio-V is deliberately not a music player, tag editor, or mastering suite. It is an evidence workstation: technical properties, hashes, checksums, loudness, true peak, clipping, continuity, channel behavior, spectrograms, origin indicators, comparisons, remediation guidance, and exportable reports are brought together in one auditable workflow.
 
-Audio-V deliberately contains no audio player, lyrics, equalizer, or playback queue. Compare and Review remain evidence workflows rather than listening or library-management surfaces.
+> [!IMPORTANT]
+> Audio-V is currently an unsigned development preview. Verify every download against the published SHA-256 manifest. A Clear verdict means the file passed Audio-V's current disclosed checks; it does not prove provenance or guarantee that audio has never been transformed.
 
-A clear verdict means the entire selected audio stream decoded and passed the current measured rules. It does not claim that an upstream source is authentic or prove that audio was never transcoded or upsampled; those classifications require separate validated detectors.
+## Download
 
-## Product documentation
+The `v0.1.0` development release provides all four requested desktop packages:
 
-- [Product blueprint](docs/PRODUCT_BLUEPRINT.md)
-- [Product audit and capability contract](docs/PRODUCT_AUDIT.md)
-- [Oracle methodology and limitations](docs/METHODOLOGY.md)
-- [Standalone Obsidian UI deck](docs/Audio-V-UI-Deck.html)
-- [Logo concept deck](docs/Audio-V-Logo-Concepts.html)
-- [Release workflow](docs/RELEASING.md)
-- [Installing unsigned development builds](docs/UNSIGNED_INSTALLATION.md)
+| Platform | Package | Intended system |
+|---|---|---|
+| macOS | [Apple Silicon DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.1.0/Audio-V-0.1.0-mac-arm64.dmg) | Native Apple Silicon |
+| macOS | [Universal DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.1.0/Audio-V-0.1.0-mac-universal.dmg) | Apple Silicon and Intel |
+| Windows | [x64 installer](https://github.com/DRAZY/Audio-V/releases/download/v0.1.0/Audio-V-0.1.0-win-x64.exe) | Guided desktop installation |
+| Windows | [x64 portable](https://github.com/DRAZY/Audio-V/releases/download/v0.1.0/Audio-V-Portable-0.1.0-x64.exe) | Run without installing the application |
+
+Every release also includes `SHA256SUMS.txt`, block maps, and `UNSIGNED_RELEASE_MANIFEST.json`. Read the [unsigned installation guide](docs/UNSIGNED_INSTALLATION.md) before opening a build.
+
+## Meet the Oracle Engine
+
+The **Oracle Engine** is Audio-V's analysis and evidence layer. It does not make a verdict from a filename, extension, bitrate label, or spectrogram alone. It moves each file through a versioned pipeline:
+
+1. **Discover and identify** — inspect the container and primary audio stream, normalize the format label, and calculate file identity.
+2. **Decode completely** — run the selected stream from beginning to end through the bundled FFmpeg 8.1.2 LGPL engine with fatal error handling.
+3. **Verify integrity** — evaluate decode completion, FLAC STREAMINFO audio MD5 when present, external MD5/SHA manifests, and declared-versus-decoded duration.
+4. **Measure the signal** — calculate level, loudness, true peak, clipping, DC offset, continuity, channel relationship, crest factor, waveform envelope, and spectral data.
+5. **Assess fidelity indicators** — examine measured bandwidth and upper-band behavior using conservative, versioned origin rules.
+6. **Assemble the evidence** — separate deterministic facts, direct measurements, and heuristic indicators before issuing a scoped verdict and explanation.
+
+### Three kinds of evidence
+
+| Evidence class | What it answers | Examples |
+|---|---|---|
+| **Deterministic** | Did a verifiable integrity or identity check pass? | Complete decode, SHA-256 identity, FLAC audio MD5, external checksum manifest |
+| **Measured** | What is present in the decoded signal? | LUFS, dBTP, clipping, DC offset, dropout candidates, stereo correlation, STFT spectrum |
+| **Heuristic** | Does the signal match a disclosed review pattern? | Possible lossy-to-lossless transcode or possible upsample pattern |
+
+Heuristic rule strength is not a probability of provenance. Audio-V separately reports evidence coverage and explains when an origin assessment is inconclusive. Microphones, mastering filters, instruments, noise reduction, and intentional processing can resemble codec cutoffs, so spectral evidence remains a reason to investigate—not an accusation.
+
+## Understanding the verdict
+
+| Verdict | Meaning |
+|---|---|
+| **Clear** | The entire selected stream decoded and passed the current deterministic and measured rules. This does not certify provenance. |
+| **Review** | Decoding completed, but a measured finding, checksum discrepancy, or heuristic pattern deserves human inspection. Review does not automatically mean damage or require repair. |
+| **Failed** | Deterministic stream-integrity evidence failed, such as a fatal full-decode error or FLAC decoded-audio MD5 mismatch. |
+| **Metadata only** | Decoded-signal measurements were unavailable, so no integrity or fidelity verdict was issued. |
+
+Findings such as clipping, positive true peak, digital-silence dropout candidates, near/dual mono, unusual channel correlation, and possible spectral transformation route to **Review** rather than being mislabeled as proven corruption.
+
+## What Audio-V can do
+
+### Audit files and complete libraries
+
+- Choose individual files, multi-select, or recursively scan folders
+- Process work concurrently with pause, cancellation, saved sessions, and cache reuse
+- Normalize codec/container labels and expose sample rate, bit depth, channel layout, bitrate, profile, duration, and encoder information
+- Calculate SHA-256 identity and verify adjacent or folder-level MD5, SHA-1, SHA-256, and SHA-512 manifests
+- Fully decode AAC, AIFF, ALAC, APE, DSF, DFF, FLAC, M4A, MP3, OGG, Opus, WAV, WMA, and WavPack inputs
+
+### Inspect decoded fidelity
+
+- Measured 512- and 2,048-point Hann-window STFT spectrograms
+- Linear or logarithmic views, selectable display floor, cursor readout, and PNG export
+- EBU R128 integrated loudness and loudness range
+- BS.1770 oversampled true peak
+- Sample peak, RMS, clipping, near clipping, DC offset, and crest factor
+- Exact digital-silence runs, dropout candidates, and steep transition candidates
+- Stereo correlation, side-to-mid energy, dual-mono, and near-mono assessment
+- MP3 packet analysis with observed CBR/VBR behavior
+- Conservative possible-transcode and possible-upsample review rules
+
+### Compare two independent files
+
+Load either side directly from disk or select files from the active audit. Audio-V compares format and identity, estimates bounded signal alignment, and reports duration, loudness, offset, gain, polarity, correlation, residual energy, waveform envelopes, spectra, and a normalized spectral-difference heatmap.
+
+![Audio-V decoded-signal and spectral comparison](docs/assets/audio-v-signal-compare.png)
+
+### Review and remediate without touching the source
+
+The Repair workspace separates **what Audio-V found** from **what can safely be done**. It can recommend replacement, comparison against a trusted edition, manual verification, acknowledgement, or optional mitigation. The available true-peak action creates a separate FLAC working copy, preserves source word length by default, retains supported metadata and artwork, and audits the output again.
+
+![Audio-V non-destructive remediation center](docs/assets/audio-v-remediation-center.png)
+
+### Produce evidence, not just a status
+
+Open a complete per-file report containing identity, engine version, decoded measurements, Origin Assessment, limitations, and the evidence chain. Export a complete audit to PDF, XLSX, DOCX, CSV, or lossless JSON.
+
+![Audio-V per-file evidence report and batch report workspace](docs/assets/audio-v-evidence-report.png)
+
+## Privacy and operating model
+
+- Analysis runs locally; selected audio is not uploaded
+- No telemetry, advertising, account requirement, or cloud lookup
+- No audio player, lyrics service, equalizer, playback queue, or library recommendation system
+- Session data remains in the current user's application-data directory
+- Privacy-safe diagnostics omit filenames, paths, hashes, tags, and report evidence
+- Source files are never overwritten by the remediation workflow
+
+See the complete [privacy and security model](docs/PRIVACY_SECURITY.md).
+
+## Documentation
+
 - [User guide](docs/USER_GUIDE.md)
-- [Privacy and security model](docs/PRIVACY_SECURITY.md)
-- [Release-candidate acceptance](docs/RELEASE_CANDIDATE_CHECKLIST.md)
+- [Oracle Engine methodology and limitations](docs/METHODOLOGY.md)
+- [Product blueprint](docs/PRODUCT_BLUEPRINT.md)
+- [Capability and readiness audit](docs/PRODUCT_AUDIT.md)
+- [Unsigned installation](docs/UNSIGNED_INSTALLATION.md)
+- [Release workflow](docs/RELEASING.md)
+- [Release-candidate checklist](docs/RELEASE_CANDIDATE_CHECKLIST.md)
+- [Contributor guide](CONTRIBUTING.md)
+- [Trademark policy](TRADEMARKS.md)
 
-## License and contributions
+## Build from source
 
-Audio-V source is licensed under the [GNU Affero General Public License version 3 only](LICENSE). Existing AGPL releases remain available under those terms. Dependencies and bundled engines retain their respective licenses and notices.
-
-Contributions require acceptance of the [Audio-V Contributor License Agreement](CONTRIBUTOR_LICENSE_AGREEMENT.md), which preserves contributor ownership while granting the Project explicit relicensing rights. The Audio-V and Oracle Engine branding is governed separately by [TRADEMARKS.md](TRADEMARKS.md). See [CONTRIBUTING.md](CONTRIBUTING.md) before submitting changes.
-
-## Development
+Audio-V requires Node.js 22 or newer.
 
 ```bash
-npm install
+git clone https://github.com/DRAZY/Audio-V.git
+cd Audio-V
+npm ci
+npm run provision:engines
 npm run dev
 ```
 
-## Verification
+Run the complete source verification gate:
 
 ```bash
-npm run typecheck
-npm test
-npm run build
-npm run validate:fidelity
-npm run benchmark:scale
+npm run verify
+npm run validate:platform
+npm run verify:release-candidate
 ```
 
-## Packaging
+Create unsigned local packages:
 
 ```bash
 npm run dist:mac
 npm run dist:win
 ```
 
-Generated packages are written to `release/`. Tagged commits are built for macOS and Windows by GitHub Actions and attached to the matching GitHub Release.
+macOS packages must be built on macOS; supported Windows packages are produced on a Windows runner. Tagged commits run both native build paths, compare Oracle results across operating systems, generate checksums, and attach verified packages to the corresponding GitHub Release.
 
-Windows packages should be built on Windows or through a dedicated Windows CI runner. Code signing and macOS notarization will be configured after the application identity and release workflow are finalized.
+## Technology
+
+Audio-V uses Electron, Vue 3, TypeScript, Vite, FFmpeg/ffprobe 8.1.2 LGPL builds, Vitest, SQLite-backed worker storage, and Electron Builder. The renderer is context-isolated and receives a narrow preload API rather than direct Node.js access.
+
+## License, contributions, and official branding
+
+Audio-V source is licensed under the [GNU Affero General Public License version 3 only](LICENSE). Dependencies and bundled engines retain their respective licenses.
+
+Contributions require acceptance of the [Audio-V Contributor License Agreement](CONTRIBUTOR_LICENSE_AGREEMENT.md), which preserves contributor ownership while granting the project explicit relicensing rights. The Audio-V name, logo, icon, Oracle Engine identity, and official-release designation are governed separately by the [trademark policy](TRADEMARKS.md).
+
+---
+
+<div align="center">
+  <strong>Audio-V</strong><br>
+  Evidence before assumption. Measurement before verdict.
+</div>

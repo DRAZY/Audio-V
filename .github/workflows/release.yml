@@ -94,6 +94,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --generate-notes
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --generate-notes --prerelease --title "Audio-V $GITHUB_REF_NAME — Development Preview"
           find release -maxdepth 1 -type f \( -name '*.dmg' -o -name '*.dmg.blockmap' -o -name '*.exe' -o -name '*.exe.blockmap' -o -name 'SHA256SUMS.txt' -o -name 'UNSIGNED_RELEASE_MANIFEST.json' \) -print0 |
             xargs -0 gh release upload "$GITHUB_REF_NAME" --clobber
