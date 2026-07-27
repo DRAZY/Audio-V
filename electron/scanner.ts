@@ -783,6 +783,14 @@ export async function scanSources(
   let completed = 0;
   const analyzeAtIndex = async (index: number): Promise<void> => {
     const filePath = filePaths[index];
+    onProgress?.({
+      phase: "processing",
+      completed,
+      total: filePaths.length,
+      currentFile: path.basename(filePath),
+      file: null,
+      fromCache: false,
+    });
     const analyzed = await (async () => {
         const cached = inventoryOnly
           ? null

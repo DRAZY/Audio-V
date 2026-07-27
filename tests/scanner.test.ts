@@ -257,17 +257,40 @@ describe("scanSources", () => {
     const directory = await makeTemporaryDirectory();
     await fs.writeFile(path.join(directory, "one.wav"), pcmWave());
     await fs.writeFile(path.join(directory, "two.wav"), pcmWave());
-    const progress: Array<{ phase: string; completed: number }> = [];
+    const progress: Array<{
+      phase: string;
+      completed: number;
+      currentFile: string | null;
+    }> = [];
 
     await scanSources(
       { kind: "folder", label: directory, paths: [directory] },
       (update) =>
-        progress.push({ phase: update.phase, completed: update.completed }),
+        progress.push({
+          phase: update.phase,
+          completed: update.completed,
+          currentFile: update.currentFile,
+        }),
     );
 
-    expect(progress[0]).toEqual({ phase: "discovered", completed: 0 });
+    expect(progress[0]).toEqual({
+      phase: "discovered",
+      completed: 0,
+      currentFile: null,
+    });
+    expect(progress.filter((update) => update.phase === "processing")).toHaveLength(2);
+    expect(
+      progress
+        .filter((update) => update.phase === "processing")
+        .map((update) => update.currentFile)
+        .sort(),
+    ).toEqual(["one.wav", "two.wav"]);
     expect(progress.filter((update) => update.phase === "analyzing")).toHaveLength(2);
-    expect(progress.at(-1)).toEqual({ phase: "complete", completed: 2 });
+    expect(progress.at(-1)).toEqual({
+      phase: "complete",
+      completed: 2,
+      currentFile: null,
+    });
   });
 
   it("honors adaptive bounded analysis concurrency", async () => {

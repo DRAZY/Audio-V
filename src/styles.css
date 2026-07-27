@@ -328,6 +328,7 @@ button:focus-visible {
 
 .verdict-ring {
   --sweep: 360deg;
+  position: relative;
   width: 79px;
   height: 79px;
   margin-left: 19px;
@@ -338,6 +339,32 @@ button:focus-visible {
     radial-gradient(circle, var(--raised) 54%, transparent 56%),
     conic-gradient(var(--green) 0 var(--sweep), var(--line) var(--sweep));
   box-shadow: 0 0 20px rgba(81, 225, 155, 0.08);
+}
+
+.verdict-ring.scanning {
+  background:
+    radial-gradient(circle, var(--raised) 54%, transparent 56%),
+    conic-gradient(var(--accent-two) 0 var(--sweep), var(--line) var(--sweep));
+  box-shadow: 0 0 24px rgba(66, 223, 229, 0.12);
+}
+
+.verdict-ring.scanning::after {
+  position: absolute;
+  inset: -5px;
+  border: 2px solid transparent;
+  border-top-color: var(--accent);
+  border-right-color: rgba(66, 223, 229, 0.46);
+  border-radius: 50%;
+  content: "";
+  animation: scan-orbit 1.1s linear infinite;
+}
+
+.verdict-ring.scanning strong {
+  font-size: 15px;
+}
+
+@keyframes scan-orbit {
+  to { transform: rotate(360deg); }
 }
 
 .verdict-ring div {
@@ -410,6 +437,64 @@ button:focus-visible {
 .legend .workflow-state { color: var(--muted); }
 .legend b { color: var(--muted); font-weight: 500; }
 
+.distribution:has(.scan-progress) .legend {
+  margin-top: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px 12px;
+}
+
+.scan-progress {
+  margin-top: 7px;
+  display: grid;
+  gap: 3px;
+}
+
+.scan-progress > div {
+  min-width: 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font: 650 10px/1.2 var(--font-data);
+}
+
+.scan-progress > div strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scan-progress > div b {
+  flex: 0 0 auto;
+  color: var(--accent-two);
+}
+
+.scan-progress > span {
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--line);
+}
+
+.scan-progress > span i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), var(--accent-two));
+  transition: width 180ms ease;
+}
+
+.scan-progress > small {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font: 500 10px/1.2 var(--font-data);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .source-warnings {
   margin: 0 12px 10px;
   padding: 10px 12px;
@@ -443,7 +528,7 @@ button:focus-visible {
 }
 
 .selected-summary h1 {
-  margin: 9px 0 8px;
+  margin: 0;
   overflow: hidden;
   font-size: 17px;
   letter-spacing: -0.025em;
@@ -470,18 +555,27 @@ button:focus-visible {
 }
 
 .selected-summary p {
-  margin: 8px 0 5px;
+  margin: 0;
   color: #bdc0c9;
-  font: 500 9px/1 var(--font-data);
+  font: 500 9px/1.25 var(--font-data);
 }
 
 .selected-summary > small {
+  min-width: 0;
   display: block;
   overflow: hidden;
   color: var(--muted);
-  font: 500 8px/1 var(--font-data);
+  font: 500 8px/1.25 var(--font-data);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.selected-summary {
+  min-width: 0;
+  padding: 10px 18px;
+  display: grid;
+  align-content: center;
+  gap: 6px;
 }
 
 .empty-summary {
@@ -1143,14 +1237,28 @@ button:focus-visible {
 }
 
 .metrics-panel dl > div {
-  padding: 4px 0;
-  display: flex;
-  justify-content: space-between;
-  font: 500 8px/1 var(--font-data);
+  min-width: 0;
+  padding: 5px 0;
+  display: grid;
+  grid-template-columns: minmax(82px, 0.9fr) minmax(0, 1.1fr);
+  align-items: start;
+  gap: 12px;
+  font: 500 8px/1.35 var(--font-data);
 }
 
-.metrics-panel dt { color: var(--muted); }
-.metrics-panel dd { margin: 0; color: #c8cad2; }
+.metrics-panel dt {
+  min-width: 0;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.metrics-panel dd {
+  min-width: 0;
+  margin: 0;
+  color: #c8cad2;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
 
 .oracle-card {
   margin-top: 12px;

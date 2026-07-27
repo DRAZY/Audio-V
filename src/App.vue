@@ -10,6 +10,7 @@ import type {
   OracleValidationStatus,
   OracleVerdict,
   ReportExportFormat,
+  ScanProgressUpdate,
   SpectrogramMeasurements,
 } from "../shared/contracts";
 import iconUrl from "../build/icon.svg";
@@ -33,6 +34,7 @@ const activeWorkspace = ref<WorkspacePanel>("audit");
 const sourceRoot = ref("No source selected");
 const activeSessionId = ref("");
 const scanMessage = ref("Ready for files or a folder");
+const scanProgress = ref<ScanProgressUpdate | null>(null);
 const sourceWarnings = ref<string[]>([]);
 const diagnosticsMessage = ref(
   "Diagnostics exclude filenames, paths, checksums, tags, and audio evidence.",
@@ -121,6 +123,21 @@ const validationProgress = computed(() => {
       status.thresholds.targetIndependentMasters) *
       100,
   );
+});
+const scanProgressPercent = computed(() => {
+  const progress = scanProgress.value;
+  if (!progress?.total) return 0;
+  return Math.min(100, Math.round((progress.completed / progress.total) * 100));
+});
+const scanProgressSweep = computed(
+  () => `${scanProgressPercent.value * 3.6}deg`,
+);
+const scanProgressTitle = computed(() => {
+  const progress = scanProgress.value;
+  if (!progress?.total) return "Discovering audio files";
+  const action =
+    scanMode.value === "metadata-inventory" ? "Inventorying" : "Analyzing";
+  return `${action} · ${progress.completed.toLocaleString()} of ${progress.total.toLocaleString()} complete`;
 });
 
 const selected = computed(
@@ -811,6 +828,7 @@ onMounted(() => {
   removeScanProgressListener =
     window.audioV?.onScanProgress((progress) => {
       if (!isDiscovering.value) return;
+      scanProgress.value = progress;
       if (progress.file) {
         queueProgressFile(progress.file);
         if (!selectedId.value) selectedId.value = progress.file.id;
@@ -820,6 +838,9 @@ onMounted(() => {
           scanMode.value === "metadata-inventory"
             ? `${progress.total.toLocaleString()} audio files discovered · starting metadata inventory`
             : `${progress.total.toLocaleString()} audio files discovered · starting complete decode`;
+      } else if (progress.phase === "processing") {
+        scanMessage.value =
+          `${scanProgressTitle.value} · ${progress.currentFile ?? "Preparing file"}`;
       } else if (progress.phase === "inventorying") {
         scanMessage.value = `${progress.completed.toLocaleString()} of ${progress.total.toLocaleString()} inventoried · ${progress.currentFile}`;
       } else if (progress.phase === "analyzing") {
@@ -912,6 +933,14 @@ async function scanSource(source: AudioSourceSelection): Promise<void> {
     },
   };
   isDiscovering.value = true;
+  scanProgress.value = {
+    phase: "discovered",
+    completed: 0,
+    total: 0,
+    currentFile: null,
+    file: null,
+    fromCache: false,
+  };
   isScanPaused.value = false;
   sourceWarnings.value = [];
   files.value = [];
@@ -1772,7 +1801,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
             <b>▰</b>
             <span>
               <small>Current source</small>
-              <strong>{{ sourceRoot }}</strong>
+              <strong :title="sourceRoot">{{ sourceRoot }}</strong>
             </span>
           </div>
           <label class="scan-mode">
@@ -1850,10 +1879,25 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
 
       <template v-if="activeWorkspace === 'audit'">
       <section class="overview">
-        <div class="verdict-ring" :style="{ '--sweep': files.length ? '360deg' : '0deg' }">
+        <div
+          class="verdict-ring"
+          :class="{ scanning: isDiscovering }"
+          :style="{ '--sweep': isDiscovering ? scanProgressSweep : files.length ? '360deg' : '0deg' }"
+          :role="isDiscovering ? 'progressbar' : undefined"
+          :aria-label="isDiscovering ? scanProgressTitle : undefined"
+          :aria-valuenow="isDiscovering ? scanProgressPercent : undefined"
+          :aria-valuemin="isDiscovering ? 0 : undefined"
+          :aria-valuemax="isDiscovering ? 100 : undefined"
+        >
           <div>
-            <strong>{{ files.length.toLocaleString() }}</strong>
-            <span>files</span>
+            <strong>{{ isDiscovering ? `${scanProgressPercent}%` : files.length.toLocaleString() }}</strong>
+            <span>
+              {{
+                isDiscovering
+                  ? `${scanProgress?.completed ?? 0} / ${scanProgress?.total ?? "—"}`
+                  : "files"
+              }}
+            </span>
           </div>
         </div>
         <div class="distribution">
@@ -1864,6 +1908,21 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
             <span><i class="failed"></i>Failed <b>{{ counts.failed }}</b></span>
             <span class="workflow-state"><i class="pending"></i>Not analyzed <b>{{ counts.notAnalyzed }}</b></span>
             <span v-if="counts.analysisErrors" class="workflow-state"><i class="error"></i>Analysis error <b>{{ counts.analysisErrors }}</b></span>
+          </div>
+          <div
+            v-if="isDiscovering"
+            class="scan-progress"
+            role="status"
+            aria-live="polite"
+          >
+            <div>
+              <strong>{{ scanProgressTitle }}</strong>
+              <b>{{ scanProgressPercent }}%</b>
+            </div>
+            <span aria-hidden="true"><i :style="{ width: `${scanProgressPercent}%` }"></i></span>
+            <small :title="scanProgress?.currentFile ?? undefined">
+              {{ scanProgress?.currentFile ?? "Reading the selected source…" }}
+            </small>
           </div>
         </div>
         <div v-if="selected" class="selected-summary">
@@ -1876,7 +1935,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
             <span>{{ selected.channels ? `${selected.channels} ch` : "—" }}</span>
           </div>
           <p>{{ formatBytes(selected.sizeBytes) }} · {{ formatDuration(selected.durationSeconds) }}</p>
-          <small>{{ selected.path }}</small>
+          <small :title="selected.path">{{ selected.path }}</small>
         </div>
         <div v-else class="empty-summary">
           <span class="eyebrow">No audio selected</span>

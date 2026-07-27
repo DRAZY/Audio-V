@@ -612,7 +612,12 @@ export interface ScanSelectionResult {
 }
 
 export interface ScanProgressUpdate {
-  phase: "discovered" | "inventorying" | "analyzing" | "complete";
+  phase:
+    | "discovered"
+    | "processing"
+    | "inventorying"
+    | "analyzing"
+    | "complete";
   completed: number;
   total: number;
   currentFile: string | null;

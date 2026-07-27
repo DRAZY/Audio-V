@@ -172,6 +172,118 @@ app.whenReady().then(async () => {
     passed: loudnessPassed,
   });
 
+  const denseTextLayout = await window.webContents.executeJavaScript(`
+    (() => {
+      const rect = (element) => {
+        const value = element.getBoundingClientRect();
+        return {
+          left: value.left,
+          right: value.right,
+          top: value.top,
+          bottom: value.bottom,
+          width: value.width,
+          height: value.height,
+        };
+      };
+      const host = document.createElement("div");
+      host.style.position = "fixed";
+      host.style.inset = "0 auto auto -3000px";
+
+      const summary = document.createElement("section");
+      summary.className = "selected-summary";
+      summary.style.width = "720px";
+      summary.style.height = "132px";
+      summary.innerHTML = \`
+        <span class="eyebrow">Selected file</span>
+        <h1>001 - The Notorious B.I.G. - Hypnotize (2014 Remaster).flac</h1>
+        <div class="format-chips"><b>FLAC</b><span>44.1 kHz</span><span>16-bit</span><span>2 ch</span></div>
+        <p>36.6 MB · 3:59</p>
+        <small>E:\\\\deemix Music\\\\The Notorious B.I.G\\\\001 - Hypnotize.flac</small>
+      \`;
+
+      const metrics = document.createElement("aside");
+      metrics.className = "metrics-panel";
+      metrics.style.width = "280px";
+      metrics.style.height = "560px";
+      metrics.innerHTML = \`
+        <dl>
+          <div><dt>Codec</dt><dd>FLAC (Free Lossless Audio Codec)</dd></div>
+          <div><dt>Packet bitrate p05 / p95</dt><dd>790 kbps / 1140 kbps</dd></div>
+          <div><dt>Origin assessment</dt><dd>No strong spectral anomaly</dd></div>
+        </dl>
+        <section class="origin-assessment-card">
+          <dl>
+            <div><dt>ReplayGain</dt><dd>Not declared</dd></div>
+            <div><dt>Cue awareness</dt><dd>No cue sheet found</dd></div>
+          </dl>
+        </section>
+      \`;
+
+      const distribution = document.createElement("section");
+      distribution.className = "distribution";
+      distribution.style.width = "440px";
+      distribution.style.height = "132px";
+      distribution.innerHTML = \`
+        <span class="eyebrow">Verdict distribution</span>
+        <div class="legend">
+          <span><i class="clear"></i>Clear <b>2</b></span>
+          <span><i class="review"></i>Review <b>1</b></span>
+          <span><i class="failed"></i>Failed <b>0</b></span>
+          <span><i class="pending"></i>Not analyzed <b>0</b></span>
+          <span><i class="error"></i>Analysis error <b>0</b></span>
+        </div>
+        <div class="scan-progress">
+          <div><strong>Analyzing · 2 of 12 complete</strong><b>17%</b></div>
+          <span><i style="width:17%"></i></span>
+          <small>001 - The Notorious B.I.G. - Hypnotize (2014 Remaster).flac</small>
+        </div>
+      \`;
+
+      host.append(summary, metrics, distribution);
+      document.body.append(host);
+      const summaryPath = summary.querySelector("small");
+      const metricRows = [...metrics.querySelectorAll("dl > div")].map((row) => ({
+        row: rect(row),
+        term: rect(row.querySelector("dt")),
+        value: rect(row.querySelector("dd")),
+        valueFits: row.querySelector("dd").scrollWidth <= row.querySelector("dd").clientWidth,
+      }));
+      const result = {
+        summary: rect(summary),
+        summaryPath: rect(summaryPath),
+        summaryFits: summary.scrollHeight <= summary.clientHeight,
+        metricRows,
+        distribution: rect(distribution),
+        distributionFits: distribution.scrollHeight <= distribution.clientHeight,
+        progress: rect(distribution.querySelector(".scan-progress")),
+      };
+      host.remove();
+      return result;
+    })()
+  `);
+  const summaryPathVisible =
+    denseTextLayout.summaryFits &&
+    denseTextLayout.summaryPath.height > 0 &&
+    denseTextLayout.summaryPath.bottom <= denseTextLayout.summary.bottom + tolerance;
+  const inspectorRowsSeparated = denseTextLayout.metricRows.every(
+    ({ term, value, valueFits }) =>
+      term.right + tolerance < value.left && valueFits,
+  );
+  const scanProgressContained =
+    denseTextLayout.distributionFits &&
+    denseTextLayout.progress.bottom <= denseTextLayout.distribution.bottom + tolerance;
+  results.push({
+    name: "dense-text-and-progress",
+    measurement: denseTextLayout,
+    checks: {
+      summaryPathVisible,
+      inspectorRowsSeparated,
+      scanProgressContained,
+    },
+    passed:
+      summaryPathVisible && inspectorRowsSeparated && scanProgressContained,
+  });
+
   const failed = results.filter((result) => !result.passed);
   await writeFile(
     path.join(process.cwd(), "build", "responsive-layout-latest.json"),
@@ -192,7 +304,7 @@ app.whenReady().then(async () => {
     );
   } else {
     console.log(
-      "Responsive layout passed at default and minimum desktop sizes, including the loudness diagnostics grid.",
+      "Responsive layout passed at default and minimum desktop sizes, including dense inspector text, selected paths, scan progress, and the loudness diagnostics grid.",
     );
   }
   window.destroy();
