@@ -165,11 +165,11 @@ Gate 3 now has an enforceable validation foundation, but it is not statistically
 - Separate future signed build commands retain macOS Hardened Runtime/notarization and Windows Authenticode integration without requiring credentials for open-source development releases.
 - Package inspection verifies the two required DMGs, Windows installer, Windows portable executable, embedded application archive, FFmpeg/ffprobe engines, notices, engine manifest, PE signatures, and both Intel/Apple Silicon architectures in the Universal application and engines. Packaged-runtime smoke tests then launch the native application, fully analyze a real FLAC fixture, verify the current Oracle engine identity, and exit through a guarded QA channel.
 - Every release receives SHA-256 checksums and `UNSIGNED_RELEASE_MANIFEST.json`, which declares the distribution and signing policy for each exact artifact.
-- Pull requests and main-branch updates run the full suite on macOS and Windows. Both platforms produce Oracle snapshots over identical fixtures, and a separate parity job compares deterministic values exactly and measured values within documented tolerances.
-- Tagged-release publication is downstream of correctness, packaging, artifact inspection, and cross-platform parity. Tag/package version mismatch or a missing project license blocks public publication.
+- Maintainers run the full suite and package inspection locally before publication. An optional manual-only workflow can produce macOS and Windows Oracle snapshots over identical fixtures and compare deterministic values exactly and measured values within documented tolerances.
+- Release publication is a local-build, direct-upload process modeled on Deemix Remastered. Tag/package version mismatch, missing project licensing, failed artifact inspection, or a failed release-candidate check blocks maintainer publication.
 - User documentation explains checksum verification, platform warnings, safe per-application approval, portable-state behavior, and why managed Windows policy may prevent unsigned execution.
 
-Gate 4 is complete at the repository and local-package level. Actual macOS-versus-Windows parity remains unproven until the new workflow runs successfully on GitHub-hosted runners, and clean-VM installation/upgrade/uninstall testing remains a release-candidate activity. The former public-release license blocker is resolved by the Gate 5 `AGPL-3.0-only` decision.
+Gate 4 is complete at the repository and local-package level. Actual macOS-versus-Windows parity remains unproven until maintainers collect and compare native snapshots locally or explicitly dispatch the optional workflow; clean-VM installation/upgrade/uninstall testing remains a release-candidate activity. The former public-release license blocker is resolved by the Gate 5 `AGPL-3.0-only` decision.
 
 ### Gate 5 implementation status
 
@@ -182,7 +182,7 @@ Gate 4 is complete at the repository and local-package level. Actual macOS-versu
 - User, privacy/security, unsigned-installation, release, methodology, contribution, and release-candidate documentation now cover the complete product workflow and limitations.
 - `npm run verify:release-candidate` produces a machine-readable automated readiness result from licensing, documentation, accessibility, fidelity, scale, and artifact evidence.
 
-Gate 5 is complete for automated repository readiness and local macOS validation. It is not yet honest to call the application market-ready: the manual clean-environment matrix in `docs/RELEASE_CANDIDATE_CHECKLIST.md`, actual Windows packaged runtime, Windows/macOS parity CI, Intel hardware launch, VoiceOver/Narrator workflow review, display scaling, upgrade/uninstall, and real-library performance remain external acceptance work. Signing/notarization is an explicit policy waiver rather than a failure.
+Gate 5 is complete for automated repository readiness and local macOS validation. It is not yet honest to call the application market-ready: the manual clean-environment matrix in `docs/RELEASE_CANDIDATE_CHECKLIST.md`, actual Windows packaged runtime, locally captured Windows/macOS parity evidence, Intel hardware launch, VoiceOver/Narrator workflow review, display scaling, upgrade/uninstall, and real-library performance remain external acceptance work. Signing/notarization is an explicit policy waiver rather than a failure.
 
 ### Real-world validation milestone status
 

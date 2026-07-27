@@ -36,7 +36,7 @@ The API key remains in renderer/main-process memory for the application session 
 
 Official macOS development app bundles use an ad-hoc integrity signature without an Apple Developer ID identity or notarization; official Windows development artifacts are unsigned. Users must verify the complete SHA-256 digest against the official release before approving an operating-system warning. Audio-V does not recommend disabling Gatekeeper, SmartScreen, Smart App Control, or organization policy globally.
 
-The project’s future signed build paths require credentials supplied as CI secrets. No certificate, password, API token, or private signing material belongs in the repository.
+The project’s future signed build paths require credentials supplied through the local process environment or an external secret manager. No certificate, password, API token, or private signing material belongs in the repository.
 
 ## Vulnerability and defect reporting
 

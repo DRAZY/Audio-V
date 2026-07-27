@@ -5,7 +5,7 @@
   <p>Decode every stream. Measure the signal. Inspect the evidence. Reach a defensible verdict.</p>
 
   <p>
-    <a href="https://github.com/DRAZY/Audio-V/actions/workflows/verify.yml"><img alt="Desktop verification" src="https://img.shields.io/github/actions/workflow/status/DRAZY/Audio-V/verify.yml?branch=main&style=for-the-badge&label=Desktop%20verification"></a>
+    <img alt="Locally verified release" src="https://img.shields.io/badge/releases-locally%20verified-51e19b?style=for-the-badge">
     <a href="https://github.com/DRAZY/Audio-V/releases"><img alt="Development release" src="https://img.shields.io/github/v/release/DRAZY/Audio-V?include_prereleases&style=for-the-badge&color=8b5cf6"></a>
     <a href="LICENSE"><img alt="AGPL 3.0 only" src="https://img.shields.io/badge/license-AGPL--3.0--only-8b5cf6?style=for-the-badge"></a>
     <img alt="macOS and Windows" src="https://img.shields.io/badge/platforms-macOS%20%7C%20Windows-252532?style=for-the-badge">
@@ -201,7 +201,7 @@ npm run dist:mac
 npm run dist:win
 ```
 
-macOS packages must be built on macOS; supported Windows packages are produced on a Windows runner. Tagged commits run both native build paths, compare Oracle results across operating systems, generate checksums, and attach verified packages to the corresponding GitHub Release.
+Audio-V follows the Deemix Remastered distribution model: maintainers build and verify packages on controlled local systems, then upload the exact DMGs, executables, block maps, checksum file, and signing-policy manifest directly to the versioned GitHub Release. Pushes and tags do not start hosted builds. The optional cross-platform workflow is manual-only so normal development does not consume private-repository runner allowance.
 
 ## Technology
 

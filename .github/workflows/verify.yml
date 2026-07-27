@@ -1,23 +1,12 @@
 name: Verify desktop source
 
 on:
-  pull_request:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  contributor-policy:
-    name: Contributor agreement
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: node scripts/verify-contributor-policy.mjs
-
   verify:
     name: ${{ matrix.os }} correctness
     strategy:
