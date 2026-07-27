@@ -67,6 +67,23 @@ for (const [packagePath, lockEntry] of Object.entries(lock.packages ?? {})) {
   sections.push("");
 }
 
+sections.push("=".repeat(78));
+sections.push("C2PA Tool 0.27.3");
+sections.push("License: Apache-2.0 OR MIT");
+sections.push("Source: https://github.com/contentauth/c2pa-rs");
+sections.push(
+  "Audio-V invokes C2PA Tool for offline Content Credentials inspection. Remote manifest and OCSP fetching are disabled by project policy.",
+);
+sections.push("");
+sections.push("=".repeat(78));
+sections.push("Chromaprint fpcalc 1.6.0");
+sections.push("License: LGPL-2.1");
+sections.push("Source: https://github.com/acoustid/chromaprint");
+sections.push(
+  "Audio-V invokes fpcalc to compute local acoustic fingerprints. The official binary distribution includes the applicable Chromaprint/FFmpeg license obligations.",
+);
+sections.push("");
+
 await fs.writeFile(
   path.join(projectRoot, "build", "THIRD_PARTY_NOTICES.txt"),
   `${sections.join("\n").trim()}\n`,

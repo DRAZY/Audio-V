@@ -4,6 +4,7 @@ import {
   audioFormatLabel,
   isUsableAudioLabel,
 } from "../shared/audio-format";
+import { AUDIO_EXTENSIONS } from "../shared/contracts";
 
 describe("audio format labels", () => {
   it("uses the determined file format instead of an unknown codec prefix", () => {
@@ -37,5 +38,23 @@ describe("audio format labels", () => {
     expect(audioCodecLabel("flac", "unknown")).toBe("FLAC");
     expect(audioCodecLabel("pcm_s24le", "unknown")).toBe("PCM");
     expect(isUsableAudioLabel("unknown")).toBe(false);
+  });
+
+  it("accepts the expanded FFmpeg-backed audio extension set", () => {
+    expect(AUDIO_EXTENSIONS.length).toBeGreaterThanOrEqual(35);
+    expect(AUDIO_EXTENSIONS).toEqual(
+      expect.arrayContaining([
+        ".ac3",
+        ".amr",
+        ".au",
+        ".caf",
+        ".mka",
+        ".mp2",
+        ".mpc",
+        ".tta",
+        ".voc",
+        ".weba",
+      ]),
+    );
   });
 });

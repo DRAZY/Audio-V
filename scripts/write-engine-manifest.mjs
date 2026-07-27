@@ -24,7 +24,7 @@ const manifest = {
   projectLicense: packageJson.license,
   sourceRevision,
   oracleEngine: {
-    version: "0.5.0-oracle-v7",
+    version: "0.6.0-oracle-v8",
     schemaVersion: 1,
     decoderBundled: "FFmpeg-and-ffprobe-8.1.2-LGPL",
     capabilities: {
@@ -44,6 +44,20 @@ const manifest = {
         "implemented-zoom-pan-region-channel-colormap-and-batch-png-export",
       clippingDiagnostics:
         "implemented-per-channel-percent-events-timeline-and-scaled-plateau-review",
+      contentCredentials:
+        "implemented-offline-c2pa-validation-with-network-fetch-disabled",
+      metadataProvenance:
+        "implemented-generator-tag-and-raw-identifier-inventory-not-ai-verdict",
+      acousticFingerprint:
+        "implemented-chromaprint-1.6.0-duplicates-with-opt-in-acoustid",
+      metadataDepth:
+        "implemented-replaygain-bpm-cue-isrc-musicbrainz-and-bounded-raw-tags",
+      bitUtilization:
+        "implemented-integer-lossless-effective-depth-and-padding-review",
+      headlessCli:
+        "implemented-json-folder-automation-and-policy-exit-codes",
+      resourceControls:
+        "implemented-1-to-4-workers-and-128-to-512mb-worker-heap-cap",
       signalContinuity: "implemented-exact-zero-dropout-and-transition-candidates",
       stereoAuthenticity:
         "implemented-correlation-side-to-mid-dual-and-near-mono-review",
@@ -54,7 +68,7 @@ const manifest = {
       fidelityGoldenCorpus: "implemented-regression-only-not-probability-calibrated",
       persistentCache: "implemented-versioned-size-mtime-invalidated",
       batchCancellation: "implemented-active-process-termination",
-      scopedVerdictRules: "implemented-for-oracle-integrity-fidelity-v7",
+      scopedVerdictRules: "implemented-for-oracle-integrity-provenance-v8",
       compareWorkflow:
         "implemented-independent-files-waveforms-spectra-and-difference-heatmap",
       repairTriage: "implemented-actions-evidence-reveal-acknowledge",

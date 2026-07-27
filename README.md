@@ -27,7 +27,7 @@
 
 Audio-V is a local, cross-platform workstation for assessing audio-file integrity, decoded-signal behavior, fidelity indicators, and file identity. Point it at one file, several files, or an entire folder and it will completely decode each supported stream before presenting a scoped **Clear**, **Review**, or **Failed** verdict.
 
-Audio-V is deliberately not a music player, tag editor, or mastering suite. It is an evidence workstation: technical properties, hashes, checksums, loudness, true peak, clipping, continuity, channel behavior, spectrograms, origin indicators, comparisons, remediation guidance, and exportable reports are brought together in one auditable workflow.
+Audio-V is deliberately not a music player, tag editor, or mastering suite. It is an evidence workstation: technical properties, hashes, checksums, loudness, true peak, clipping, continuity, channel behavior, spectrograms, provenance indicators, acoustic identity, comparisons, remediation guidance, and exportable reports are brought together in one auditable workflow.
 
 > [!IMPORTANT]
 > Audio-V is currently an unsigned development preview. Verify every download against the published SHA-256 manifest. A Clear verdict means the file passed Audio-V's current disclosed checks; it does not prove provenance or guarantee that audio has never been transformed.
@@ -52,17 +52,18 @@ The **Oracle Engine** is Audio-V's analysis and evidence layer. It does not make
 1. **Discover and identify** — inspect the container and primary audio stream, normalize the format label, and calculate file identity.
 2. **Decode completely** — run the selected stream from beginning to end through the bundled FFmpeg 8.1.2 LGPL engine with fatal error handling.
 3. **Verify integrity** — evaluate decode completion, FLAC STREAMINFO audio MD5 when present, external MD5/SHA manifests, and declared-versus-decoded duration.
-4. **Measure the signal** — calculate level, loudness, true peak, clipping, DC offset, continuity, channel relationship, crest factor, waveform envelope, and spectral data.
-5. **Assess fidelity indicators** — examine measured bandwidth and upper-band behavior using conservative, versioned origin rules.
-6. **Assemble the evidence** — separate deterministic facts, direct measurements, and heuristic indicators before issuing a scoped verdict and explanation.
+4. **Inspect provenance and identity** — validate offline C2PA statements, inventory generator/signature indicators, and calculate a local Chromaprint without inventing an AI verdict.
+5. **Measure the signal** — calculate level, loudness, true peak, clipping, DC offset, continuity, channel relationship, dynamics, bit utilization, waveform envelope, and spectral data.
+6. **Assess fidelity indicators** — examine measured bandwidth and upper-band behavior using conservative, versioned origin rules.
+7. **Assemble the evidence** — separate deterministic facts, direct measurements, and heuristic indicators before issuing a scoped verdict and explanation.
 
 ### Three kinds of evidence
 
 | Evidence class | What it answers | Examples |
 |---|---|---|
-| **Deterministic** | Did a verifiable integrity or identity check pass? | Complete decode, SHA-256 identity, FLAC audio MD5, external checksum manifest |
-| **Measured** | What is present in the decoded signal? | LUFS, dBTP, clipping, DC offset, dropout candidates, stereo correlation, STFT spectrum |
-| **Heuristic** | Does the signal match a disclosed review pattern? | Possible lossy-to-lossless transcode or possible upsample pattern |
+| **Deterministic** | Did a verifiable integrity or signed-statement check pass? | Complete decode, SHA-256 identity, FLAC audio MD5, external checksum manifest, C2PA validation |
+| **Measured** | What is present in decoded or locally derived evidence? | LUFS, dBTP, clipping, stereo correlation, STFT spectrum, Chromaprint relationship |
+| **Heuristic** | Does the signal or editable inventory match a disclosed review pattern? | Possible transcode/upsample, generator metadata, known raw identifier string |
 
 Heuristic rule strength is not a probability of provenance. Audio-V separately reports evidence coverage and explains when an origin assessment is inconclusive. Microphones, mastering filters, instruments, noise reduction, and intentional processing can resemble codec cutoffs, so spectral evidence remains a reason to investigate—not an accusation.
 
@@ -70,7 +71,7 @@ Heuristic rule strength is not a probability of provenance. Audio-V separately r
 
 Audio-V ships the current Oracle validation status with the application and displays it in Settings. The synthetic fidelity suite protects deterministic rule behavior, while a separate licensed, provenance-labeled corpus tracks independent public masters, contributor-group partitions, controlled derivatives, exact 95% binomial intervals, and versioned scorecards. Synthetic fixtures and multiple derivatives of one recording never inflate the independent-master count.
 
-The v0.1 corpus infrastructure is implemented, but the project does not claim real-world probability calibration until licensed masters and an independent challenge evaluation satisfy the published thresholds. See the [validation corpus contract](docs/VALIDATION_CORPUS.md) and [Corpus Contribution Agreement](CORPUS_CONTRIBUTION_AGREEMENT.md).
+The corpus infrastructure is implemented, but the project does not claim real-world probability calibration until licensed masters and an independent challenge evaluation satisfy the published thresholds. See the [validation corpus contract](docs/VALIDATION_CORPUS.md) and [Corpus Contribution Agreement](CORPUS_CONTRIBUTION_AGREEMENT.md).
 
 ## Understanding the verdict
 
@@ -93,7 +94,7 @@ Findings such as clipping, positive true peak, digital-silence dropout candidate
 - Process work concurrently with pause, cancellation, saved sessions, and cache reuse
 - Normalize codec/container labels and expose sample rate, bit depth, channel layout, bitrate, profile, duration, and encoder information
 - Calculate SHA-256 identity and verify adjacent or folder-level MD5, SHA-1, SHA-256, and SHA-512 manifests
-- Fully decode AAC, AIFF, ALAC, APE, DSF, DFF, FLAC, M4A, MP3, OGG, Opus, WAV, WMA, and WavPack inputs
+- Accept more than 35 FFmpeg-backed audio/container extensions, including AAC, AC-3/E-AC-3, AIFF, ALAC, AMR, APE, AU, CAF, DSF/DFF, FLAC, Matroska/WebM, M4A/M4B, MP2/MP3, Musepack, OGG/Opus/Speex, TAK, TTA, VOC, WAV, WMA, and WavPack
 
 ### Inspect decoded fidelity
 
@@ -106,6 +107,24 @@ Findings such as clipping, positive true peak, digital-silence dropout candidate
 - Stereo correlation, side-to-mid energy, dual-mono, and near-mono assessment
 - MP3 packet analysis with observed CBR/VBR behavior
 - Conservative possible-transcode and possible-upsample review rules
+- Offline C2PA Content Credentials validation with remote manifest and OCSP fetching disabled
+- Known generator metadata and raw identifier inventory without an AI yes/no verdict
+- Chromaprint duplicate/similarity candidates with optional, explicit AcoustID lookup
+- BPM, ISRC, MusicBrainz IDs, ReplayGain, embedded/sidecar cue sheets, DR meter, and integer bit-utilization evidence
+
+### Automate audits
+
+The headless CLI runs the same Oracle worker, contracts, verdict rules, and compact JSON evidence model as the desktop app:
+
+```bash
+npm run cli -- /music/archive \
+  --output audit.json \
+  --concurrency 2 \
+  --memory-mb 256 \
+  --fail-on failed
+```
+
+Use `--metadata-only` for non-decoding inventory, `--fail-on review` for strict archival/CI policy, or set `AUDIO_V_ACOUSTID_KEY` to explicitly enable an external identity lookup. `--acoustid-key` is also supported, but the environment variable avoids placing a key in the command line. API keys are not written to evidence or saved source records.
 
 ### Compare two independent files
 

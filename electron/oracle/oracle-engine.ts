@@ -3,7 +3,7 @@ import { analyzeWithFfmpeg } from "./ffmpeg-analyzer";
 import { assessFidelityOrigin } from "./fidelity-assessment";
 import { classifyOracleFailure } from "./analysis-failure";
 
-export const engineVersion = "0.5.0-oracle-v7";
+export const engineVersion = "0.6.0-oracle-v8";
 
 export async function analyzeAudioFile(
   filePath: string,
@@ -41,9 +41,26 @@ export async function analyzeAudioFile(
     const scaledClippingConcern =
       measurements.clipping.scaledClippingIndicator ===
       "possible-scaled-clipping";
+    const contentCredentialsConcern = [
+      "invalid",
+      "valid-untrusted-signer",
+    ].includes(technical.contentCredentials.status);
+    const algorithmicSourceDeclaration =
+      technical.contentCredentials.digitalSourceTypes.some((value) =>
+        /algorithmicMedia/iu.test(value),
+      );
+    const bitUtilizationConcern =
+      measurements.bitUtilization.classification === "possible-bit-padding";
+    const rawSignatureConcern = technical.provenanceIndicators.some(
+      (indicator) => indicator.type === "watermark-signature",
+    );
     const requiresReview =
       measurements.clippedSamples > 0 ||
       scaledClippingConcern ||
+      contentCredentialsConcern ||
+      algorithmicSourceDeclaration ||
+      rawSignatureConcern ||
+      bitUtilizationConcern ||
       dcOffsetConcern ||
       phaseConcern ||
       stereoAuthenticityConcern ||
@@ -58,6 +75,18 @@ export async function analyzeAudioFile(
         : null,
       scaledClippingConcern
         ? `${measurements.clipping.scaledClippingCandidateSamples.toLocaleString()} repeated plateau samples compatible with scaled clipping`
+        : null,
+      contentCredentialsConcern
+        ? `Content Credentials status ${technical.contentCredentials.status}`
+        : null,
+      algorithmicSourceDeclaration
+        ? "a Content Credential declaration of algorithmic media"
+        : null,
+      rawSignatureConcern
+        ? "a known watermark or generator identifier in the file bytes"
+        : null,
+      bitUtilizationConcern
+        ? `${measurements.bitUtilization.unusedLeastSignificantBits} consistently unused least-significant bits`
         : null,
       dcOffsetConcern ? "material DC offset" : null,
       phaseConcern ? "negative stereo correlation" : null,
@@ -86,7 +115,7 @@ export async function analyzeAudioFile(
     return {
       schemaVersion: 1,
       engineVersion,
-      scope: "oracle-integrity-fidelity-v7",
+      scope: "oracle-integrity-provenance-v8",
       verdict,
       analysisState: flacMd5Mismatch ? "failed" : "completed",
       failure: flacMd5Mismatch
@@ -197,6 +226,52 @@ export async function analyzeAudioFile(
               : "neutral",
         },
         {
+          id: "content-credentials",
+          label: "C2PA Content Credentials",
+          summary:
+            technical.contentCredentials.status === "not-present"
+              ? `No embedded Content Credential was found. ${technical.contentCredentials.limitation}`
+              : `${technical.contentCredentials.status}; ${technical.contentCredentials.manifestCount} manifest(s); generator ${technical.contentCredentials.claimGenerator ?? "not declared"}; signer ${technical.contentCredentials.signer ?? "not declared"}; network access ${technical.contentCredentials.networkAccess}. ${technical.contentCredentials.limitation}`,
+          kind: "deterministic",
+          disposition:
+            contentCredentialsConcern || algorithmicSourceDeclaration
+              ? "contradicts"
+              : technical.contentCredentials.status === "valid"
+                ? "supports"
+                : "neutral",
+        },
+        {
+          id: "chromaprint",
+          label: "Chromaprint acoustic fingerprint",
+          summary:
+            technical.fingerprint.status === "measured"
+              ? `Measured ${technical.fingerprint.durationSeconds?.toFixed(1) ?? "—"} seconds; fingerprint SHA-256 ${technical.fingerprint.fingerprintSha256}. ${technical.fingerprint.limitation}`
+              : `${technical.fingerprint.status}. ${technical.fingerprint.limitation}`,
+          kind: "measured",
+          disposition: "neutral",
+        },
+        ...technical.provenanceIndicators.map((indicator, index) => ({
+          id: `provenance-indicator-${index + 1}`,
+          label: indicator.identifier,
+          summary: `${indicator.source}: ${indicator.value}. ${indicator.interpretation}`,
+          kind: "heuristic" as const,
+          disposition:
+            indicator.type === "watermark-signature"
+              ? ("contradicts" as const)
+              : ("neutral" as const),
+        })),
+        {
+          id: "bit-utilization",
+          label: "Integer bit utilization",
+          summary: `${measurements.bitUtilization.classification}; declared ${measurements.bitUtilization.declaredBitDepth ?? "—"} bits, effective ${measurements.bitUtilization.effectiveBitDepth ?? "—"} bits, unused least-significant bits ${measurements.bitUtilization.unusedLeastSignificantBits ?? "—"}. ${measurements.bitUtilization.limitation}`,
+          kind: "measured",
+          disposition:
+            measurements.bitUtilization.classification ===
+            "possible-bit-padding"
+              ? "contradicts"
+              : "neutral",
+        },
+        {
           id: "stereo-authenticity",
           label: "Stereo authenticity assessment",
           summary:
@@ -247,7 +322,7 @@ export async function analyzeAudioFile(
     return {
       schemaVersion: 1,
       engineVersion,
-      scope: "oracle-integrity-fidelity-v7",
+      scope: "oracle-integrity-provenance-v8",
       verdict: integrityFailure ? "damaged" : "inconclusive",
       analysisState: integrityFailure ? "failed" : "error",
       failure,

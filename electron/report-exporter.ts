@@ -107,6 +107,30 @@ export function audioFileReportRow(file: AudioFileRecord): ReportRow {
       Channels: display(file.channels),
       "Channel layout": display(file.channelMode),
       "Bitrate mode": display(file.bitrateMode),
+      Title: display(file.metadata?.title),
+      Artists: file.metadata?.artists.join(" | ") ?? "",
+      Album: display(file.metadata?.album),
+      "Album artists": file.metadata?.albumArtists.join(" | ") ?? "",
+      Composers: file.metadata?.composers.join(" | ") ?? "",
+      Genres: file.metadata?.genres.join(" | ") ?? "",
+      Date: display(file.metadata?.date),
+      BPM: display(file.metadata?.bpm),
+      ISRC: file.metadata?.isrcs.join(" | ") ?? "",
+      "MusicBrainz recording IDs":
+        file.metadata?.musicBrainzRecordingIds.join(" | ") ?? "",
+      "ReplayGain track dB": display(
+        file.metadata?.replayGain.trackGainDb,
+      ),
+      "ReplayGain track peak": display(
+        file.metadata?.replayGain.trackPeak,
+      ),
+      "ReplayGain album dB": display(
+        file.metadata?.replayGain.albumGainDb,
+      ),
+      "Cue sheet": file.metadata
+        ? `${file.metadata.cueSheet.embedded ? "embedded" : ""}${file.metadata.cueSheet.sidecarPaths.length ? ` sidecar:${file.metadata.cueSheet.sidecarPaths.join("|")}` : ""}`.trim()
+        : "",
+      "Cue tracks": display(file.metadata?.cueSheet.trackCount),
       "Duration seconds": display(signal?.durationSeconds ?? file.durationSeconds),
       "Complete decode":
         signal
@@ -126,6 +150,17 @@ export function audioFileReportRow(file: AudioFileRecord): ReportRow {
       "True peak dBTP": display(signal?.truePeakDbtp),
       "Peak-to-loudness LU": display(signal?.peakToLoudnessRatioLu),
       "Crest factor dB": display(signal?.crestFactorDb),
+      "DR meter": display(signal?.drMeter),
+      "DR meter per channel": signal?.drMeterPerChannel
+        ?.map((value) => value ?? "")
+        .join(" | ") ?? "",
+      "Bit utilization": display(signal?.bitUtilization?.classification),
+      "Effective bit depth": display(
+        signal?.bitUtilization?.effectiveBitDepth,
+      ),
+      "Unused least-significant bits": display(
+        signal?.bitUtilization?.unusedLeastSignificantBits,
+      ),
       "Clipped samples": display(signal?.clippedSamples),
       "Clipped sample percent": display(
         signal?.clipping?.clippedSamplePercent,
@@ -163,6 +198,46 @@ export function audioFileReportRow(file: AudioFileRecord): ReportRow {
       ),
       "Origin assessment": display(file.oracle.fidelity?.classification),
       "Origin confidence": display(file.oracle.fidelity?.confidence),
+      "Content Credentials": display(
+        technical?.contentCredentials?.status,
+      ),
+      "C2PA manifest count": display(
+        technical?.contentCredentials?.manifestCount,
+      ),
+      "C2PA claim generator": display(
+        technical?.contentCredentials?.claimGenerator,
+      ),
+      "C2PA signer": display(technical?.contentCredentials?.signer),
+      "C2PA digital source types":
+        technical?.contentCredentials?.digitalSourceTypes.join(" | ") ?? "",
+      "Provenance indicators":
+        technical?.provenanceIndicators
+          ?.map((item) => `${item.type}:${item.identifier}:${item.value}`)
+          .join(" | ") ?? "",
+      "Chromaprint status": display(technical?.fingerprint?.status),
+      "Chromaprint SHA-256": display(
+        technical?.fingerprint?.fingerprintSha256,
+      ),
+      "Acoustic matches":
+        technical?.fingerprint?.matches
+          .map(
+            (match) =>
+              `${match.relationship}:${match.similarity}:${match.fileName}`,
+          )
+          .join(" | ") ?? "",
+      "AcoustID status": display(
+        technical?.fingerprint?.acoustIdLookup.status,
+      ),
+      AcoustID: display(
+        technical?.fingerprint?.acoustIdLookup.acoustId,
+      ),
+      "AcoustID score": display(
+        technical?.fingerprint?.acoustIdLookup.score,
+      ),
+      "AcoustID-linked MusicBrainz IDs":
+        technical?.fingerprint?.acoustIdLookup.recordingIds.join(" | ") ?? "",
+      "AcoustID-linked recording titles":
+        technical?.fingerprint?.acoustIdLookup.recordingTitles.join(" | ") ?? "",
       "Origin confidence type": display(file.oracle.fidelity?.confidenceType),
       "Origin validation basis": file.oracle.fidelity
         ? "Versioned rule strength; not a probability-calibrated provenance claim"

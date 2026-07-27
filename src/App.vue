@@ -37,6 +37,10 @@ const recentSessions = ref<AuditSessionSummary[]>([]);
 const loadingSessionId = ref("");
 const isAnalyzing = ref(false);
 const scanMode = ref<AnalysisMode>("full-audit");
+const analysisConcurrency = ref<1 | 2 | 3 | 4>(2);
+const analysisWorkerMemoryMb = ref<128 | 256 | 384 | 512>(256);
+const acoustIdEnabled = ref(false);
+const acoustIdApiKey = ref("");
 const filter = ref<
   "all" | "clear" | "review" | "not-analyzed" | "error" | "failed"
 >("all");
@@ -773,9 +777,28 @@ async function exportDiagnostics(): Promise<void> {
 }
 
 async function scanSource(source: AudioSourceSelection): Promise<void> {
+  if (acoustIdEnabled.value && !acoustIdApiKey.value.trim()) {
+    activeWorkspace.value = "settings";
+    scanMessage.value =
+      "AcoustID lookup is enabled, but an API key is required before the audit can start.";
+    return;
+  }
   const mode = source.mode ?? scanMode.value;
   scanMode.value = mode;
-  const requestedSource = { ...source, mode };
+  const requestedSource = {
+    ...source,
+    mode,
+    resourceLimits: {
+      concurrency: analysisConcurrency.value,
+      workerMemoryMb: analysisWorkerMemoryMb.value,
+    },
+    externalLookup: {
+      acoustIdEnabled: acoustIdEnabled.value,
+      ...(acoustIdEnabled.value && acoustIdApiKey.value
+        ? { acoustIdApiKey: acoustIdApiKey.value }
+        : {}),
+    },
+  };
   isDiscovering.value = true;
   isScanPaused.value = false;
   files.value = [];
@@ -1914,6 +1937,16 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
                   <strong>{{ selected.oracle.measurements.crestFactorDb === null ? "—" : `${selected.oracle.measurements.crestFactorDb.toFixed(1)} dB` }}</strong>
                   <p>Decoded sample peak relative to overall RMS.</p>
                 </article>
+                <article>
+                  <span class="eyebrow">DR meter</span>
+                  <strong>{{ selected.oracle.measurements.drMeter === null || selected.oracle.measurements.drMeter === undefined ? "—" : `DR ${selected.oracle.measurements.drMeter.toFixed(1)}` }}</strong>
+                  <p>Windowed crest-to-RMS dynamics from FFmpeg drmeter; this complements LRA and PLR.</p>
+                </article>
+                <article>
+                  <span class="eyebrow">Bit utilization</span>
+                  <strong>{{ selected.oracle.measurements.bitUtilization?.effectiveBitDepth ?? "—" }}{{ selected.oracle.measurements.bitUtilization?.effectiveBitDepth ? ` of ${selected.oracle.measurements.bitUtilization.declaredBitDepth} bits` : "" }}</strong>
+                  <p>{{ selected.oracle.measurements.bitUtilization?.classification?.replaceAll("-", " ") ?? "Not measured for this legacy result" }}. This can flag padded/truncated integer lossless PCM; it does not recover precision.</p>
+                </article>
                 <article
                   v-if="selected.oracle.measurements.clipping"
                   class="clipping-diagnostics"
@@ -2111,6 +2144,12 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
               <div><dt>Longest zero run</dt><dd>{{ selected.oracle.measurements ? `${selected.oracle.measurements.continuity.longestDigitalSilenceSeconds.toFixed(3)} s` : "—" }}</dd></div>
               <div><dt>Dropout candidates</dt><dd>{{ selected.oracle.measurements?.continuity.internalDigitalDropoutCount ?? "—" }}</dd></div>
               <div><dt>Origin assessment</dt><dd>{{ originAssessmentLabel(selected) }}</dd></div>
+              <div><dt>Content Credentials</dt><dd>{{ selected.oracle.technical?.contentCredentials?.status?.replaceAll("-", " ") ?? "Not inspected" }}</dd></div>
+              <div><dt>Chromaprint</dt><dd>{{ selected.oracle.technical?.fingerprint?.status ?? "Not measured" }}</dd></div>
+              <div><dt>Acoustic matches</dt><dd>{{ selected.oracle.technical?.fingerprint?.matches.length ?? 0 }}</dd></div>
+              <div><dt>AcoustID</dt><dd>{{ selected.oracle.technical?.fingerprint?.acoustIdLookup.status?.replaceAll("-", " ") ?? "Not requested" }}</dd></div>
+              <div><dt>ReplayGain</dt><dd>{{ selected.metadata?.replayGain.trackGainDb === null || selected.metadata?.replayGain.trackGainDb === undefined ? "Not tagged" : `${selected.metadata.replayGain.trackGainDb.toFixed(2)} dB track gain` }}</dd></div>
+              <div><dt>Cue sheet</dt><dd>{{ selected.metadata?.cueSheet.embedded ? "Embedded" : selected.metadata?.cueSheet.sidecarPaths.length ? `${selected.metadata.cueSheet.sidecarPaths.length} sidecar` : "None found" }}</dd></div>
               <div v-if="selected.oracle.technical?.repairProvenance"><dt>Audio-V action</dt><dd>−{{ selected.oracle.technical.repairProvenance.gainReductionDb.toFixed(2) }} dB · {{ selected.oracle.technical.repairProvenance.outputBitDepth }}-bit copy</dd></div>
             </dl>
             <section class="origin-assessment-card">
@@ -2133,6 +2172,64 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
                 <li v-for="basis in selected.oracle.fidelity.basis" :key="basis">{{ basis }}</li>
               </ul>
               <small v-if="selected.oracle.fidelity">{{ selected.oracle.fidelity.limitation }}</small>
+            </section>
+            <section v-if="selected.metadata" class="origin-assessment-card">
+              <header>
+                <span class="eyebrow">Declared metadata inventory</span>
+                <strong>{{ selected.metadata.title ?? "No title declared" }}</strong>
+                <em>Editable labels, not provenance proof</em>
+              </header>
+              <p>Audio-V preserves declared tags as inventory evidence. These fields can help identify a recording or reveal generator strings, but they are not treated as authentic merely because they are present.</p>
+              <dl>
+                <div><dt>Artist</dt><dd>{{ selected.metadata.artists.join(", ") || "Not declared" }}</dd></div>
+                <div><dt>Album</dt><dd>{{ selected.metadata.album ?? "Not declared" }}</dd></div>
+                <div><dt>Genre</dt><dd>{{ selected.metadata.genres.join(", ") || "Not declared" }}</dd></div>
+                <div><dt>BPM</dt><dd>{{ selected.metadata.bpm ?? "Not declared" }}</dd></div>
+                <div><dt>ISRC</dt><dd>{{ selected.metadata.isrcs.join(", ") || "Not declared" }}</dd></div>
+                <div><dt>MusicBrainz IDs</dt><dd>{{ selected.metadata.musicBrainzRecordingIds.length }}</dd></div>
+                <div><dt>ReplayGain</dt><dd>{{ selected.metadata.replayGain.trackGainDb === null ? "Not declared" : `${selected.metadata.replayGain.trackGainDb.toFixed(2)} dB` }}</dd></div>
+                <div><dt>Cue awareness</dt><dd>{{ selected.metadata.cueSheet.embedded ? "Embedded cue sheet" : selected.metadata.cueSheet.sidecarPaths.length ? `${selected.metadata.cueSheet.sidecarPaths.length} sidecar cue sheet(s)` : "No cue sheet found" }}</dd></div>
+              </dl>
+              <ul v-if="selected.metadata.tags.length">
+                <li v-for="tag in selected.metadata.tags.slice(0, 12)" :key="`${tag.key}-${tag.value}`">
+                  {{ tag.key }} · {{ tag.value }}
+                </li>
+              </ul>
+              <small v-if="selected.metadata.tags.length > 12">{{ selected.metadata.tags.length - 12 }} additional declared tags are retained in JSON evidence exports.</small>
+            </section>
+            <section
+              v-if="selected.oracle.technical"
+              class="origin-assessment-card"
+            >
+              <header>
+                <span class="eyebrow">Provenance &amp; identity</span>
+                <strong>{{ selected.oracle.technical.contentCredentials?.status?.replaceAll("-", " ") ?? "Not inspected" }}</strong>
+                <em>Offline deterministic inspection</em>
+              </header>
+              <p>{{ selected.oracle.technical.contentCredentials?.limitation }}</p>
+              <dl>
+                <div><dt>C2PA manifests</dt><dd>{{ selected.oracle.technical.contentCredentials?.manifestCount ?? 0 }}</dd></div>
+                <div><dt>Claim generator</dt><dd>{{ selected.oracle.technical.contentCredentials?.claimGenerator ?? "Not declared" }}</dd></div>
+                <div><dt>Signer</dt><dd>{{ selected.oracle.technical.contentCredentials?.signer ?? "Not declared" }}</dd></div>
+                <div><dt>Source declarations</dt><dd>{{ selected.oracle.technical.contentCredentials?.digitalSourceTypes.join(", ") || "None" }}</dd></div>
+                <div><dt>Metadata/signature indicators</dt><dd>{{ selected.oracle.technical.provenanceIndicators?.length ?? 0 }}</dd></div>
+                <div><dt>Fingerprint matches</dt><dd>{{ selected.oracle.technical.fingerprint?.matches.length ?? 0 }}</dd></div>
+              </dl>
+              <ul v-if="selected.oracle.technical.provenanceIndicators?.length">
+                <li v-for="indicator in selected.oracle.technical.provenanceIndicators" :key="`${indicator.type}-${indicator.identifier}-${indicator.source}`">
+                  {{ indicator.identifier }} · {{ indicator.source }} · {{ indicator.interpretation }}
+                </li>
+              </ul>
+              <ul v-if="selected.oracle.technical.fingerprint?.matches.length">
+                <li v-for="match in selected.oracle.technical.fingerprint.matches" :key="match.filePath">
+                  {{ match.fileName }} · {{ (match.similarity * 100).toFixed(1) }}% · {{ match.relationship.replaceAll("-", " ") }}
+                </li>
+              </ul>
+              <ul v-if="selected.oracle.technical.fingerprint?.acoustIdLookup.recordingIds.length">
+                <li v-for="(recordingId, index) in selected.oracle.technical.fingerprint.acoustIdLookup.recordingIds" :key="recordingId">
+                  AcoustID {{ selected.oracle.technical.fingerprint.acoustIdLookup.score === null ? "match" : `${(selected.oracle.technical.fingerprint.acoustIdLookup.score * 100).toFixed(1)}%` }} · {{ selected.oracle.technical.fingerprint.acoustIdLookup.recordingTitles[index] || "Untitled recording" }} · MusicBrainz {{ recordingId }}
+                </li>
+              </ul>
             </section>
             <div class="oracle-card" :class="fileStateClass(selected)">
               <span class="oracle-glyph">◇</span>
@@ -2467,6 +2564,33 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
           <article><span>Broadcast loudness</span><strong>EBU R128 / BS.1770</strong><p>Integrated LUFS, loudness range, and oversampled true peak are measured by the bundled engine.</p></article>
           <article><span>Codec integrity</span><strong>FLAC audio MD5</strong><p>The decoded PCM is independently compared with the checksum stored in STREAMINFO; mismatch is a deterministic failure.</p></article>
           <article><span>Spectral origin</span><strong>Conservative review classifier</strong><p>Measured cutoffs can flag compatible patterns with rule strength, evidence coverage, reason codes, and explicit mastering limitations.</p></article>
+          <article><span>Content provenance</span><strong>Offline C2PA verification</strong><p>Content Credentials are cryptographically inspected with remote manifest and OCSP fetching disabled. Valid credentials record claims; they do not certify truth or human authorship.</p></article>
+          <article><span>Acoustic identity</span><strong>Chromaprint duplicates</strong><p>Local fingerprints identify same-recording and high-similarity candidates. Optional AcoustID lookup is session-only and never runs without a key and explicit opt-in.</p></article>
+          <article><span>Metadata depth</span><strong>Tags, cue, ReplayGain</strong><p>Audio-V inventories BPM, MusicBrainz/ISRC identifiers, ReplayGain, embedded and sidecar cue sheets, generator strings, and dynamics fields without becoming a tag editor.</p></article>
+          <article class="resource-controls">
+            <span>Analysis resources</span>
+            <strong>Bounded worker controls</strong>
+            <p>Changes apply to the next audit. Every worker receives an enforced JavaScript heap cap; decoded audio remains streamed.</p>
+            <label>Concurrent files
+              <select v-model.number="analysisConcurrency" :disabled="isDiscovering">
+                <option :value="1">1</option><option :value="2">2</option><option :value="3">3</option><option :value="4">4</option>
+              </select>
+            </label>
+            <label>Memory per worker
+              <select v-model.number="analysisWorkerMemoryMb" :disabled="isDiscovering">
+                <option :value="128">128 MB</option><option :value="256">256 MB</option><option :value="384">384 MB</option><option :value="512">512 MB</option>
+              </select>
+            </label>
+          </article>
+          <article class="resource-controls">
+            <span>External identity service</span>
+            <strong>Optional AcoustID / MusicBrainz</strong>
+            <p>The API key remains in memory for this app session and is removed from saved audit-source records and exports.</p>
+            <label><input v-model="acoustIdEnabled" type="checkbox" :disabled="isDiscovering"> Enable lookup on next audit</label>
+            <label>AcoustID API key
+              <input v-model="acoustIdApiKey" type="password" autocomplete="off" :disabled="isDiscovering || !acoustIdEnabled">
+            </label>
+          </article>
           <article class="validation-disclosure">
             <span>Oracle validation basis</span>
             <strong>{{ validationStatusLabel }}</strong>
@@ -2491,7 +2615,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
       <footer class="statusbar">
         <span role="status" aria-live="polite"><i></i>{{ scanMessage }}</span>
         <span>{{ files.length.toLocaleString() }} files in session</span>
-        <span>Oracle integrity &amp; fidelity scope v7</span>
+        <span>Oracle integrity, fidelity &amp; provenance scope v8</span>
       </footer>
     </main>
   </div>

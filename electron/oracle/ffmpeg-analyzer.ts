@@ -11,6 +11,12 @@ import { WaveformEnvelopeAccumulator } from "./waveform-envelope";
 import { verifyFlacMd5 } from "./flac-integrity";
 import { audioCodecLabel } from "../../shared/audio-format";
 import { atOracleStage } from "./analysis-failure";
+import {
+  calculateChromaprint,
+  inspectContentCredentials,
+  metadataProvenanceIndicators,
+} from "./analysis-tools";
+import { emptyMetadataInventory } from "../metadata-inventory";
 
 interface ProbeStream {
   codec_name?: string;
@@ -22,6 +28,7 @@ interface ProbeStream {
   channel_layout?: string;
   bit_rate?: string;
   bits_per_raw_sample?: string;
+  bits_per_sample?: string;
   duration?: string;
 }
 
@@ -50,10 +57,36 @@ function formatTag(
   )?.[1];
 }
 
-async function hashFile(filePath: string): Promise<string> {
+const rawIdentifierPatterns = [
+  { identifier: "Google SynthID", pattern: /SynthID/giu },
+  { identifier: "Meta AudioSeal", pattern: /AudioSeal/giu },
+  { identifier: "Stable Signature", pattern: /Stable[\s_-]*Signature/giu },
+] as const;
+
+async function hashFileAndInspectStrings(filePath: string): Promise<{
+  sha256: string;
+  identifiers: Array<{ identifier: string; value: string }>;
+}> {
   const hash = createHash("sha256");
-  for await (const chunk of createReadStream(filePath)) hash.update(chunk);
-  return hash.digest("hex");
+  const identifiers = new Map<string, string>();
+  let carry = "";
+  for await (const chunk of createReadStream(filePath)) {
+    hash.update(chunk);
+    const text = carry + Buffer.from(chunk).toString("latin1");
+    for (const candidate of rawIdentifierPatterns) {
+      const match = candidate.pattern.exec(text);
+      candidate.pattern.lastIndex = 0;
+      if (match) identifiers.set(candidate.identifier, match[0]);
+    }
+    carry = text.slice(-64);
+  }
+  return {
+    sha256: hash.digest("hex"),
+    identifiers: [...identifiers].map(([identifier, value]) => ({
+      identifier,
+      value,
+    })),
+  };
 }
 
 async function probe(filePath: string, signal?: AbortSignal): Promise<{
@@ -103,11 +136,16 @@ async function probe(filePath: string, signal?: AbortSignal): Promise<{
           outputBitDepth: repairDepth as 16 | 24,
         }
       : null;
+  const [fileInspection, contentCredentials, fingerprint] = await Promise.all([
+    hashFileAndInspectStrings(filePath),
+    inspectContentCredentials(filePath, signal),
+    calculateChromaprint(filePath, signal),
+  ]);
   return {
     raw,
     technical: {
       backend: "FFmpeg 8.1.2 LGPL build",
-      fileSha256: await hashFile(filePath),
+      fileSha256: fileInspection.sha256,
       codecName,
       codecLongName: audioCodecLabel(codecName, stream.codec_long_name),
       profile: stream.profile ?? null,
@@ -116,7 +154,9 @@ async function probe(filePath: string, signal?: AbortSignal): Promise<{
       sampleRate,
       channels: stream.channels,
       channelLayout: stream.channel_layout ?? null,
-      bitsPerRawSample: finiteNumber(stream.bits_per_raw_sample),
+      bitsPerRawSample:
+        finiteNumber(stream.bits_per_raw_sample) ??
+        finiteNumber(stream.bits_per_sample),
       streamBitrate:
         finiteNumber(stream.bit_rate) ?? finiteNumber(raw.format?.bit_rate),
       durationSeconds,
@@ -127,6 +167,14 @@ async function probe(filePath: string, signal?: AbortSignal): Promise<{
       packetBitrateAverage: null,
       flacMd5: null,
       externalChecksums: [],
+      metadata: emptyMetadataInventory,
+      contentCredentials,
+      provenanceIndicators: metadataProvenanceIndicators(
+        [],
+        fileInspection.identifiers,
+        contentCredentials,
+      ),
+      fingerprint,
       repairProvenance,
     },
   };
@@ -198,6 +246,18 @@ function parseLoudness(stderr: string): {
   };
 }
 
+function parseDrMeter(stderr: string): {
+  overall: number | null;
+  perChannel: Array<number | null>;
+} {
+  const perChannel = [...stderr.matchAll(/\bChannel\s+\d+:\s+DR:\s+(-?[\d.]+|nan)/giu)]
+    .map((match) => finiteNumber(match[1]));
+  const overall = finiteNumber(
+    /\bOverall DR:\s+(-?[\d.]+|nan)/iu.exec(stderr)?.[1],
+  );
+  return { overall, perChannel };
+}
+
 export async function analyzeWithFfmpeg(
   filePath: string,
   signal?: AbortSignal,
@@ -220,6 +280,16 @@ export async function analyzeWithFfmpeg(
   const measurement = new PcmMeasurementAccumulator(
     technical.sampleRate,
     technical.channels,
+    {
+      declaredBitDepth: technical.bitsPerRawSample,
+      bitUtilizationApplicable: [
+        "flac",
+        "alac",
+        "ape",
+        "wavpack",
+      ].includes(technical.codecName) ||
+        technical.codecName.startsWith("pcm_"),
+    },
   );
   const spectrogram = new SpectrogramAccumulator(
     technical.sampleRate,
@@ -295,16 +365,19 @@ export async function analyzeWithFfmpeg(
       "info",
       "-i",
       filePath,
+      "-filter_complex",
+      "[0:a:0]asplit=2[loud][dr];[loud]ebur128=peak=true:framelog=quiet[loudout];[dr]drmeter[drout]",
       "-map",
-      "0:a:0",
-      "-af",
-      "ebur128=peak=true:framelog=quiet",
+      "[loudout]",
+      "-map",
+      "[drout]",
       "-f",
       "null",
       "-",
     ], undefined, signal),
   );
   const loudness = parseLoudness(loudnessResult.stderr);
+  const drMeter = parseDrMeter(loudnessResult.stderr);
   technical.flacMd5 = await atOracleStage(
     "integrity-verification",
     () => verifyFlacMd5(filePath, technical, signal),
@@ -325,6 +398,8 @@ export async function analyzeWithFfmpeg(
       decoder: technical.backend,
       decodeIntegrity: "complete",
       ...loudness,
+      drMeter: drMeter.overall,
+      drMeterPerChannel: drMeter.perChannel,
       peakToLoudnessRatioLu,
       waveform: waveform.finish(),
       spectrogram: overviewSpectrum,

@@ -1,6 +1,6 @@
 # Privacy and security model
 
-Audio-V performs analysis locally. The application has no telemetry, advertising, account system, cloud upload, automatic metadata lookup, or audio playback service.
+Audio-V performs analysis locally by default. The application has no telemetry, advertising, account system, cloud upload, automatic metadata lookup, or audio playback service.
 
 ## File authority
 
@@ -22,7 +22,13 @@ Privacy-safe diagnostics are intentionally separate from evidence exports. Autom
 
 FFmpeg and ffprobe are bundled, checksum-pinned engines. The main process invokes them with argument arrays rather than shell command construction. Oracle and comparison analysis run in bounded workers; SQLite runs in a dedicated storage worker.
 
-Every package contains the engine manifest, provenance, third-party notices, AGPL license, source notice, and trademark policy.
+Every package contains the engine manifest, provenance, C2PA Tool and Chromaprint license texts, third-party notices, AGPL license, source notice, and trademark policy. C2PA inspection disables remote-manifest and OCSP network fetching. Chromaprint fingerprinting is local and does not upload audio.
+
+## Optional external identity lookup
+
+AcoustID lookup is disabled by default and runs only when the user enables it for the next audit and supplies an AcoustID application API key. Audio-V sends the locally calculated Chromaprint fingerprint and rounded duration to `https://api.acoustid.org`; it does not send the audio file. The returned AcoustID and linked MusicBrainz recording identifiers are evidence leads, not proof of ownership, mastering provenance, or byte identity.
+
+The API key remains in renderer/main-process memory for the application session and is used only for explicitly enabled audits. It is removed from persisted sessions, reports, and returned source records. Audio-V does not currently store external-service credentials.
 
 ## Unsigned distribution
 

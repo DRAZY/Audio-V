@@ -3,11 +3,13 @@ import { promises as fs } from "node:fs";
 import { availableParallelism } from "node:os";
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import type {
+  AnalysisResourceLimits,
   AudioFileRecord,
   AudioSourceSelection,
   OracleValidationStatus,
   ReportExportRequest,
 } from "../shared/contracts";
+import { AUDIO_EXTENSIONS } from "../shared/contracts";
 import { createTruePeakSafeCopy } from "./repair-engine";
 import { scanSources } from "./scanner";
 import type { OracleRecordCache } from "./scanner";
@@ -25,10 +27,7 @@ const authoritativeRecords = new Map<string, AudioFileRecord>();
 const audioDialogFilters = [
   {
     name: "Audio files",
-    extensions: [
-      "aac", "aif", "aiff", "alac", "ape", "dff", "dsf", "flac",
-      "m4a", "mp3", "ogg", "opus", "wav", "wma", "wv",
-    ],
+    extensions: AUDIO_EXTENSIONS.map((extension) => extension.slice(1)),
   },
 ];
 const developmentUrl = process.env.VITE_DEV_SERVER_URL;
@@ -38,10 +37,14 @@ let oracleCache: OracleRecordCache;
 let oracleWorkers: OracleWorkerPool;
 let auditSessions: AuditStorageClient;
 let activeComparisonController: AbortController | null = null;
-const oracleWorkerCount = Math.max(
-  1,
-  Math.min(3, Math.floor(availableParallelism() / 4)),
-);
+const defaultResourceLimits: AnalysisResourceLimits = {
+  concurrency: Math.max(
+    1,
+    Math.min(4, Math.floor(availableParallelism() / 4)),
+  ) as AnalysisResourceLimits["concurrency"],
+  workerMemoryMb: 256,
+};
+let currentResourceLimits = defaultResourceLimits;
 
 class ScanPauseGate {
   #paused = false;
@@ -153,7 +156,15 @@ function isSourceSelection(value: unknown): value is AudioSourceSelection {
       source.mode === "metadata-inventory") &&
     Array.isArray(source.paths) &&
     source.paths.length > 0 &&
-    source.paths.every((entry) => typeof entry === "string")
+    source.paths.every((entry) => typeof entry === "string") &&
+    (source.resourceLimits === undefined ||
+      ([1, 2, 3, 4].includes(source.resourceLimits.concurrency) &&
+        [128, 256, 384, 512].includes(source.resourceLimits.workerMemoryMb))) &&
+    (source.externalLookup === undefined ||
+      (typeof source.externalLookup.acoustIdEnabled === "boolean" &&
+        (source.externalLookup.acoustIdApiKey === undefined ||
+          (typeof source.externalLookup.acoustIdApiKey === "string" &&
+            source.externalLookup.acoustIdApiKey.length <= 128))))
   );
 }
 
@@ -278,7 +289,7 @@ ipcMain.handle("app:export-diagnostics", async () => {
         electron: process.versions.electron,
         chrome: process.versions.chrome,
         node: process.versions.node,
-        oracleWorkerCount,
+        oracleWorkerCount: currentResourceLimits.concurrency,
       },
       sessions,
       engineManifest,
@@ -413,13 +424,36 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
   const source: AudioSourceSelection = {
     ...approved,
     mode: requestedSource.mode ?? "full-audit",
+    resourceLimits: requestedSource.resourceLimits ?? defaultResourceLimits,
+    externalLookup: requestedSource.externalLookup,
   };
+  const requestedLimits = source.resourceLimits ?? defaultResourceLimits;
   activeScanController?.abort();
+  if (
+    requestedLimits.concurrency !== currentResourceLimits.concurrency ||
+    requestedLimits.workerMemoryMb !== currentResourceLimits.workerMemoryMb
+  ) {
+    await oracleWorkers.close();
+    oracleWorkers = new OracleWorkerPool(
+      path.join(__dirname, "oracle", "oracle-worker.js"),
+      requestedLimits.concurrency,
+      requestedLimits.workerMemoryMb,
+    );
+    currentResourceLimits = requestedLimits;
+  }
   const controller = new AbortController();
   const pauseGate = new ScanPauseGate();
   activeScanController = controller;
   activeScanPause = pauseGate;
-  const sessionId = await auditSessions.create(source);
+  const persistedSource: AudioSourceSelection = {
+    ...source,
+    externalLookup: source.externalLookup
+      ? {
+          acoustIdEnabled: source.externalLookup.acoustIdEnabled,
+        }
+      : undefined,
+  };
+  const sessionId = await auditSessions.create(persistedSource);
   const persistence = new SessionPersistenceBuffer(auditSessions, sessionId);
   let sessionWarnings: string[] = [];
   try {
@@ -450,7 +484,7 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
           persistence.add(file, ordinal, fromCache);
         },
         waitIfPaused: () => pauseGate.wait(controller.signal),
-        concurrency: oracleWorkerCount,
+        concurrency: requestedLimits.concurrency,
       },
     );
     await persistence.flush();
@@ -479,7 +513,7 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
       );
       setTimeout(() => app.quit(), 250);
     }
-    return { ...result, sessionId };
+    return { ...result, source: persistedSource, sessionId };
   } catch (error) {
     await persistence.flush().catch(() => undefined);
     await auditSessions.finish(
@@ -835,7 +869,8 @@ app.whenReady().then(async () => {
   };
   oracleWorkers = new OracleWorkerPool(
     path.join(__dirname, "oracle", "oracle-worker.js"),
-    oracleWorkerCount,
+    defaultResourceLimits.concurrency,
+    defaultResourceLimits.workerMemoryMb,
   );
   createWindow();
   app.on("activate", () => {

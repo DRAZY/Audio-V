@@ -26,6 +26,10 @@ In **Spectrogram**, choose 512, 2,048, 4,096, or 16,384 FFT resolution. Higher s
 
 In **Loudness**, clipping diagnostics show the percentage of decoded samples at full scale, per-channel counts, contiguous clipping events, their locations on a track timeline, and possible scaled-clipping plateaus. Clipping and possible scaled clipping remain Review findings because intentional mastering and synthesized waveforms can create the same measurements. Failed is reserved for deterministic file-integrity evidence.
 
+The **Declared metadata inventory** lists normalized fields and a bounded set of raw tags. Metadata Inventory mode gives this capability a fast, non-decoding purpose; Full Oracle Audit adds local C2PA, fingerprint, dynamics, bit-utilization, and signal evidence.
+
+The **Provenance & identity** card distinguishes cryptographic Content Credential status, editable generator metadata, known identifier strings, local Chromaprint relationships, and optional external matches. These are not collapsed into an “AI: Yes/No” badge. A raw identifier is not proof that Audio-V decoded a proprietary watermark, and a valid C2PA claim authenticates a signed statement rather than the truth of every statement.
+
 ## Origin Assessment
 
 **Heuristic rule strength** shows how strongly a classifiable file matches a versioned rule. It is not a probability that a source history is true.
@@ -66,5 +70,19 @@ Audio-V stores audit sessions locally. History can reopen completed evidence or 
 Settings can export a privacy-safe diagnostic JSON file containing application/runtime versions, worker count, aggregate session statuses, and the engine manifest. It excludes filenames, source paths, checksums, tags, and report evidence.
 
 Settings also displays the packaged Oracle validation basis: public independent source-master count, contributor groups, controlled cases, corpus version, current claim level, and the first material limitation. “Infrastructure ready · masters pending” means the validation machinery exists but no licensed real-world master has been counted; it is not a hidden calibration score.
+
+**Audit resource policy** applies to the next audit. Choose 1–4 concurrent Oracle workers and a 128–512 MB JavaScript heap cap per worker. Lower values improve responsiveness and memory predictability; higher concurrency can increase throughput on fast local storage and multi-core systems.
+
+**AcoustID / MusicBrainz lookup** is off by default. When enabled with an AcoustID application key, Audio-V sends the local Chromaprint value and rounded duration—not the audio—to AcoustID. The key remains only in application memory and is removed from saved sessions and reports. Matches are identity leads, not proof of ownership or mastering provenance.
+
+## Headless folder automation
+
+Source and CI users can audit files or recursive folders without opening the desktop:
+
+```bash
+npm run cli -- ./collection --output ./audio-v-evidence.json --concurrency 2 --memory-mb 256 --fail-on failed
+```
+
+Use `--fail-on review`, `failed`, or `never` to choose when evidence returns policy exit code 2. Processing errors return exit code 1. The output uses the same compact Oracle v8 JSON contract as desktop JSON reports.
 
 For unsigned installation and checksum verification, see [UNSIGNED_INSTALLATION.md](UNSIGNED_INSTALLATION.md).

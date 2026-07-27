@@ -5,13 +5,14 @@ A release candidate is evidence-backed, not simply a successful packaging comman
 ## Automated acceptance
 
 - [ ] `npm ci` completes from the lockfile.
-- [ ] Bundled engine provenance and LGPL configuration verify.
+- [ ] Bundled FFmpeg, C2PA Tool, and Chromaprint provenance, licenses, hashes, versions, and offline settings verify.
 - [ ] TypeScript and Vue type checks pass.
 - [ ] All unit, integration, scanner, worker, repair, report, storage, and diagnostics tests pass.
 - [ ] Fidelity golden-corpus validation passes.
 - [ ] Real-world corpus infrastructure and packaged validation disclosure verify.
 - [ ] Accessibility audit has no serious or critical violations.
 - [ ] Scale budgets pass for 100, 1,000, and 10,000 records.
+- [ ] Headless CLI folder audit emits the v8 JSON evidence model, honors evidence-policy exit codes, and does not persist external-service keys.
 - [ ] Production dependency audit reports zero known vulnerabilities.
 - [ ] Apple Silicon DMG, Universal DMG, Windows installer, and Windows portable artifacts pass structural inspection.
 - [ ] Native packaged applications complete the reference FLAC audit.

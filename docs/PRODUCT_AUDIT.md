@@ -31,7 +31,7 @@ The official [AudioAuditor website](https://audioauditor.org/) and [source repos
 | --- | --- | --- |
 | Automated batch analysis | Adopt | Implemented with recursive discovery, bounded two-file decoding, cancellation, progress, and cache |
 | Fake-lossless / spectral-cutoff review | Adopt conservatively | Implemented as an explicitly heuristic origin assessment with inconclusive behavior |
-| AI-generated audio detection | Research-gated | Generic “AI detected” verdict excluded until a validated corpus exists; provenance metadata, C2PA, and known watermark indicators remain candidates for a deterministic indicator layer |
+| AI-generated audio detection | Research-gated | Generic “AI detected” verdict excluded until a validated corpus exists; offline C2PA validation, known generator metadata, and known identifier strings are implemented as separately labeled indicators rather than an AI verdict |
 | MQA detection | Evidence-gated | Planned only as marker/profile disclosure; Audio-V will not imply MQA authenticity or decoding without a reproducible method |
 | Fake stereo detection | Adopt with neutral language | Implemented as mono, sample-identical dual-mono, near-mono, distinct-stereo, or inconclusive using correlation and side-to-mid energy |
 | Clipping analysis | Adopt | Implemented total/per-channel percentages, contiguous events and timeline, near clipping, BS.1770 true peak, and conservative scaled-clipping review; destructive peak reconstruction is never promised |
@@ -41,7 +41,7 @@ The official [AudioAuditor website](https://audioauditor.org/) and [source repos
 | CSV / PDF / XLSX / DOCX export | Adopt and add JSON | Implemented from one evidence model; JSON remains the lossless machine-readable format |
 | Free / actively developed / open source | Product decision | Active development is current; licensing and public-repository status must be declared before release rather than inferred |
 
-AudioAuditor also advertises MQA, experimental AI checks, fingerprints, click/pop and stuck-sample checks, bit-truncation review, and silence analysis. Audio-V already covers exact/internal silence and steep-transition candidates. Fingerprinting, validated click/pop/stuck-sample classifiers, bit-utilization analysis, MQA markers, and synthetic-provenance indicators remain completeness layers; none may appear as authoritative until fixtures and failure boundaries exist.
+AudioAuditor also advertises MQA, experimental AI checks, fingerprints, click/pop and stuck-sample checks, bit-truncation review, and silence analysis. Audio-V now covers exact/internal silence, steep-transition candidates, local Chromaprint identity relationships, offline C2PA inspection, known generator/signature inventory, and integer lossless bit-utilization review. Validated click/pop/stuck-sample classifiers, MQA markers, and a statistically calibrated AI classifier remain future work; none may appear as authoritative until fixtures and failure boundaries exist.
 
 ## Capability matrix
 
@@ -194,6 +194,20 @@ Gate 5 is complete for automated repository readiness and local macOS validation
 - Reports state that heuristic rule strength is not a probability-calibrated provenance claim.
 
 Infrastructure is complete, while source acquisition remains factual external work. With no licensed masters present, the enforced state is `awaiting-source-masters` and the claim level is `synthetic-regression-only`.
+
+### Provenance, automation, and identity milestone status
+
+- Oracle Engine v8 validates embedded and locally resolvable C2PA Content Credentials with C2PA Tool 0.27.3. Remote-manifest and OCSP fetching are disabled so ordinary audits remain deterministic and private.
+- Valid, untrusted-signer, invalid, absent, unsupported, and tool-error states remain distinct. A credential can validate a signed provenance statement; it does not establish truthfulness, human authorship, ownership, or audio quality.
+- Known generator names in editable metadata and known watermark/signature identifier strings in raw file bytes are inventoried with their exact source and limitation. Audio-V does not claim to decode proprietary watermarks and does not produce a generic AI Yes/No badge.
+- Local Chromaprint fingerprints identify exact-fingerprint and high-similarity relationships within the current audit. Optional AcoustID lookup sends only fingerprint plus rounded duration and returns linked MusicBrainz recording leads; it is off by default and its key is never persisted.
+- Metadata Inventory now includes bounded native tags, BPM, ISRC, MusicBrainz IDs, ReplayGain values, embedded cue sheets, and adjacent cue-sheet references without invoking the decoder.
+- Full audits add DR meter values and integer-lossless bit-utilization/truncation assessment. Possible zero-padded depth is Review evidence, not deterministic file damage.
+- The accepted format list now follows a broad FFmpeg-backed set of common audio and audio-container extensions. Actual support remains decoder-runtime evidence rather than a promise based only on a filename suffix.
+- The headless CLI accepts files and recursive folders, emits the same compact JSON evidence model, supports CI evidence-policy exit codes, and exposes 1–4 worker and 128–512 MB per-worker limits. The desktop exposes the same resource policy for the next audit.
+- EBU R128 and DR measurements share one FFmpeg filter-graph pass. Full PCM analysis remains streaming and bounded; local fingerprinting performs one additional decode capped at 120 seconds. Opting into AcoustID performs a second capped fpcalc pass to create the service’s encoded fingerprint.
+
+This milestone deliberately stops before a statistical AI classifier or automatic network service. Those claims remain corpus-gated.
 
 Recommended layers:
 

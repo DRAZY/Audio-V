@@ -37,6 +37,9 @@ await fileCheck(
 await fileCheck("Scale benchmark result", "build/performance-latest.json", (value) =>
   JSON.parse(value).passed === true,
 );
+await fileCheck("Headless CLI result", "build/cli-validation-latest.json", (value) =>
+  JSON.parse(value).passed === true,
+);
 
 try {
   await access(path.join(root, "release", "UNSIGNED_RELEASE_MANIFEST.json"));

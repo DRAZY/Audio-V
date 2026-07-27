@@ -85,6 +85,26 @@ async function verifyResources(resources, engineNames) {
   for (const engine of engineNames) {
     await requireFile(path.join(resources, "engine", engine), 1_000_000);
   }
+  await requireFile(
+    path.join(resources, "engine", "c2pa-offline-settings.json"),
+    40,
+  );
+  await requireFile(
+    path.join(resources, "engine", "ANALYSIS_TOOL_PROVENANCE.json"),
+    100,
+  );
+  await requireFile(
+    path.join(resources, "engine", "C2PATOOL_LICENSE_APACHE.txt"),
+    1_000,
+  );
+  await requireFile(
+    path.join(resources, "engine", "C2PATOOL_LICENSE_MIT.txt"),
+    500,
+  );
+  await requireFile(
+    path.join(resources, "engine", "CHROMAPRINT_LICENSE.txt"),
+    1_000,
+  );
 }
 
 if (platform === "mac") {
@@ -104,6 +124,8 @@ if (platform === "mac") {
     await verifyResources(path.join(contents, "Resources"), [
       "ffmpeg",
       "ffprobe",
+      "c2patool",
+      "fpcalc",
     ]);
   }
   const universalExecutable = path.join(
@@ -123,7 +145,7 @@ if (platform === "mac") {
       `Universal application is missing an architecture: ${architectures.join(", ")}`,
     );
   }
-  for (const engine of ["ffmpeg", "ffprobe"]) {
+  for (const engine of ["ffmpeg", "ffprobe", "c2patool", "fpcalc"]) {
     const enginePath = path.join(
       release,
       "mac-universal",
@@ -185,6 +207,8 @@ if (platform === "mac") {
   await verifyResources(path.join(unpacked, "resources"), [
     "ffmpeg.exe",
     "ffprobe.exe",
+    "c2patool.exe",
+    "fpcalc.exe",
   ]);
   console.log("Verified Windows installer, portable executable, and resources.");
 }

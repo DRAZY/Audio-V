@@ -52,7 +52,7 @@ Cross-building Windows packages from macOS may work when the required compatibil
 3. Create and push a matching tag:
 
    ```bash
-   git tag v0.1.1
+   git tag v0.2.0
    git push origin main --tags
    ```
 
@@ -60,7 +60,17 @@ The tag starts independent macOS and Windows builds. Each runner executes the fu
 
 The workflow attaches the `.dmg` and `.exe` files, block maps, `SHA256SUMS.txt`, and `UNSIGNED_RELEASE_MANIFEST.json` to the versioned GitHub Release.
 
-The release workflow provisions engines before packaging. macOS builds FFmpeg 8.1.2 from the checksum-pinned official source with GPL/nonfree features disabled; Windows downloads the immutable, checksum-pinned BtbN `autobuild-2026-07-26-13-28` n8.1 LGPL static build. `prepare:engines` then verifies binary provenance and licensing policy before a package can be created.
+The release workflow provisions engines before packaging. macOS builds FFmpeg 8.1.2 from the checksum-pinned official source with GPL/nonfree features disabled; Windows downloads the immutable, checksum-pinned BtbN `autobuild-2026-07-26-13-28` n8.1 LGPL static build. It also downloads checksum-pinned C2PA Tool 0.27.3 and Chromaprint fpcalc 1.6.0 archives from their official releases, writes offline C2PA policy and license files into every target engine directory, and verifies their executable hashes. `prepare:engines` blocks packaging when provenance, licensing policy, versions, or offline settings disagree.
+
+## Headless automation
+
+After `npm ci` and `npm run provision:engines`, CI or archival workflows can produce the same compact JSON evidence model without starting Electron:
+
+```bash
+npm run cli -- ./collection --output ./audio-v-evidence.json --concurrency 2 --memory-mb 256 --fail-on failed
+```
+
+`--fail-on review` makes Review or Failed evidence return exit code 2; `--fail-on failed` reserves exit code 2 for deterministic file failures. CLI errors return exit code 1. External AcoustID lookup remains opt-in.
 
 ## Release policy
 

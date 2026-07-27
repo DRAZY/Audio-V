@@ -23,6 +23,7 @@ interface WorkerSlot {
 
 export class OracleWorkerPool {
   readonly #workerPath: string;
+  readonly #workerMemoryMb: number;
   readonly #slots: WorkerSlot[] = [];
   readonly #queue: QueuedJob[] = [];
   #closed = false;
@@ -30,11 +31,13 @@ export class OracleWorkerPool {
   constructor(
     workerPath: string,
     workerCount = Math.max(1, Math.min(2, availableParallelism() - 1)),
+    workerMemoryMb = 256,
   ) {
     if (!Number.isInteger(workerCount) || workerCount < 1) {
       throw new RangeError("Oracle worker count must be at least one.");
     }
     this.#workerPath = workerPath;
+    this.#workerMemoryMb = Math.max(128, Math.min(512, workerMemoryMb));
     for (let index = 0; index < workerCount; index += 1) {
       this.#slots.push(this.#createSlot());
     }
@@ -106,7 +109,12 @@ export class OracleWorkerPool {
 
   #createSlot(): WorkerSlot {
     const slot: WorkerSlot = {
-      worker: new Worker(this.#workerPath),
+      worker: new Worker(this.#workerPath, {
+        resourceLimits: {
+          maxOldGenerationSizeMb: this.#workerMemoryMb,
+          maxYoungGenerationSizeMb: Math.min(64, this.#workerMemoryMb / 4),
+        },
+      }),
       activeJob: null,
     };
     slot.worker.on("message", (response: OracleWorkerResponse) => {

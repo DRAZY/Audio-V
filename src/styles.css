@@ -2405,6 +2405,34 @@ button:focus-visible {
   line-height: 1.55;
 }
 
+.capability-grid .resource-controls {
+  gap: 12px;
+}
+
+.resource-controls label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.resource-controls select,
+.resource-controls input[type="password"] {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  background: #11141b;
+}
+
+.resource-controls label:has(input[type="checkbox"]) {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
 .capability-grid .validation-disclosure {
   grid-column: 1 / -1;
   border-color: color-mix(in srgb, var(--accent), transparent 45%);

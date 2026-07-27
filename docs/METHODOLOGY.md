@@ -22,6 +22,21 @@ Audio-V separates deterministic integrity checks, direct measurements, and heuri
 
 Metadata Inventory is a deliberate non-decoding workflow. It records declared container and stream properties and assigns the workflow state **Not analyzed**. It does not run checksum, PCM, loudness, continuity, spectral, or origin assessment and therefore cannot issue Clear, Review, or Failed.
 
+The inventory includes bounded raw tags plus normalized title/artist/album/composer/genre/date/track/disc/BPM, ISRC, MusicBrainz recording IDs, AcoustID IDs, ReplayGain, and embedded or adjacent cue-sheet references. Tags are editable claims and never become deterministic authenticity evidence by themselves.
+
+## Provenance and acoustic identity
+
+- Audio-V invokes the official C2PA Tool in offline mode. Remote-manifest and OCSP fetching are disabled, so a result is reproducible and does not disclose the file to a network service. It reports manifest validity, signer trust state, claim generator, signing time, and declared digital source types. The [C2PA specification](https://spec.c2pa.org/specifications/specifications/2.2/specs/ContentCredentials.html) distinguishes a valid asset from a trusted signer and treats provenance as statements rather than a truth verdict.
+- A valid Content Credential verifies its cryptographic association and assertions; it does not establish artistic truth, quality, ownership, or human authorship. Missing credentials are neutral. An invalid credential or untrusted signer routes to Review, never Failed.
+- Generator/tool names found in metadata and known identifier strings found in raw bytes are labeled inventory indicators. Editable tags and unauthenticated strings cannot prove how decoded audio was created. Audio-V deliberately has no statistical AI classifier or universal “AI: Yes/No” badge.
+- [Chromaprint](https://acoustid.org/chromaprint) locally fingerprints up to 120 seconds and supports same-fingerprint and high-similarity candidates within the current audit. A fingerprint indicates acoustic relationship, not byte identity, ownership, edition, or mastering provenance.
+- AcoustID lookup is disabled by default. When the user supplies a key and explicitly enables it, Audio-V sends only the duration and Chromaprint value to AcoustID and reads linked recording identifiers/titles. The key remains in memory and is removed from persisted sources and exported evidence. Requests have a 15-second timeout and a 1 MB response limit.
+
+## Dynamics and bit utilization
+
+- FFmpeg `drmeter` adds an overall and per-channel windowed DR descriptor alongside EBU loudness range, peak-to-loudness ratio, and crest factor. These metrics answer different questions and are not interchangeable mastering scores.
+- Integer bit utilization applies only when a reliable declared word length exists for a lossless integer stream. Audio-V measures consistently unused least-significant bits and reports an effective utilized depth. Two or more unused bits route to Review as possible padding or prior truncation; silence is inconclusive. The measurement cannot identify cause or recover precision.
+
 ## Spectral analysis
 
 - The displayed spectrogram is measured, not decorative. Every completed audit persists a 512-point overview and 2,048-point detail tier. The inspector can decode the selected file on demand for 4,096- or 16,384-point analysis without expanding every batch record. Every tier discloses its dynamic floor, frequency range, hop size, and resolution.
@@ -50,6 +65,8 @@ An inconclusive assessment has no rule-strength score and includes a machine-rea
 ## Reproducibility
 
 Reports include file identity, engine version, decoded measurements, analysis settings, evidence disposition, clipping diagnostics, and classifier limitations. Raw spectrogram matrices are omitted from batch JSON exports to keep reports bounded; PNG exports preserve the selected FFT resolution, channel mode, colormap, and display floor.
+
+The headless CLI uses the same Oracle worker and compact JSON contract. Folder recursion, deterministic ordering, worker count, per-worker JavaScript heap limits, and policy exit codes make it suitable for CI and archival ingest. FFmpeg subprocesses stream decoded PCM and do not materialize complete tracks in application memory. Local Chromaprint uses one decode capped at 120 seconds; the optional AcoustID request performs a second capped pass only when it needs the service’s encoded form.
 
 ## Non-destructive level remediation
 

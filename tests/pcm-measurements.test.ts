@@ -86,6 +86,25 @@ describe("PcmMeasurementAccumulator", () => {
     );
   });
 
+  it("detects unused least-significant bits in integer lossless PCM", () => {
+    const analyzer = new PcmMeasurementAccumulator(48_000, 1, {
+      declaredBitDepth: 24,
+      bitUtilizationApplicable: true,
+    });
+    const scale = 2 ** 23;
+    analyzer.pushInterleaved(
+      [256, -512, 768, -1_024].map((value) => value / scale),
+    );
+
+    expect(analyzer.finish().bitUtilization).toMatchObject({
+      applicable: true,
+      declaredBitDepth: 24,
+      effectiveBitDepth: 16,
+      unusedLeastSignificantBits: 8,
+      classification: "possible-bit-padding",
+    });
+  });
+
   it("rejects malformed interleaved buffers and non-finite values", () => {
     const analyzer = new PcmMeasurementAccumulator(48_000, 2);
 

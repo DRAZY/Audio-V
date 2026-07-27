@@ -1,17 +1,42 @@
 export const AUDIO_EXTENSIONS = [
+  ".3g2",
+  ".3gp",
+  ".ac3",
   ".aac",
   ".aif",
   ".aiff",
   ".alac",
+  ".amr",
   ".ape",
+  ".au",
+  ".caf",
   ".dsf",
   ".dff",
+  ".eac3",
+  ".ec3",
   ".flac",
+  ".m4b",
   ".m4a",
+  ".mka",
+  ".mkv",
+  ".mp2",
   ".mp3",
+  ".mp4",
+  ".mpa",
+  ".mpc",
+  ".oga",
   ".ogg",
   ".opus",
+  ".ra",
+  ".ram",
+  ".snd",
+  ".spx",
+  ".tak",
+  ".tta",
+  ".voc",
   ".wav",
+  ".weba",
+  ".webm",
   ".wma",
   ".wv"
 ] as const;
@@ -149,6 +174,19 @@ export interface SignalContinuityMeasurements {
   discontinuityCandidateCount: number;
 }
 
+export interface BitUtilizationAssessment {
+  applicable: boolean;
+  declaredBitDepth: number | null;
+  effectiveBitDepth: number | null;
+  unusedLeastSignificantBits: number | null;
+  classification:
+    | "fully-utilized"
+    | "possible-bit-padding"
+    | "insufficient-signal"
+    | "not-applicable";
+  limitation: string;
+}
+
 export interface SignalMeasurements {
   standard: "Audio-V PCM measurement v1" | "Audio-V signal measurement v2";
   decoder: string | null;
@@ -177,10 +215,97 @@ export interface SignalMeasurements {
   truePeakDbtp: number | null;
   peakToLoudnessRatioLu: number | null;
   crestFactorDb: number | null;
+  drMeter: number | null;
+  drMeterPerChannel: Array<number | null>;
+  bitUtilization: BitUtilizationAssessment;
   continuity: SignalContinuityMeasurements;
   waveform: WaveformMeasurements | null;
   spectrogram: SpectrogramMeasurements;
   spectrogramPyramid?: SpectrogramMeasurements[];
+}
+
+export interface ContentCredentialsAssessment {
+  status:
+    | "not-present"
+    | "valid"
+    | "valid-untrusted-signer"
+    | "invalid"
+    | "unsupported"
+    | "tool-error";
+  manifestCount: number;
+  activeManifest: string | null;
+  claimGenerator: string | null;
+  signer: string | null;
+  signedAt: string | null;
+  digitalSourceTypes: string[];
+  validationErrors: string[];
+  networkAccess: "disabled";
+  limitation: string;
+}
+
+export interface ProvenanceIndicator {
+  type: "generator-metadata" | "watermark-signature" | "content-credential";
+  identifier: string;
+  source: string;
+  value: string;
+  interpretation: string;
+}
+
+export interface AcoustIdLookup {
+  status: "not-requested" | "matched" | "no-match" | "service-error";
+  acoustId: string | null;
+  score: number | null;
+  recordingIds: string[];
+  recordingTitles: string[];
+  error: string | null;
+}
+
+export interface ChromaprintAssessment {
+  status: "measured" | "unavailable" | "error";
+  algorithm: "Chromaprint 1.6.0";
+  durationSeconds: number | null;
+  fingerprint: string | null;
+  rawFingerprint: number[];
+  fingerprintSha256: string | null;
+  matches: Array<{
+    filePath: string;
+    fileName: string;
+    similarity: number;
+    relationship: "same-fingerprint" | "high-similarity";
+  }>;
+  acoustIdLookup: AcoustIdLookup;
+  limitation: string;
+}
+
+export interface MetadataInventory {
+  title: string | null;
+  artists: string[];
+  album: string | null;
+  albumArtists: string[];
+  composers: string[];
+  genres: string[];
+  date: string | null;
+  year: number | null;
+  trackNumber: number | null;
+  trackTotal: number | null;
+  discNumber: number | null;
+  discTotal: number | null;
+  bpm: number | null;
+  isrcs: string[];
+  musicBrainzRecordingIds: string[];
+  acoustId: string | null;
+  replayGain: {
+    trackGainDb: number | null;
+    trackPeak: number | null;
+    albumGainDb: number | null;
+    albumPeak: number | null;
+  };
+  cueSheet: {
+    embedded: boolean;
+    sidecarPaths: string[];
+    trackCount: number;
+  };
+  tags: Array<{ key: string; value: string }>;
 }
 
 export interface StreamTechnicalAnalysis {
@@ -204,6 +329,10 @@ export interface StreamTechnicalAnalysis {
   packetBitrateAverage: number | null;
   flacMd5: FlacMd5Integrity | null;
   externalChecksums: ExternalChecksumVerification[];
+  metadata: MetadataInventory;
+  contentCredentials: ContentCredentialsAssessment;
+  provenanceIndicators: ProvenanceIndicator[];
+  fingerprint: ChromaprintAssessment;
   repairProvenance: {
     action: "true_peak_safe_copy";
     targetDbtp: number;
@@ -245,7 +374,8 @@ export interface OracleResult {
     | "oracle-integrity-fidelity-v4"
     | "oracle-integrity-fidelity-v5"
     | "oracle-integrity-fidelity-v6"
-    | "oracle-integrity-fidelity-v7";
+    | "oracle-integrity-fidelity-v7"
+    | "oracle-integrity-provenance-v8";
   verdict: OracleVerdict;
   analysisState?: OracleAnalysisState;
   failure?: OracleFailure | null;
@@ -278,6 +408,7 @@ export interface AudioFileRecord {
   channels: number | null;
   channelMode: string | null;
   bitrateMode: string | null;
+  metadata: MetadataInventory;
   scanError: string | null;
   oracle: OracleResult;
 }
@@ -287,6 +418,16 @@ export interface AudioSourceSelection {
   paths: string[];
   label: string;
   mode?: AnalysisMode;
+  resourceLimits?: AnalysisResourceLimits;
+  externalLookup?: {
+    acoustIdEnabled: boolean;
+    acoustIdApiKey?: string;
+  };
+}
+
+export interface AnalysisResourceLimits {
+  concurrency: 1 | 2 | 3 | 4;
+  workerMemoryMb: 128 | 256 | 384 | 512;
 }
 
 export type AuditSessionStatus =

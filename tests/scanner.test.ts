@@ -229,4 +229,38 @@ describe("scanSources", () => {
       "External checksum mismatch",
     );
   });
+
+  it("links copied recordings by their local Chromaprint identity", async () => {
+    const directory = await makeTemporaryDirectory();
+    const fixture = path.join(
+      process.cwd(),
+      "tests",
+      "fixtures",
+      "fidelity-engine",
+      "wideband-source-44.flac",
+    );
+    await fs.copyFile(fixture, path.join(directory, "original.flac"));
+    await fs.copyFile(fixture, path.join(directory, "copy.flac"));
+
+    const result = await scanSources({
+      kind: "folder",
+      label: "fingerprint relationship",
+      paths: [directory],
+    });
+
+    expect(result.files).toHaveLength(2);
+    expect(
+      result.files.every(
+        (file) =>
+          file.oracle.technical?.fingerprint.matches[0]?.relationship ===
+          "same-fingerprint",
+      ),
+    ).toBe(true);
+    expect(
+      result.files.every(
+        (file) =>
+          file.oracle.technical?.fingerprint.matches[0]?.similarity === 1,
+      ),
+    ).toBe(true);
+  });
 });

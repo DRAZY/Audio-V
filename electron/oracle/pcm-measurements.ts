@@ -28,6 +28,8 @@ function roundMeasurement(value: number): number {
 export class PcmMeasurementAccumulator {
   readonly #sampleRate: number;
   readonly #channels: number;
+  readonly #declaredBitDepth: number | null;
+  readonly #bitUtilizationApplicable: boolean;
   readonly #perChannel: ChannelAccumulator[];
   #frames = 0;
   #sumSquares = 0;
@@ -56,8 +58,17 @@ export class PcmMeasurementAccumulator {
   #signalSeenBeforeSilence = false;
   #discontinuityCandidateCount = 0;
   #previousFrame: Float64Array | null = null;
+  #minimumTrailingZeroBits: number | null = null;
+  #bitUtilizationSignalSamples = 0;
 
-  constructor(sampleRate: number, channels: number) {
+  constructor(
+    sampleRate: number,
+    channels: number,
+    options: {
+      declaredBitDepth?: number | null;
+      bitUtilizationApplicable?: boolean;
+    } = {},
+  ) {
     if (!Number.isFinite(sampleRate) || sampleRate <= 0) {
       throw new RangeError("sampleRate must be a positive finite number.");
     }
@@ -66,6 +77,16 @@ export class PcmMeasurementAccumulator {
     }
     this.#sampleRate = sampleRate;
     this.#channels = channels;
+    this.#declaredBitDepth =
+      options.declaredBitDepth &&
+      Number.isInteger(options.declaredBitDepth) &&
+      options.declaredBitDepth >= 2 &&
+      options.declaredBitDepth <= 32
+        ? options.declaredBitDepth
+        : null;
+    this.#bitUtilizationApplicable =
+      Boolean(options.bitUtilizationApplicable) &&
+      this.#declaredBitDepth !== null;
     this.#perChannel = Array.from({ length: channels }, () => ({
       peak: 0,
       sum: 0,
@@ -99,6 +120,23 @@ export class PcmMeasurementAccumulator {
           throw new TypeError("PCM samples must be finite numbers.");
         }
         const absolute = Math.abs(sample);
+        if (this.#bitUtilizationApplicable && absolute > 0) {
+          const scale = 2 ** (this.#declaredBitDepth! - 1);
+          let integer = BigInt(Math.round(sample * scale));
+          if (integer < 0n) integer = -integer;
+          if (integer > 0n) {
+            let trailing = 0;
+            while ((integer & 1n) === 0n && trailing < this.#declaredBitDepth!) {
+              integer >>= 1n;
+              trailing += 1;
+            }
+            this.#minimumTrailingZeroBits =
+              this.#minimumTrailingZeroBits === null
+                ? trailing
+                : Math.min(this.#minimumTrailingZeroBits, trailing);
+            this.#bitUtilizationSignalSamples += 1;
+          }
+        }
         if (absolute !== 0) frameIsDigitalSilence = false;
         if (
           this.#previousFrame &&
@@ -306,6 +344,15 @@ export class PcmMeasurementAccumulator {
             : stereoCorrelation >= 0.999 && sideToMidRatioDb <= -30
               ? "near-mono"
               : "stereo-content";
+    const unusedLeastSignificantBits =
+      this.#bitUtilizationApplicable &&
+      this.#bitUtilizationSignalSamples > 0
+        ? this.#minimumTrailingZeroBits
+        : null;
+    const effectiveBitDepth =
+      unusedLeastSignificantBits === null || this.#declaredBitDepth === null
+        ? null
+        : this.#declaredBitDepth - unusedLeastSignificantBits;
     const emptySpectrogram = {
       algorithm: "STFT" as const,
       channelMode: "per-channel power average" as const,
@@ -366,6 +413,23 @@ export class PcmMeasurementAccumulator {
         samplePeakDbfs === null || rmsDbfs === null
           ? null
           : roundMeasurement(samplePeakDbfs - rmsDbfs),
+      drMeter: null,
+      drMeterPerChannel: [],
+      bitUtilization: {
+        applicable: this.#bitUtilizationApplicable,
+        declaredBitDepth: this.#declaredBitDepth,
+        effectiveBitDepth,
+        unusedLeastSignificantBits,
+        classification: !this.#bitUtilizationApplicable
+          ? "not-applicable"
+          : this.#bitUtilizationSignalSamples === 0
+            ? "insufficient-signal"
+            : (unusedLeastSignificantBits ?? 0) >= 2
+              ? "possible-bit-padding"
+              : "fully-utilized",
+        limitation:
+          "Bit utilization measures repeated unused least-significant bits in integer lossless PCM. It can reveal padding or truncation but cannot identify why it occurred or recover discarded precision.",
+      },
       continuity: {
         exactDigitalSilenceFrames: this.#exactDigitalSilenceFrames,
         longestDigitalSilenceSeconds: roundMeasurement(
