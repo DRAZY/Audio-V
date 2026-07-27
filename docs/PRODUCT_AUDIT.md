@@ -52,7 +52,7 @@ Status meanings:
 - **Planned** — specified and prioritized, but not implemented.
 - **Excluded** — intentionally outside the core product.
 
-| Capability | User value | v0.4.5 source status | Disposition |
+| Capability | User value | v0.4.6 source status | Disposition |
 | --- | --- | --- | --- |
 | File and folder ingest | Analyze one track or a full library | Implemented | Current |
 | Recursive bounded discovery | Avoid freezing on large trees | Implemented | Current |
@@ -72,8 +72,8 @@ Status meanings:
 | Adjustable analysis settings | Reproducible visual evidence | Implemented | Current |
 | Effective-bandwidth estimate | Support upsample/transcode review | Implemented as conservative heuristic evidence | Current |
 | Evidence-backed verdict | Explain facts versus heuristics | Implemented with scoped Clear, Review, Failed, and Analysis error outcomes | Current |
-| Batch queue, pause, resume, cancel | Library-scale workflow | Implemented | Current |
-| Saved cache and sessions | Resume audits and avoid repeated work | Implemented with SQLite persistence | Current |
+| Batch queue, pause, resume, cancel | Library-scale workflow | Implemented with crash-safe in-flight checkpoints and conservative recovery limits | Current |
+| Saved cache and sessions | Resume audits and avoid repeated work | Implemented with SQLite persistence, startup interruption recovery, and suspect-file isolation | Current |
 | PDF/XLSX/DOCX/CSV/JSON reports | Share and automate results | Implemented from a shared evidence model | Current |
 | File/edition comparison | Distinguish masters and encodes | Implemented with independent loading and full-overlap multichannel null testing | Current |
 | Duplicate fingerprints | Find identical audio across containers and sessions | Implemented with persistent SQLite index | Current |
@@ -125,7 +125,7 @@ The Oracle Engine must be an independent, versioned worker rather than renderer 
 - True-peak remediation derives its gain from the current authoritative Oracle record rather than accepting a renderer-supplied measurement.
 - Renderer navigation, permission requests, and content loading use default-deny policies.
 - Spectrogram power and waveform envelopes are channel-safe and no longer erase opposite-polarity stereo material.
-- Audit history can reopen persisted evidence, interrupted sources can be resumed into a recovery audit, active queues can pause after current jobs finish, and failed records can be retried.
+- Audit history can reopen persisted evidence. At startup, orphaned running sessions become explicit interrupted checkpoints; the last source label is restored, safe resume avoids preloading the large partial result set, completed cache records are reused, and only files active when the prior process ended are quarantined as analysis errors for separate inspection. Active queues can pause after current jobs finish, and failed records can be retried.
 - The legacy 300-entry JSON cache migrates once into the unbounded SQLite Oracle cache, keyed by file size, modification time, and Oracle engine version.
 - Compare now runs a separate decoded-signal worker that measures offset, gain, polarity, correlation, residual energy, and relationship.
 - Spectrum analysis now stores a selectable 512-point overview and 2,048-point detail tier.

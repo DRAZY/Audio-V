@@ -90,6 +90,10 @@ port.on("message", (request: StorageWorkerRequest) => {
     switch (request.operation) {
       case "create":
         return store.create(request.source);
+      case "recover-interrupted":
+        return store.recoverInterruptedSessions();
+      case "mark-file-started":
+        return store.markFileStarted(request.sessionId, request.filePath);
       case "mark-discovered":
         return store.markDiscovered(request.sessionId, request.count, request.warnings);
       case "store-file":
@@ -102,6 +106,10 @@ port.on("message", (request: StorageWorkerRequest) => {
         return store.listSessions(request.limit);
       case "get-session":
         return store.getSession(request.sessionId);
+      case "get-session-summary":
+        return store.getSessionSummary(request.sessionId);
+      case "get-recovery-candidates":
+        return store.getRecoveryCandidates(request.sessionId);
       case "get-cached":
         return store.getCached(request.filePath);
       case "set-cached":

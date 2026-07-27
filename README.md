@@ -34,14 +34,14 @@ Audio-V is deliberately not a music player, tag editor, or mastering suite. It i
 
 ## Download
 
-The `v0.4.5` development release provides all four requested desktop packages:
+The `v0.4.6` development release provides all four requested desktop packages:
 
 | Platform | Package | Intended system |
 |---|---|---|
-| macOS | [Apple Silicon DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.5/Audio-V-0.4.5-mac-arm64.dmg) | Native Apple Silicon |
-| macOS | [Universal DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.5/Audio-V-0.4.5-mac-universal.dmg) | Apple Silicon and Intel |
-| Windows | [x64 installer](https://github.com/DRAZY/Audio-V/releases/download/v0.4.5/Audio-V-0.4.5-win-x64.exe) | Guided desktop installation |
-| Windows | [x64 portable](https://github.com/DRAZY/Audio-V/releases/download/v0.4.5/Audio-V-Portable-0.4.5-x64.exe) | Run without installing the application |
+| macOS | [Apple Silicon DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.6/Audio-V-0.4.6-mac-arm64.dmg) | Native Apple Silicon |
+| macOS | [Universal DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.6/Audio-V-0.4.6-mac-universal.dmg) | Apple Silicon and Intel |
+| Windows | [x64 installer](https://github.com/DRAZY/Audio-V/releases/download/v0.4.6/Audio-V-0.4.6-win-x64.exe) | Guided desktop installation |
+| Windows | [x64 portable](https://github.com/DRAZY/Audio-V/releases/download/v0.4.6/Audio-V-Portable-0.4.6-x64.exe) | Run without installing the application |
 
 Every release also includes `SHA256SUMS.txt`, block maps, and `UNSIGNED_RELEASE_MANIFEST.json`. Read the [unsigned installation guide](docs/UNSIGNED_INSTALLATION.md) before opening a build.
 

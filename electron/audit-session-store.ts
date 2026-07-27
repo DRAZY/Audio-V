@@ -18,6 +18,7 @@ interface SessionRow {
   label: string;
   source_json: string;
   status: AuditSessionStatus;
+  interrupted: number;
   discovered_count: number;
   completed_count: number;
   warnings_json: string;
@@ -30,7 +31,9 @@ interface FileRow {
   record_json: string;
 }
 
-const schemaVersion = 3;
+const schemaVersion = 4;
+const crashRecoveryWarning =
+  "Audio-V recovered this audit after the previous application process ended before the scan finished.";
 
 export class AuditSessionStore {
   readonly #database: DatabaseSync;
@@ -45,6 +48,7 @@ export class AuditSessionStore {
         label TEXT NOT NULL,
         source_json TEXT NOT NULL,
         status TEXT NOT NULL CHECK (status IN ('running', 'completed', 'canceled', 'failed')),
+        interrupted INTEGER NOT NULL DEFAULT 0,
         discovered_count INTEGER NOT NULL DEFAULT 0,
         completed_count INTEGER NOT NULL DEFAULT 0,
         warnings_json TEXT NOT NULL DEFAULT '[]',
@@ -65,6 +69,14 @@ export class AuditSessionStore {
         ON audit_files(session_id, ordinal);
       CREATE INDEX IF NOT EXISTS audit_sessions_updated_at
         ON audit_sessions(updated_at DESC);
+      CREATE TABLE IF NOT EXISTS audit_active_files (
+        session_id TEXT NOT NULL REFERENCES audit_sessions(id) ON DELETE CASCADE,
+        file_path TEXT NOT NULL,
+        started_at TEXT NOT NULL,
+        PRIMARY KEY (session_id, file_path)
+      );
+      CREATE INDEX IF NOT EXISTS audit_active_files_session
+        ON audit_active_files(session_id);
       CREATE TABLE IF NOT EXISTS oracle_cache (
         file_path TEXT PRIMARY KEY,
         size_bytes INTEGER NOT NULL,
@@ -94,6 +106,14 @@ export class AuditSessionStore {
       );
       PRAGMA user_version = ${schemaVersion};
     `);
+    const sessionColumns = this.#database
+      .prepare("PRAGMA table_info(audit_sessions)")
+      .all() as unknown as Array<{ name: string }>;
+    if (!sessionColumns.some((column) => column.name === "interrupted")) {
+      this.#database.exec(
+        "ALTER TABLE audit_sessions ADD COLUMN interrupted INTEGER NOT NULL DEFAULT 0",
+      );
+    }
   }
 
   create(source: AudioSourceSelection): string {
@@ -117,6 +137,17 @@ export class AuditSessionStore {
         WHERE id = ?
       `)
       .run(count, JSON.stringify(warnings), new Date().toISOString(), sessionId);
+  }
+
+  markFileStarted(sessionId: string, filePath: string): void {
+    this.#database
+      .prepare(`
+        INSERT INTO audit_active_files (session_id, file_path, started_at)
+        VALUES (?, ?, ?)
+        ON CONFLICT(session_id, file_path) DO UPDATE SET
+          started_at = excluded.started_at
+      `)
+      .run(sessionId, path.resolve(filePath), new Date().toISOString());
   }
 
   storeFile(
@@ -160,6 +191,12 @@ export class AuditSessionStore {
           now,
         );
         this.#indexFingerprint(entry.file, now);
+        this.#database
+          .prepare(`
+            DELETE FROM audit_active_files
+            WHERE session_id = ? AND file_path = ?
+          `)
+          .run(sessionId, path.resolve(entry.file.path));
       }
       this.#database
         .prepare(`
@@ -183,13 +220,81 @@ export class AuditSessionStore {
     warnings: string[],
   ): void {
     const now = new Date().toISOString();
-    this.#database
+    this.#database.exec("BEGIN IMMEDIATE");
+    try {
+      this.#database
+        .prepare(`
+          UPDATE audit_sessions
+          SET status = ?, warnings_json = ?, updated_at = ?, finished_at = ?
+          WHERE id = ?
+        `)
+        .run(status, JSON.stringify(warnings), now, now, sessionId);
+      this.#database
+        .prepare("DELETE FROM audit_active_files WHERE session_id = ?")
+        .run(sessionId);
+      this.#database.exec("COMMIT");
+    } catch (error) {
+      this.#database.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
+  recoverInterruptedSessions(): number {
+    const rows = this.#database
       .prepare(`
-        UPDATE audit_sessions
-        SET status = ?, warnings_json = ?, updated_at = ?, finished_at = ?
-        WHERE id = ?
+        SELECT id, warnings_json
+        FROM audit_sessions
+        WHERE status = 'running'
       `)
-      .run(status, JSON.stringify(warnings), now, now, sessionId);
+      .all() as unknown as Array<{ id: string; warnings_json: string }>;
+    if (rows.length === 0) return 0;
+    const now = new Date().toISOString();
+    this.#database.exec("BEGIN IMMEDIATE");
+    try {
+      const update = this.#database.prepare(`
+        UPDATE audit_sessions
+        SET status = 'canceled',
+            interrupted = 1,
+            warnings_json = ?,
+            updated_at = ?,
+            finished_at = ?
+        WHERE id = ? AND status = 'running'
+      `);
+      for (const row of rows) {
+        let warnings: string[] = [];
+        try {
+          const parsed = JSON.parse(row.warnings_json) as unknown;
+          if (Array.isArray(parsed)) {
+            warnings = parsed.filter(
+              (warning): warning is string => typeof warning === "string",
+            );
+          }
+        } catch {
+          warnings = [];
+        }
+        if (!warnings.includes(crashRecoveryWarning)) {
+          warnings.push(crashRecoveryWarning);
+        }
+        update.run(JSON.stringify(warnings), now, now, row.id);
+      }
+      this.#database.exec("COMMIT");
+      return rows.length;
+    } catch (error) {
+      this.#database.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
+  getRecoveryCandidates(sessionId: string): string[] {
+    const rows = this.#database
+      .prepare(`
+        SELECT file_path
+        FROM audit_active_files
+        WHERE session_id = ?
+        ORDER BY started_at, file_path
+      `)
+      .all(sessionId) as unknown as Array<{ file_path: string }>;
+    return rows.map((row) => row.file_path);
   }
 
   updateSessionFile(
@@ -559,11 +664,20 @@ export class AuditSessionStore {
   }
 
   #summary(row: SessionRow): AuditSessionSummary {
+    const recoveryCandidate = this.#database
+      .prepare(`
+        SELECT COUNT(*) AS count
+        FROM audit_active_files
+        WHERE session_id = ?
+      `)
+      .get(row.id) as unknown as { count: number };
     return {
       id: row.id,
       label: row.label,
       source: JSON.parse(row.source_json) as AudioSourceSelection,
       status: row.status,
+      interrupted: Boolean(row.interrupted),
+      recoveryCandidateCount: recoveryCandidate.count,
       discoveredCount: row.discovered_count,
       completedCount: row.completed_count,
       warningCount: (JSON.parse(row.warnings_json) as string[]).length,

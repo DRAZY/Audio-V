@@ -60,7 +60,11 @@ The Reports workspace opens complete per-file evidence and exports the current a
 
 ## History and recovery
 
-Audio-V stores audit sessions locally. History can reopen completed evidence or resume an interrupted source. Cache reuse requires matching file size, modification time, and Oracle engine version.
+Audio-V stores the source, discovered count, completed records, and currently decoding file set in a local SQLite checkpoint. If the application process ends during a scan, the next launch restores the last source label and marks the orphaned session **Interrupted** in History.
+
+**Resume safely** starts directly from that checkpoint without first loading the entire partial result set into the interface. It reuses completed records whose file size, modification time, and Oracle engine version still match, and temporarily reduces the audit to one worker, one FFmpeg thread, a 256 MB worker heap, and a 512 MB native-process limit.
+
+Files that were actively decoding when the prior process ended are isolated from the recovery pass. They appear as **Analysis error · Quarantined during crash recovery**, not Failed or damaged, and can be assessed separately after the rest of the library finishes. If a saved removable or network source is not mounted, Audio-V explains which path must be reconnected instead of starting a broken resume.
 
 ## Keyboard commands
 

@@ -1682,6 +1682,15 @@ button:focus-visible {
   color: var(--amber);
 }
 
+.session-history-list article > b.session-interrupted {
+  color: #ff9f7a;
+  background: rgba(255, 112, 91, 0.12);
+}
+
+.session-history-list article > div span.session-recovery-note {
+  color: #ffb08f;
+}
+
 .session-history-empty {
   padding: 28px;
   text-align: center;

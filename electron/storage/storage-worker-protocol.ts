@@ -7,12 +7,16 @@ import type {
 
 export type StorageWorkerRequest =
   | { id: string; operation: "create"; source: AudioSourceSelection }
+  | { id: string; operation: "recover-interrupted" }
+  | { id: string; operation: "mark-file-started"; sessionId: string; filePath: string }
   | { id: string; operation: "mark-discovered"; sessionId: string; count: number; warnings: string[] }
   | { id: string; operation: "store-file"; sessionId: string; file: AudioFileRecord; ordinal: number; fromCache: boolean }
   | { id: string; operation: "store-files"; sessionId: string; entries: Array<{ file: AudioFileRecord; ordinal: number; fromCache: boolean }> }
   | { id: string; operation: "finish"; sessionId: string; status: Exclude<AuditSessionStatus, "running">; warnings: string[] }
   | { id: string; operation: "list-sessions"; limit?: number }
   | { id: string; operation: "get-session"; sessionId: string }
+  | { id: string; operation: "get-session-summary"; sessionId: string }
+  | { id: string; operation: "get-recovery-candidates"; sessionId: string }
   | { id: string; operation: "get-cached"; filePath: string }
   | { id: string; operation: "set-cached"; file: AudioFileRecord }
   | { id: string; operation: "find-fingerprints"; filePath: string; limit?: number }

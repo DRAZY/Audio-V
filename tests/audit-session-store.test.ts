@@ -84,6 +84,54 @@ describe("AuditSessionStore", () => {
     }
   });
 
+  it("recovers an abruptly interrupted audit and isolates only in-flight files", async () => {
+    const directory = await fs.mkdtemp(
+      path.join(process.cwd(), "tests/.tmp-session-recovery-"),
+    );
+    temporaryDirectories.push(directory);
+    const databasePath = path.join(directory, "sessions.sqlite3");
+    const completedPath = path.join(directory, "completed.wav");
+    const inFlightPath = path.join(directory, "in-flight.wav");
+    await fs.writeFile(completedPath, pcmWave({ seconds: 0.2 }));
+    await fs.writeFile(inFlightPath, pcmWave({ seconds: 0.2 }));
+    const source = {
+      kind: "folder" as const,
+      label: directory,
+      paths: [directory],
+    };
+    const firstProcess = new AuditSessionStore(databasePath);
+    const sessionId = firstProcess.create(source);
+    firstProcess.markDiscovered(sessionId, 2, []);
+    const completed = await scanSources({
+      kind: "files",
+      label: "Completed checkpoint",
+      paths: [completedPath],
+    });
+    firstProcess.markFileStarted(sessionId, completedPath);
+    firstProcess.markFileStarted(sessionId, inFlightPath);
+    firstProcess.storeFile(sessionId, completed.files[0], 0, false);
+    firstProcess.close();
+
+    const recoveredProcess = new AuditSessionStore(databasePath);
+    try {
+      expect(recoveredProcess.recoverInterruptedSessions()).toBe(1);
+      expect(recoveredProcess.recoverInterruptedSessions()).toBe(0);
+      expect(recoveredProcess.getRecoveryCandidates(sessionId)).toEqual([
+        inFlightPath,
+      ]);
+      expect(recoveredProcess.getSession(sessionId)).toMatchObject({
+        status: "canceled",
+        interrupted: true,
+        recoveryCandidateCount: 1,
+        discoveredCount: 2,
+        completedCount: 1,
+        warningCount: 1,
+      });
+    } finally {
+      recoveredProcess.close();
+    }
+  });
+
   it("reuses SQLite-cached Oracle records and invalidates changed files", async () => {
     const directory = await fs.mkdtemp(
       path.join(process.cwd(), "tests/.tmp-session-cache-"),

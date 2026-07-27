@@ -51,6 +51,14 @@ export class AuditStorageClient {
     return this.#request({ operation: "create", source });
   }
 
+  recoverInterruptedSessions(): Promise<number> {
+    return this.#request({ operation: "recover-interrupted" });
+  }
+
+  markFileStarted(sessionId: string, filePath: string): Promise<void> {
+    return this.#request({ operation: "mark-file-started", sessionId, filePath });
+  }
+
   markDiscovered(sessionId: string, count: number, warnings: string[]): Promise<void> {
     return this.#request({ operation: "mark-discovered", sessionId, count, warnings });
   }
@@ -80,6 +88,14 @@ export class AuditStorageClient {
 
   getSession(sessionId: string): Promise<StoredAuditSession | null> {
     return this.#request({ operation: "get-session", sessionId });
+  }
+
+  getSessionSummary(sessionId: string): Promise<AuditSessionSummary | null> {
+    return this.#request({ operation: "get-session-summary", sessionId });
+  }
+
+  getRecoveryCandidates(sessionId: string): Promise<string[]> {
+    return this.#request({ operation: "get-recovery-candidates", sessionId });
   }
 
   getCached(filePath: string): Promise<AudioFileRecord | null> {

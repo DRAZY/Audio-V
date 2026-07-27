@@ -150,6 +150,41 @@ function notAnalyzedOracleResult(scanError: string | null): OracleResult {
   };
 }
 
+function recoveryQuarantinedOracleResult(reason: string): OracleResult {
+  return {
+    schemaVersion: 1,
+    engineVersion: currentOracleEngineVersion,
+    scope: "oracle-integrity-forensics-v10",
+    verdict: "inconclusive",
+    analysisState: "error",
+    failure: {
+      category: "analysis-error",
+      stage: "oracle-engine",
+      code: "RECOVERY_QUARANTINED",
+      summary:
+        "Audio-V skipped this file during safe recovery because it was active when the previous application process ended.",
+      evidence: reason,
+    },
+    confidence: null,
+    headline: "Quarantined during crash recovery",
+    interpretation:
+      "This is not evidence of file damage. The remaining source was resumed with conservative resource limits; analyze this file separately after the recovered audit completes.",
+    evidence: [
+      {
+        id: "crash-recovery-quarantine",
+        label: "Crash recovery",
+        summary: reason,
+        kind: "deterministic",
+        disposition: "neutral",
+      },
+    ],
+    measurements: null,
+    technical: null,
+    fidelity: null,
+    measuredAt: null,
+  };
+}
+
 async function collectAudioFiles(
   root: string,
   warnings: string[],
@@ -703,6 +738,7 @@ export async function scanSources(
       filePaths: string[],
       warnings: string[],
     ) => void | Promise<void>;
+    onFileStarted?: (filePath: string) => void | Promise<void>;
     onFileStored?: (
       file: AudioFileRecord,
       ordinal: number,
@@ -710,6 +746,7 @@ export async function scanSources(
     ) => void | Promise<void>;
     waitIfPaused?: () => Promise<void>;
     concurrency?: number;
+    recoveryQuarantine?: ReadonlyMap<string, string>;
   },
 ): Promise<ScanSelectionResult> {
   const warnings: string[] = [];
@@ -783,6 +820,7 @@ export async function scanSources(
   let completed = 0;
   const analyzeAtIndex = async (index: number): Promise<void> => {
     const filePath = filePaths[index];
+    await options?.onFileStarted?.(filePath);
     onProgress?.({
       phase: "processing",
       completed,
@@ -825,6 +863,19 @@ export async function scanSources(
           };
         }
         const inspected = await inspectAudioFile(filePath);
+        const recoveryReason = options?.recoveryQuarantine?.get(
+          path.resolve(filePath),
+        );
+        if (!inventoryOnly && recoveryReason) {
+          return {
+            file: normalizeAudioRecordFormat({
+              ...inspected,
+              scanError: null,
+              oracle: recoveryQuarantinedOracleResult(recoveryReason),
+            }),
+            fromCache: false,
+          };
+        }
         if (inventoryOnly) {
           return {
             file: normalizeAudioRecordFormat(inspected),

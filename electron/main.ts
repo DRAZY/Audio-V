@@ -24,6 +24,7 @@ import { configureEngineResourcePolicy } from "./oracle/ffmpeg-runtime";
 import { normalizeSourcePath, sourcePathKey } from "./source-path";
 
 const approvedSelections = new Map<string, AudioSourceSelection>();
+const recoveryQuarantines = new Map<string, ReadonlyMap<string, string>>();
 const approvedAudioFiles = new Set<string>();
 const authoritativeRecords = new Map<string, AudioFileRecord>();
 const audioDialogFilters = [
@@ -401,6 +402,60 @@ ipcMain.handle("sessions:open", async (_event, requestedSessionId: unknown) => {
 });
 
 ipcMain.handle(
+  "sessions:prepare-resume",
+  async (_event, requestedSessionId: unknown) => {
+    if (
+      typeof requestedSessionId !== "string" ||
+      !/^[a-f0-9-]{36}$/iu.test(requestedSessionId)
+    ) {
+      throw new TypeError("A valid audit session identifier is required.");
+    }
+    const session = await auditSessions.getSessionSummary(requestedSessionId);
+    if (!session) throw new Error("The requested audit session was not found.");
+    for (const sourcePath of session.source.paths) {
+      try {
+        await fs.stat(sourcePath);
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : "source unavailable";
+        throw new Error(
+          `The saved source is not currently available: ${sourcePath}. Reconnect or remount it, then resume again. (${detail})`,
+        );
+      }
+    }
+    const recoveryCandidates =
+      await auditSessions.getRecoveryCandidates(requestedSessionId);
+    const source = approveSelection({
+      ...session.source,
+      resourceLimits: {
+        concurrency: 1,
+        workerMemoryMb: 256,
+        ffmpegThreads: 1,
+        nativeProcessMemoryMb: 512,
+      },
+    });
+    recoveryQuarantines.set(
+      selectionKey(source),
+      new Map(
+        recoveryCandidates.map((filePath) => [
+          path.resolve(filePath),
+          `${path.basename(filePath)} was actively decoding when the previous Audio-V process ended unexpectedly.`,
+        ]),
+      ),
+    );
+    return {
+      sessionId: session.id,
+      source,
+      completedCount: session.completedCount,
+      discoveredCount: session.discoveredCount,
+      recoveryCandidateCount: recoveryCandidates.length,
+      recoveryCandidateNames: recoveryCandidates.map((filePath) =>
+        path.basename(filePath),
+      ),
+    };
+  },
+);
+
+ipcMain.handle(
   "comparison:analyze-signals",
   async (
     _event,
@@ -480,6 +535,8 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
     externalLookup: requestedSource.externalLookup,
   };
   const requestedLimits = source.resourceLimits ?? defaultResourceLimits;
+  const recoveryQuarantine =
+    recoveryQuarantines.get(selectionKey(source)) ?? new Map<string, string>();
   activeScanController?.abort();
   if (
     requestedLimits.concurrency !== currentResourceLimits.concurrency ||
@@ -536,11 +593,14 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
             sessionWarnings,
           );
         },
+        onFileStarted: (filePath) =>
+          auditSessions.markFileStarted(sessionId, filePath),
         onFileStored: (file, ordinal, fromCache) => {
           persistence.add(file, ordinal, fromCache);
         },
         waitIfPaused: () => pauseGate.wait(controller.signal),
         concurrency: requestedLimits.concurrency,
+        recoveryQuarantine,
       },
     );
     await persistence.flush();
@@ -579,6 +639,7 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
     );
     throw error;
   } finally {
+    recoveryQuarantines.delete(selectionKey(source));
     await oracleCache.flush();
     if (activeScanController === controller) activeScanController = null;
     if (activeScanPause === pauseGate) activeScanPause = null;
@@ -915,6 +976,7 @@ app.whenReady().then(async () => {
     path.join(__dirname, "storage", "storage-worker.js"),
     path.join(userDataPath, "audit-sessions-v1.sqlite3"),
   );
+  await auditSessions.recoverInterruptedSessions();
   await auditSessions.importLegacyCache(
     path.join(userDataPath, "oracle-cache-v4.json"),
   );

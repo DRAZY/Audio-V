@@ -550,6 +550,8 @@ export interface AuditSessionSummary {
   label: string;
   source: AudioSourceSelection;
   status: AuditSessionStatus;
+  interrupted: boolean;
+  recoveryCandidateCount: number;
   discoveredCount: number;
   completedCount: number;
   warningCount: number;
@@ -561,6 +563,15 @@ export interface AuditSessionSummary {
 export interface StoredAuditSession extends AuditSessionSummary {
   warnings: string[];
   files: AudioFileRecord[];
+}
+
+export interface AuditResumePlan {
+  sessionId: string;
+  source: AudioSourceSelection;
+  completedCount: number;
+  discoveredCount: number;
+  recoveryCandidateCount: number;
+  recoveryCandidateNames: string[];
 }
 
 export interface DecodedSignalComparison {
@@ -704,6 +715,7 @@ export interface AudioVDesktopApi {
   scanSelection(source: AudioSourceSelection): Promise<ScanSelectionResult>;
   listAuditSessions(): Promise<AuditSessionSummary[]>;
   openAuditSession(sessionId: string): Promise<StoredAuditSession>;
+  prepareAuditSessionResume(sessionId: string): Promise<AuditResumePlan>;
   compareSignals(
     leftPath: string,
     rightPath: string,

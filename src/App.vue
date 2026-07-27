@@ -916,15 +916,20 @@ async function scanSource(source: AudioSourceSelection): Promise<void> {
   }
   const mode = source.mode ?? scanMode.value;
   scanMode.value = mode;
+  const requestedLimits = source.resourceLimits ?? {
+    concurrency: analysisConcurrency.value,
+    workerMemoryMb: analysisWorkerMemoryMb.value,
+    ffmpegThreads: analysisFfmpegThreads.value,
+    nativeProcessMemoryMb: analysisNativeMemoryMb.value,
+  };
+  analysisConcurrency.value = requestedLimits.concurrency;
+  analysisWorkerMemoryMb.value = requestedLimits.workerMemoryMb;
+  analysisFfmpegThreads.value = requestedLimits.ffmpegThreads;
+  analysisNativeMemoryMb.value = requestedLimits.nativeProcessMemoryMb;
   const requestedSource = {
     ...source,
     mode,
-    resourceLimits: {
-      concurrency: analysisConcurrency.value,
-      workerMemoryMb: analysisWorkerMemoryMb.value,
-      ffmpegThreads: analysisFfmpegThreads.value,
-      nativeProcessMemoryMb: analysisNativeMemoryMb.value,
-    },
+    resourceLimits: requestedLimits,
     externalLookup: {
       acoustIdEnabled: acoustIdEnabled.value,
       ...(acoustIdEnabled.value && acoustIdApiKey.value
@@ -1007,6 +1012,19 @@ async function scanSource(source: AudioSourceSelection): Promise<void> {
 async function refreshAuditSessions(): Promise<void> {
   if (!window.audioV) return;
   recentSessions.value = await window.audioV.listAuditSessions();
+  if (
+    sourceRoot.value === "No source selected" &&
+    files.value.length === 0
+  ) {
+    const interrupted = recentSessions.value.find(
+      (session) => session.interrupted,
+    );
+    if (interrupted) {
+      sourceRoot.value = interrupted.label;
+      scanMessage.value =
+        `${interrupted.completedCount.toLocaleString()} of ${interrupted.discoveredCount.toLocaleString()} files were checkpointed before the interruption · open History to resume safely`;
+    }
+  }
 }
 
 async function refreshFingerprintLibrary(): Promise<void> {
@@ -1104,8 +1122,23 @@ async function openAuditSession(sessionId: string): Promise<void> {
 
 async function resumeAuditSession(session: AuditSessionSummary): Promise<void> {
   if (!window.audioV || isDiscovering.value) return;
-  await openAuditSession(session.id);
-  await scanSource(session.source);
+  loadingSessionId.value = session.id;
+  try {
+    const plan = await window.audioV.prepareAuditSessionResume(session.id);
+    sourceRoot.value = plan.source.label;
+    historyOpen.value = false;
+    scanMessage.value = plan.recoveryCandidateCount
+      ? `Safe recovery will reuse ${plan.completedCount.toLocaleString()} checkpointed files and quarantine ${plan.recoveryCandidateCount.toLocaleString()} file${plan.recoveryCandidateCount === 1 ? "" : "s"} that were active during the interruption`
+      : `Resuming ${plan.completedCount.toLocaleString()} of ${plan.discoveredCount.toLocaleString()} checkpointed files with conservative resource limits`;
+    await scanSource(plan.source);
+  } catch (error) {
+    scanMessage.value =
+      error instanceof Error
+        ? error.message
+        : "The interrupted audit could not be resumed safely.";
+  } finally {
+    loadingSessionId.value = "";
+  }
 }
 
 async function toggleScanPause(): Promise<void> {
@@ -1856,8 +1889,13 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
                 {{ session.warningCount }} warnings ·
                 {{ new Date(session.updatedAt).toLocaleString() }}
               </span>
+              <span v-if="session.interrupted" class="session-recovery-note">
+                {{ session.recoveryCandidateCount.toLocaleString() }} in-flight file{{ session.recoveryCandidateCount === 1 ? "" : "s" }} will be isolated during safe recovery
+              </span>
             </div>
-            <b :class="`session-${session.status}`">{{ session.status }}</b>
+            <b :class="`session-${session.interrupted ? 'interrupted' : session.status}`">
+              {{ session.interrupted ? "interrupted" : session.status }}
+            </b>
             <button
               :disabled="isDiscovering || loadingSessionId === session.id"
               @click="openAuditSession(session.id)"
@@ -1870,7 +1908,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
               :disabled="isDiscovering || loadingSessionId === session.id"
               @click="resumeAuditSession(session)"
             >
-              Resume source
+              Resume safely
             </button>
           </article>
         </div>

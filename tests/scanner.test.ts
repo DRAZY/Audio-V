@@ -293,6 +293,43 @@ describe("scanSources", () => {
     });
   });
 
+  it("quarantines an in-flight crash candidate without labeling it damaged", async () => {
+    const directory = await makeTemporaryDirectory();
+    const safePath = path.join(directory, "safe.wav");
+    const suspectPath = path.join(directory, "suspect.wav");
+    await fs.writeFile(safePath, pcmWave());
+    await fs.writeFile(suspectPath, pcmWave());
+    const started: string[] = [];
+
+    const result = await scanSources(
+      { kind: "folder", label: directory, paths: [directory] },
+      undefined,
+      {
+        concurrency: 1,
+        onFileStarted: (filePath) => started.push(filePath),
+        recoveryQuarantine: new Map([
+          [
+            suspectPath,
+            "suspect.wav was active when the previous process ended.",
+          ],
+        ]),
+      },
+    );
+
+    expect(started).toEqual([safePath, suspectPath]);
+    const safe = result.files.find((file) => file.path === safePath);
+    const suspect = result.files.find((file) => file.path === suspectPath);
+    expect(safe?.oracle.analysisState).toBe("completed");
+    expect(suspect?.oracle).toMatchObject({
+      verdict: "inconclusive",
+      analysisState: "error",
+      failure: {
+        category: "analysis-error",
+        code: "RECOVERY_QUARANTINED",
+      },
+    });
+  });
+
   it("honors adaptive bounded analysis concurrency", async () => {
     const directory = await makeTemporaryDirectory();
     for (let index = 0; index < 4; index += 1) {
