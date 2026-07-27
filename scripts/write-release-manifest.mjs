@@ -29,19 +29,21 @@ for (const name of artifactNames) {
     name,
     bytes: stat.size,
     sha256: await sha256(file),
-    signingStatus: "unsigned-by-project-policy",
+    signingStatus: name.endsWith(".dmg")
+      ? "ad-hoc-app-signature-no-developer-identity"
+      : "unsigned-by-project-policy",
   });
 }
 
 const manifest = {
-  schema: "Audio-V unsigned release manifest v1",
+  schema: "Audio-V development release manifest v2",
   product: "Audio-V",
   version: packageJson.version,
   projectLicense: packageJson.license,
   correspondingSource: `https://github.com/DRAZY/Audio-V/tree/v${packageJson.version}`,
   distribution: "open-source-development",
   signingPolicy:
-    "Artifacts are intentionally unsigned and not notarized. Verify SHA-256 values against the GitHub Release before opening.",
+    "macOS app bundles are whole-bundle ad-hoc signed for code-integrity validation but have no Developer ID identity and are not notarized. Windows artifacts are unsigned. Verify SHA-256 values against the GitHub Release before opening.",
   futureSigningReady: {
     macDeveloperIdAndNotarization: "optional-not-configured",
     windowsAuthenticode: "optional-not-configured",
@@ -52,4 +54,4 @@ await fs.writeFile(
   path.join(release, "UNSIGNED_RELEASE_MANIFEST.json"),
   `${JSON.stringify(manifest, null, 2)}\n`,
 );
-console.log(`Wrote unsigned release manifest for ${artifacts.length} artifacts.`);
+console.log(`Wrote development release manifest for ${artifacts.length} artifacts.`);

@@ -15,6 +15,7 @@ A release candidate is evidence-backed, not simply a successful packaging comman
 - [ ] Packaged CLI folder audit emits the v10 JSON evidence model, honors evidence-policy and native resource limits, and does not persist external-service keys.
 - [ ] Production dependency audit reports zero known vulnerabilities.
 - [ ] Apple Silicon DMG, Universal DMG, Windows installer, and Windows portable artifacts pass structural inspection.
+- [ ] Both macOS app bundles have valid whole-bundle ad-hoc signatures, no Developer ID identity, and remain valid after quarantine metadata is applied.
 - [ ] Native packaged applications complete the reference FLAC audit.
 - [ ] macOS and Windows Oracle snapshots agree within declared tolerances.
 - [ ] Artifact checksums and unsigned-release manifest agree.
@@ -31,11 +32,11 @@ A release candidate is evidence-backed, not simply a successful packaging comman
 - [ ] 100%, 125%, 150%, and 200% display scaling checked without clipped primary actions.
 - [ ] Long filenames, Unicode paths, removable media, read-only sources, unavailable volumes, corrupt files, and cancellation under load checked.
 - [ ] Upgrade and rollback do not corrupt the SQLite session database.
-- [ ] Unsigned warning instructions and SHA-256 verification checked against current operating-system behavior.
+- [ ] macOS unknown-developer “Open Anyway” and Windows unsigned-warning instructions plus SHA-256 verification checked against current operating-system behavior.
 
 ## Policy waivers
 
-Code signing and notarization are not release-candidate requirements while the official project policy remains unsigned open-source development distribution. Their absence must be explicit in the build log, manifest, release notes, and installation guide.
+Developer ID/Authenticode certificate signing and Apple notarization are not release-candidate requirements while the official project policy remains open-source development distribution. macOS ad-hoc integrity signing is required; the absence of trusted identities and notarization must remain explicit in the build log, manifest, release notes, and installation guide.
 
 Statistically calibrated provenance probability is not claimed. The release must retain conservative rule-strength, evidence-coverage, and inconclusive language until a representative real-music corpus exists.
 

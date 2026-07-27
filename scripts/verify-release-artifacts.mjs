@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
@@ -74,6 +74,57 @@ async function requireUnsignedPe(file) {
   }
 }
 
+function requireAdHocSignedApp(application) {
+  execFileSync("codesign", [
+    "--verify",
+    "--deep",
+    "--strict",
+    "--verbose=4",
+    application,
+  ], { stdio: "pipe" });
+  const inspection = spawnSync("codesign", ["-dvvv", application], {
+    encoding: "utf8",
+  });
+  const details = `${inspection.stdout ?? ""}\n${inspection.stderr ?? ""}`;
+  if (
+    inspection.status !== 0 ||
+    !details.includes("Signature=adhoc") ||
+    !details.includes("Identifier=app.audiov.desktop") ||
+    !details.includes("Sealed Resources version=2")
+  ) {
+    throw new Error(
+      `${application} is not a valid whole-bundle ad-hoc signature.`,
+    );
+  }
+  if (
+    details.includes("Authority=") ||
+    (details.includes("TeamIdentifier=") &&
+      !details.includes("TeamIdentifier=not set"))
+  ) {
+    throw new Error(
+      `${application} unexpectedly contains a certificate identity.`,
+    );
+  }
+}
+
+function requireQuarantineSafeSignature(application) {
+  execFileSync("xattr", [
+    "-w",
+    "com.apple.quarantine",
+    "0081;00000000;Audio-V;https://github.com/DRAZY/Audio-V",
+    application,
+  ]);
+  try {
+    requireAdHocSignedApp(application);
+  } finally {
+    execFileSync("xattr", [
+      "-d",
+      "com.apple.quarantine",
+      application,
+    ]);
+  }
+}
+
 async function verifyResources(resources, engineNames, cliName) {
   await requireFile(path.join(resources, "app.asar"), 100_000);
   await requireFile(path.join(resources, "engine-manifest.json"), 100);
@@ -121,6 +172,7 @@ if (platform === "mac") {
   await requireFile(universalDmg, 10_000_000);
   for (const directory of ["mac-arm64", "mac-universal"]) {
     const contents = path.join(release, directory, "Audio-V.app", "Contents");
+    const application = path.dirname(contents);
     await requireFile(path.join(contents, "MacOS", "Audio-V"), 10_000);
     for (const permission of [
       "NSRemovableVolumesUsageDescription",
@@ -146,6 +198,8 @@ if (platform === "mac") {
       "c2patool",
       "fpcalc",
     ], "audio-v-cli");
+    requireAdHocSignedApp(application);
+    requireQuarantineSafeSignature(application);
   }
   const universalExecutable = path.join(
     release,
@@ -186,25 +240,9 @@ if (platform === "mac") {
       );
     }
   }
-  try {
-    execFileSync("codesign", [
-      "--verify",
-      "--deep",
-      "--strict",
-      path.join(release, "mac-universal", "Audio-V.app"),
-    ], { stdio: "pipe" });
-    throw new Error(
-      "Unsigned package policy failed: the macOS app unexpectedly has a valid code signature.",
-    );
-  } catch (error) {
-    if (
-      error instanceof Error &&
-      error.message.startsWith("Unsigned package policy failed")
-    ) {
-      throw error;
-    }
-  }
-  console.log("Verified Apple Silicon and Universal unsigned macOS packages.");
+  console.log(
+    "Verified Apple Silicon and Universal ad-hoc-signed macOS packages without a Developer ID identity.",
+  );
 } else {
   const installer = path.join(
     release,

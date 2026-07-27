@@ -89,7 +89,7 @@ jobs:
           find release -maxdepth 1 -type f \( -name '*.dmg' -o -name '*.exe' \) -print0 |
             sort -z |
             xargs -0 sha256sum > release/SHA256SUMS.txt
-      - name: Write unsigned release policy manifest
+      - name: Write development signing-policy manifest
         run: node scripts/write-release-manifest.mjs
       - name: Attach builds to GitHub release
         env:

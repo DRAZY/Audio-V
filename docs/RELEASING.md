@@ -21,9 +21,9 @@ npm run verify:release-policy
 npm run dist:mac
 ```
 
-This creates an intentionally unsigned native Apple silicon DMG plus an intentionally unsigned Universal DMG containing both Intel and Apple silicon application and Oracle Engine binaries. Audio-V does not publish a standalone Intel DMG.
+This creates a native Apple silicon DMG plus a Universal DMG containing both Intel and Apple silicon application and Oracle Engine binaries. Audio-V does not publish a standalone Intel DMG.
 
-The unsigned command explicitly disables identity discovery, notarization, and Hardened Runtime. This avoids accidentally producing different artifacts on a developer machine that happens to contain a signing identity. `npm run verify:artifacts:mac` checks both packages, embedded resources, and Universal Mach-O architectures.
+The development command disables certificate discovery, notarization, and Hardened Runtime, then signs each complete app bundle with the ad-hoc pseudo-identity `-`. This supplies a valid resource seal without claiming a Developer ID identity. `npm run verify:artifacts:mac` requires the ad-hoc signature, validates the complete nested-code seal, rejects certificate identities, and checks both packages, embedded resources, permission declarations, and Universal Mach-O architectures.
 
 See [Unsigned installation](UNSIGNED_INSTALLATION.md) for checksum verification and the per-application macOS approval process.
 
@@ -52,7 +52,7 @@ Cross-building Windows packages from macOS may work when the required compatibil
 3. Create and push a matching tag:
 
    ```bash
-   git tag v0.4.1
+   git tag v0.4.2
    git push origin main --tags
    ```
 
@@ -89,7 +89,7 @@ npm run cli -- ./collection --output ./audio-v-evidence.json --concurrency 2 --m
 
 - Commit source, configuration, artwork, and lockfiles.
 - Do not commit `release/`, `dist/`, or `dist-electron/`.
-- Builds are unsigned by project policy until the maintainer explicitly adopts signing.
+- macOS development app bundles are ad-hoc signed without a Developer ID identity; Windows artifacts remain unsigned until the maintainer explicitly adopts certificate signing.
 - Test installation, first launch, analysis, upgrade, uninstall, and portable behavior on clean operating-system environments before promoting a prerelease.
 - Publish SHA-256 checksums and the unsigned policy manifest with every binary release.
 - `scripts/verify-release-policy.mjs --public` blocks a tag whose version does not match `package.json` or whose repository lacks a project license.

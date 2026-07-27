@@ -52,7 +52,7 @@ Status meanings:
 - **Planned** — specified and prioritized, but not implemented.
 - **Excluded** — intentionally outside the core product.
 
-| Capability | User value | v0.4.1 source status | Disposition |
+| Capability | User value | v0.4.2 source status | Disposition |
 | --- | --- | --- | --- |
 | File and folder ingest | Analyze one track or a full library | Implemented | Current |
 | Recursive bounded discovery | Avoid freezing on large trees | Implemented | Current |
@@ -161,7 +161,7 @@ Gate 3 now has an enforceable validation foundation, but it is not statistically
 
 ### Gate 4 implementation status
 
-- Binary distribution is explicitly **unsigned by project policy**, not accidentally unsigned because a credential was missing. The default macOS build disables identity discovery, notarization, and Hardened Runtime; the default Windows build disables executable signing.
+- Binary identity is explicit rather than dependent on whichever credentials happen to exist on the build machine. The default macOS build disables certificate discovery, notarization, and Hardened Runtime but applies a complete ad-hoc bundle signature so Gatekeeper sees a valid integrity seal; the default Windows build disables executable signing.
 - Separate future signed build commands retain macOS Hardened Runtime/notarization and Windows Authenticode integration without requiring credentials for open-source development releases.
 - Package inspection verifies the two required DMGs, Windows installer, Windows portable executable, embedded application archive, FFmpeg/ffprobe engines, notices, engine manifest, PE signatures, and both Intel/Apple Silicon architectures in the Universal application and engines. Packaged-runtime smoke tests then launch the native application, fully analyze a real FLAC fixture, verify the current Oracle engine identity, and exit through a guarded QA channel.
 - Every release receives SHA-256 checksums and `UNSIGNED_RELEASE_MANIFEST.json`, which declares the distribution and signing policy for each exact artifact.

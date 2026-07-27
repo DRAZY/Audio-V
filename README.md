@@ -30,18 +30,18 @@ Audio-V is a local, cross-platform workstation for assessing audio-file integrit
 Audio-V is deliberately not a music player, tag editor, or mastering suite. It is an evidence workstation: technical properties, hashes, checksums, loudness, true peak, clipping, continuity, channel behavior, spectrograms, provenance indicators, acoustic identity, comparisons, remediation guidance, and exportable reports are brought together in one auditable workflow.
 
 > [!IMPORTANT]
-> Audio-V is currently an unsigned development preview. Verify every download against the published SHA-256 manifest. A Clear verdict means the file passed Audio-V's current disclosed checks; it does not prove provenance or guarantee that audio has never been transformed.
+> Audio-V is currently a development preview without Apple Developer ID/notarization or Windows Authenticode. macOS app bundles are ad-hoc signed for bundle integrity. Verify every download against the published SHA-256 manifest. A Clear verdict means the file passed Audio-V's current disclosed checks; it does not prove provenance or guarantee that audio has never been transformed.
 
 ## Download
 
-The `v0.4.1` development release provides all four requested desktop packages:
+The `v0.4.2` development release provides all four requested desktop packages:
 
 | Platform | Package | Intended system |
 |---|---|---|
-| macOS | [Apple Silicon DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.1/Audio-V-0.4.1-mac-arm64.dmg) | Native Apple Silicon |
-| macOS | [Universal DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.1/Audio-V-0.4.1-mac-universal.dmg) | Apple Silicon and Intel |
-| Windows | [x64 installer](https://github.com/DRAZY/Audio-V/releases/download/v0.4.1/Audio-V-0.4.1-win-x64.exe) | Guided desktop installation |
-| Windows | [x64 portable](https://github.com/DRAZY/Audio-V/releases/download/v0.4.1/Audio-V-Portable-0.4.1-x64.exe) | Run without installing the application |
+| macOS | [Apple Silicon DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.2/Audio-V-0.4.2-mac-arm64.dmg) | Native Apple Silicon |
+| macOS | [Universal DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.2/Audio-V-0.4.2-mac-universal.dmg) | Apple Silicon and Intel |
+| Windows | [x64 installer](https://github.com/DRAZY/Audio-V/releases/download/v0.4.2/Audio-V-0.4.2-win-x64.exe) | Guided desktop installation |
+| Windows | [x64 portable](https://github.com/DRAZY/Audio-V/releases/download/v0.4.2/Audio-V-Portable-0.4.2-x64.exe) | Run without installing the application |
 
 Every release also includes `SHA256SUMS.txt`, block maps, and `UNSIGNED_RELEASE_MANIFEST.json`. Read the [unsigned installation guide](docs/UNSIGNED_INSTALLATION.md) before opening a build.
 
@@ -194,7 +194,7 @@ npm run validate:formats
 npm run verify:release-candidate
 ```
 
-Create unsigned local packages:
+Create development-distribution packages:
 
 ```bash
 npm run dist:mac

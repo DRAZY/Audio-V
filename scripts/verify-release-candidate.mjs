@@ -58,7 +58,20 @@ await fileCheck(
       manifest.artifacts.length === 4 &&
       manifest.artifacts.every((artifact) =>
         String(artifact.name).includes(packageJson.version)
-      )
+      ) &&
+      manifest.artifacts
+        .filter((artifact) => String(artifact.name).endsWith(".dmg"))
+        .every(
+          (artifact) =>
+            artifact.signingStatus ===
+            "ad-hoc-app-signature-no-developer-identity",
+        ) &&
+      manifest.artifacts
+        .filter((artifact) => String(artifact.name).endsWith(".exe"))
+        .every(
+          (artifact) =>
+            artifact.signingStatus === "unsigned-by-project-policy",
+        )
     );
   },
 );
