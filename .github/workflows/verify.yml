@@ -48,7 +48,7 @@ jobs:
   parity:
     name: Cross-platform Oracle parity
     needs: verify
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -57,6 +57,6 @@ jobs:
       - name: Compare platform snapshots
         shell: bash
         run: |
-          mapfile -t snapshots < <(find parity -type f -name 'platform-validation-*.json' | sort)
+          snapshots=( $(find parity -type f -name 'platform-validation-*.json' | sort) )
           test "${#snapshots[@]}" -eq 2
           node scripts/compare-platform-validation.mjs "${snapshots[0]}" "${snapshots[1]}"
