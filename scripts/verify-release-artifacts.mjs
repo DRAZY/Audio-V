@@ -34,6 +34,46 @@ async function requireMagic(file, expected) {
   }
 }
 
+async function requireUnsignedPe(file) {
+  const handle = await fs.open(file, "r");
+  try {
+    const dosHeader = Buffer.alloc(64);
+    const dosRead = await handle.read(dosHeader, 0, dosHeader.length, 0);
+    if (
+      dosRead.bytesRead !== dosHeader.length ||
+      dosHeader.toString("ascii", 0, 2) !== "MZ"
+    ) {
+      throw new Error(`${file} is not a readable PE executable.`);
+    }
+    const peOffset = dosHeader.readUInt32LE(0x3c);
+    const peHeader = Buffer.alloc(176);
+    const peRead = await handle.read(peHeader, 0, peHeader.length, peOffset);
+    if (
+      peRead.bytesRead !== peHeader.length ||
+      peHeader.toString("ascii", 0, 4) !== "PE\u0000\u0000"
+    ) {
+      throw new Error(`${file} has an invalid PE header.`);
+    }
+    const optionalMagic = peHeader.readUInt16LE(24);
+    const securityDirectoryOffset =
+      optionalMagic === 0x10b ? 152 : optionalMagic === 0x20b ? 168 : null;
+    if (securityDirectoryOffset === null) {
+      throw new Error(
+        `${file} has an unsupported PE optional-header format 0x${optionalMagic.toString(16)}.`,
+      );
+    }
+    const certificateOffset = peHeader.readUInt32LE(securityDirectoryOffset);
+    const certificateSize = peHeader.readUInt32LE(securityDirectoryOffset + 4);
+    if (certificateOffset !== 0 || certificateSize !== 0) {
+      throw new Error(
+        `Unsigned package policy failed for ${file}: PE certificate table is present.`,
+      );
+    }
+  } finally {
+    await handle.close();
+  }
+}
+
 async function verifyResources(resources, engineNames) {
   await requireFile(path.join(resources, "app.asar"), 100_000);
   await requireFile(path.join(resources, "engine-manifest.json"), 100);
@@ -136,30 +176,15 @@ if (platform === "mac") {
   for (const executable of [installer, portable]) {
     await requireFile(executable, 10_000_000);
     await requireMagic(executable, Buffer.from("MZ"));
+    await requireUnsignedPe(executable);
   }
   const unpacked = path.join(release, "win-unpacked");
-  await requireMagic(path.join(unpacked, "Audio-V.exe"), Buffer.from("MZ"));
+  const unpackedExecutable = path.join(unpacked, "Audio-V.exe");
+  await requireMagic(unpackedExecutable, Buffer.from("MZ"));
+  await requireUnsignedPe(unpackedExecutable);
   await verifyResources(path.join(unpacked, "resources"), [
     "ffmpeg.exe",
     "ffprobe.exe",
   ]);
-  if (process.platform === "win32") {
-    for (const executable of [installer, portable]) {
-      const status = execFileSync(
-        "powershell",
-        [
-          "-NoProfile",
-          "-Command",
-          `(Get-AuthenticodeSignature -LiteralPath '${executable.replaceAll("'", "''")}').Status`,
-        ],
-        { encoding: "utf8" },
-      ).trim();
-      if (status !== "NotSigned") {
-        throw new Error(
-          `Unsigned package policy failed for ${executable}: ${status}`,
-        );
-      }
-    }
-  }
   console.log("Verified Windows installer, portable executable, and resources.");
 }
