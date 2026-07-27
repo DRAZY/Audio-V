@@ -1,0 +1,29 @@
+{
+  "schema": "Audio-V native defect validation corpus v1",
+  "description": "Labeled, natively decoded PCM controls for click/pop and stuck-sample regression. These deterministic synthetic fixtures validate detector behavior but are not a licensed real-world prevalence corpus.",
+  "cases": [
+    {
+      "file": "clean-control.wav",
+      "truth": "clean sinusoidal control",
+      "clickPopCandidates": { "minimum": 0, "maximum": 0 },
+      "stuckSampleCandidates": { "minimum": 0, "maximum": 0 }
+    },
+    {
+      "file": "labeled-click.wav",
+      "truth": "one inserted single-sample impulse",
+      "clickPopCandidates": { "minimum": 1, "maximum": 1 },
+      "stuckSampleCandidates": { "minimum": 0, "maximum": 0 }
+    },
+    {
+      "file": "labeled-stuck-sample.wav",
+      "truth": "one inserted 150 millisecond non-zero constant plateau",
+      "clickPopCandidates": { "minimum": 0, "maximum": 0 },
+      "stuckSampleCandidates": { "minimum": 1, "maximum": 1 }
+    }
+  ],
+  "limitations": [
+    "The fixtures are deterministic synthetic PCM decoded through the native FFmpeg path.",
+    "They do not estimate false-positive or false-negative rates on historical recordings, vinyl transfers, live captures, or damaged field recordings.",
+    "Detector findings remain Review evidence and never establish deterministic file corruption."
+  ]
+}

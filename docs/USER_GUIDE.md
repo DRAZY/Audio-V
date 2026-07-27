@@ -30,6 +30,10 @@ The **Declared metadata inventory** lists normalized fields and a bounded set of
 
 The **Provenance & identity** card distinguishes cryptographic Content Credential status, editable generator metadata, known identifier strings, local Chromaprint relationships, and optional external matches. These are not collapsed into an “AI: Yes/No” badge. A raw identifier is not proof that Audio-V decoded a proprietary watermark, and a valid C2PA claim authenticates a signed statement rather than the truth of every statement.
 
+## Identity library
+
+Identity lists Chromaprint entries retained from historical audits, exact-fingerprint peers, last-seen time, and whether the original source path still exists. **Rebuild from history** recreates the index from saved audit evidence. **Prune missing** removes only entries whose source path no longer exists. **Clear index** removes historical fingerprints after confirmation but leaves saved audit sessions intact, so a later rebuild can restore eligible entries.
+
 ## Origin Assessment
 
 **Heuristic rule strength** shows how strongly a classifiable file matches a versioned rule. It is not a probability that a source history is true.
@@ -42,7 +46,7 @@ Intentional filtering, microphones, instruments, analog transfers, noise reducti
 
 Load File A and File B independently from disk or choose current-audit files. Audio-V compares identity, properties, waveform envelopes, spectra, normalized spectral difference, preview-derived offset/gain/polarity, and a full-track per-channel null without adding playback.
 
-The current alignment measurement is bounded and is not a full-track multichannel null test.
+Automatic mapping runs a full-track null when channel counts match. For differing layouts, choose **Explicit channel map** and pair each participating File A channel with one File B channel. Each channel can appear once. Without an explicit map, Audio-V preserves the bounded mono alignment preview and explains why a full null was not attempted.
 
 ## Repair
 
@@ -62,7 +66,7 @@ Audio-V stores audit sessions locally. History can reopen completed evidence or 
 
 - `Command/Ctrl+O` — choose audio files
 - `Command/Ctrl+Shift+O` — choose a folder
-- `Command/Ctrl+1` through `5` — Audit, Compare, Repair, Reports, Settings
+- `Command/Ctrl+1` through `6` — Audit, Identity, Compare, Repair, Reports, Settings
 - `Escape` — close audit history
 
 ## Support diagnostics
@@ -83,6 +87,6 @@ Source and CI users can audit files or recursive folders without opening the des
 npm run cli -- ./collection --output ./audio-v-evidence.json --concurrency 2 --memory-mb 256 --fail-on failed
 ```
 
-Use `--fail-on review`, `failed`, or `never` to choose when evidence returns policy exit code 2. Processing errors return exit code 1. The output uses the same compact Oracle v9 JSON contract as desktop JSON reports. Desktop packages include launchers under `Contents/Resources/cli` on macOS and `resources\cli` on Windows.
+Use `--fail-on review`, `failed`, or `never` to choose when evidence returns policy exit code 2. Processing errors return exit code 1. The output uses the same compact Oracle v10 JSON contract as desktop JSON reports. Desktop packages include launchers under `Contents/Resources/cli` on macOS and `resources\cli` on Windows.
 
 For unsigned installation and checksum verification, see [UNSIGNED_INSTALLATION.md](UNSIGNED_INSTALLATION.md).

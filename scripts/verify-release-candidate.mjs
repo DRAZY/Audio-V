@@ -1,8 +1,11 @@
-import { access, readFile, writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const root = process.cwd();
 const checks = [];
+const packageJson = JSON.parse(
+  await readFile(path.join(root, "package.json"), "utf8"),
+);
 
 async function fileCheck(name, relativePath, validate = () => true) {
   try {
@@ -29,6 +32,9 @@ await fileCheck("Accessibility result", "build/accessibility-latest.json", (valu
 await fileCheck("Fidelity corpus result", "build/fidelity-validation-latest.json", (value) =>
   JSON.parse(value).passed === true,
 );
+await fileCheck("Native defect corpus result", "build/defect-validation-latest.json", (value) =>
+  JSON.parse(value).passed === true,
+);
 await fileCheck(
   "Real-world validation infrastructure",
   "build/real-world-validation-latest.json",
@@ -41,20 +47,21 @@ await fileCheck("Headless CLI result", "build/cli-validation-latest.json", (valu
   JSON.parse(value).passed === true,
 );
 
-try {
-  await access(path.join(root, "release", "UNSIGNED_RELEASE_MANIFEST.json"));
-  checks.push({
-    name: "Unsigned release manifest",
-    passed: true,
-    detail: "release/UNSIGNED_RELEASE_MANIFEST.json",
-  });
-} catch {
-  checks.push({
-    name: "Unsigned release manifest",
-    passed: false,
-    detail: "Run npm run release:manifest after packaging.",
-  });
-}
+await fileCheck(
+  "Unsigned release manifest",
+  "release/UNSIGNED_RELEASE_MANIFEST.json",
+  (value) => {
+    const manifest = JSON.parse(value);
+    return (
+      manifest.version === packageJson.version &&
+      Array.isArray(manifest.artifacts) &&
+      manifest.artifacts.length === 4 &&
+      manifest.artifacts.every((artifact) =>
+        String(artifact.name).includes(packageJson.version)
+      )
+    );
+  },
+);
 
 const failed = checks.filter((check) => !check.passed);
 const report = {

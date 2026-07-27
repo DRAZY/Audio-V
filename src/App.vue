@@ -6,6 +6,7 @@ import type {
   AudioSourceSelection,
   AuditSessionSummary,
   DecodedSignalComparison,
+  FingerprintLibraryEntry,
   OracleValidationStatus,
   OracleVerdict,
   ReportExportFormat,
@@ -16,7 +17,13 @@ import { audioFormatLabel } from "../shared/audio-format";
 import { createVirtualWindow } from "../shared/virtual-window";
 
 type AnalysisPanel = "spectrogram" | "loudness" | "evidence";
-type WorkspacePanel = "audit" | "compare" | "repair" | "reports" | "settings";
+type WorkspacePanel =
+  | "audit"
+  | "library"
+  | "compare"
+  | "repair"
+  | "reports"
+  | "settings";
 type RepairBitDepthMode = "source" | "16" | "24";
 
 const files = ref<AudioFileRecord[]>([]);
@@ -34,6 +41,10 @@ const isDiscovering = ref(false);
 const isScanPaused = ref(false);
 const historyOpen = ref(false);
 const recentSessions = ref<AuditSessionSummary[]>([]);
+const fingerprintLibrary = ref<FingerprintLibraryEntry[]>([]);
+const fingerprintLibraryLoading = ref(false);
+const fingerprintLibraryMessage = ref("Index has not been loaded.");
+const fingerprintLibraryFilter = ref("");
 const loadingSessionId = ref("");
 const isAnalyzing = ref(false);
 const scanMode = ref<AnalysisMode>("full-audit");
@@ -50,6 +61,10 @@ const compareAId = ref("");
 const compareBId = ref("");
 const comparisonFiles = ref<AudioFileRecord[]>([]);
 const compareLoadingSlot = ref<"a" | "b" | null>(null);
+const comparisonMappingMode = ref<"automatic" | "explicit">("automatic");
+const comparisonChannelMappings = ref<
+  Array<{ leftChannel: number; rightChannel: number }>
+>([]);
 const signalComparison = ref<DecodedSignalComparison | null>(null);
 const signalComparisonLoading = ref(false);
 const signalComparisonError = ref("");
@@ -220,6 +235,38 @@ const comparisonSummary = computed(() => {
     durationDelta,
     loudnessDelta,
   };
+});
+const filteredFingerprintLibrary = computed(() => {
+  const query = fingerprintLibraryFilter.value.trim().toLocaleLowerCase();
+  if (!query) return fingerprintLibrary.value;
+  return fingerprintLibrary.value.filter((entry) =>
+    `${entry.fileName}\n${entry.filePath}\n${entry.fingerprintSha256 ?? ""}`
+      .toLocaleLowerCase()
+      .includes(query),
+  );
+});
+const fingerprintLibrarySummary = computed(() => ({
+  indexed: fingerprintLibrary.value.length,
+  missing: fingerprintLibrary.value.filter((entry) => !entry.fileExists).length,
+  duplicateMembers: fingerprintLibrary.value.filter(
+    (entry) => entry.exactDuplicateCount > 0,
+  ).length,
+}));
+const comparisonMappingError = computed(() => {
+  if (comparisonMappingMode.value !== "explicit") return "";
+  if (comparisonChannelMappings.value.length === 0) {
+    return "Add at least one channel pair for an explicit comparison.";
+  }
+  const left = comparisonChannelMappings.value.map(
+    (mapping) => mapping.leftChannel,
+  );
+  const right = comparisonChannelMappings.value.map(
+    (mapping) => mapping.rightChannel,
+  );
+  if (new Set(left).size !== left.length || new Set(right).size !== right.length) {
+    return "Each File A and File B channel can appear only once.";
+  }
+  return "";
 });
 const attentionItems = computed(() =>
   files.value.filter(
@@ -595,6 +642,43 @@ async function renderComparisonVisuals(): Promise<void> {
   drawComparisonDifference();
 }
 
+function resetComparisonChannelMappings(): void {
+  const count = Math.min(compareA.value?.channels ?? 0, compareB.value?.channels ?? 0);
+  comparisonChannelMappings.value = Array.from(
+    { length: count },
+    (_, channel) => ({ leftChannel: channel, rightChannel: channel }),
+  );
+}
+
+function addComparisonChannelMapping(): void {
+  const leftCount = compareA.value?.channels ?? 0;
+  const rightCount = compareB.value?.channels ?? 0;
+  const usedLeft = new Set(
+    comparisonChannelMappings.value.map((mapping) => mapping.leftChannel),
+  );
+  const usedRight = new Set(
+    comparisonChannelMappings.value.map((mapping) => mapping.rightChannel),
+  );
+  const leftChannel = Array.from(
+    { length: leftCount },
+    (_, channel) => channel,
+  ).find((channel) => !usedLeft.has(channel));
+  const rightChannel = Array.from(
+    { length: rightCount },
+    (_, channel) => channel,
+  ).find((channel) => !usedRight.has(channel));
+  if (leftChannel === undefined || rightChannel === undefined) return;
+  comparisonChannelMappings.value = [
+    ...comparisonChannelMappings.value,
+    { leftChannel, rightChannel },
+  ];
+}
+
+function removeComparisonChannelMapping(index: number): void {
+  comparisonChannelMappings.value =
+    comparisonChannelMappings.value.filter((_, candidate) => candidate !== index);
+}
+
 let comparisonRequest = 0;
 async function analyzeComparisonSignals(): Promise<void> {
   const left = compareA.value;
@@ -604,11 +688,23 @@ async function analyzeComparisonSignals(): Promise<void> {
     signalComparisonError.value = "";
     return;
   }
+  if (comparisonMappingError.value) {
+    signalComparison.value = null;
+    signalComparisonError.value = comparisonMappingError.value;
+    signalComparisonLoading.value = false;
+    return;
+  }
   const request = ++comparisonRequest;
   signalComparisonLoading.value = true;
   signalComparisonError.value = "";
   try {
-    const result = await window.audioV.compareSignals(left.path, right.path);
+    const result = await window.audioV.compareSignals(
+      left.path,
+      right.path,
+      comparisonMappingMode.value === "explicit"
+        ? comparisonChannelMappings.value
+        : undefined,
+    );
     if (request === comparisonRequest) signalComparison.value = result;
   } catch (error) {
     if (request === comparisonRequest) {
@@ -659,6 +755,8 @@ watch(
     compareA.value?.oracle.measuredAt,
     compareB.value?.id,
     compareB.value?.oracle.measuredAt,
+    comparisonMappingMode.value,
+    JSON.stringify(comparisonChannelMappings.value),
     activeWorkspace.value,
   ],
   () => {
@@ -666,9 +764,16 @@ watch(
     if (activeWorkspace.value === "compare") void analyzeComparisonSignals();
   },
 );
+watch(
+  () => [compareA.value?.id, compareB.value?.id],
+  () => resetComparisonChannelMappings(),
+);
 watch(filter, () => {
   tableScrollTop.value = 0;
   if (tableBody.value) tableBody.value.scrollTop = 0;
+});
+watch(activeWorkspace, (workspace) => {
+  if (workspace === "library") void refreshFingerprintLibrary();
 });
 let removeScanProgressListener: (() => void) | null = null;
 let progressFrame: number | null = null;
@@ -696,6 +801,7 @@ onMounted(() => {
   void renderSpectrogram();
   void renderComparisonVisuals();
   void refreshAuditSessions();
+  void refreshFingerprintLibrary();
   void window.audioV
     ?.validationStatus()
     .then((status) => {
@@ -751,6 +857,7 @@ function handleGlobalKeydown(event: KeyboardEvent): void {
   }
   const panels: WorkspacePanel[] = [
     "audit",
+    "library",
     "compare",
     "repair",
     "reports",
@@ -863,6 +970,75 @@ async function scanSource(source: AudioSourceSelection): Promise<void> {
 async function refreshAuditSessions(): Promise<void> {
   if (!window.audioV) return;
   recentSessions.value = await window.audioV.listAuditSessions();
+}
+
+async function refreshFingerprintLibrary(): Promise<void> {
+  if (!window.audioV || fingerprintLibraryLoading.value) return;
+  fingerprintLibraryLoading.value = true;
+  try {
+    fingerprintLibrary.value = await window.audioV.listFingerprintLibrary();
+    fingerprintLibraryMessage.value =
+      `${fingerprintLibrary.value.length.toLocaleString()} indexed fingerprint${fingerprintLibrary.value.length === 1 ? "" : "s"}`;
+  } catch (error) {
+    fingerprintLibraryMessage.value =
+      error instanceof Error ? error.message : "Fingerprint index could not be loaded.";
+  } finally {
+    fingerprintLibraryLoading.value = false;
+  }
+}
+
+async function rebuildFingerprintLibrary(): Promise<void> {
+  if (!window.audioV || fingerprintLibraryLoading.value) return;
+  fingerprintLibraryLoading.value = true;
+  try {
+    const result = await window.audioV.rebuildFingerprintLibrary();
+    fingerprintLibrary.value = await window.audioV.listFingerprintLibrary();
+    fingerprintLibraryMessage.value =
+      `Rebuilt from saved audit evidence · ${result.remaining.toLocaleString()} indexed`;
+  } catch (error) {
+    fingerprintLibraryMessage.value =
+      error instanceof Error ? error.message : "Fingerprint index rebuild failed.";
+  } finally {
+    fingerprintLibraryLoading.value = false;
+  }
+}
+
+async function pruneFingerprintLibrary(): Promise<void> {
+  if (!window.audioV || fingerprintLibraryLoading.value) return;
+  fingerprintLibraryLoading.value = true;
+  try {
+    const result = await window.audioV.pruneFingerprintLibrary();
+    fingerprintLibrary.value = await window.audioV.listFingerprintLibrary();
+    fingerprintLibraryMessage.value =
+      `Pruned ${result.affected.toLocaleString()} missing source entr${result.affected === 1 ? "y" : "ies"} · ${result.remaining.toLocaleString()} remain`;
+  } catch (error) {
+    fingerprintLibraryMessage.value =
+      error instanceof Error ? error.message : "Fingerprint index pruning failed.";
+  } finally {
+    fingerprintLibraryLoading.value = false;
+  }
+}
+
+async function clearFingerprintLibrary(): Promise<void> {
+  if (
+    !window.audioV ||
+    fingerprintLibraryLoading.value ||
+    !window.confirm(
+      "Clear every historical fingerprint? Saved audit sessions remain available and can rebuild the index later.",
+    )
+  ) return;
+  fingerprintLibraryLoading.value = true;
+  try {
+    const result = await window.audioV.clearFingerprintLibrary();
+    fingerprintLibrary.value = [];
+    fingerprintLibraryMessage.value =
+      `Cleared ${result.affected.toLocaleString()} historical fingerprint${result.affected === 1 ? "" : "s"}`;
+  } catch (error) {
+    fingerprintLibraryMessage.value =
+      error instanceof Error ? error.message : "Fingerprint index could not be cleared.";
+  } finally {
+    fingerprintLibraryLoading.value = false;
+  }
 }
 
 async function openAuditSession(sessionId: string): Promise<void> {
@@ -1559,6 +1735,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
     <aside class="side-rail" aria-label="Primary workspace navigation">
       <div class="rail-brand" role="img" aria-label="Audio-V"><img :src="iconUrl" alt="" /></div>
       <button class="rail-item" :aria-current="activeWorkspace === 'audit' ? 'page' : undefined" :class="{ active: activeWorkspace === 'audit' }" @click="activeWorkspace = 'audit'"><b aria-hidden="true">⌁</b><small>Audit</small></button>
+      <button class="rail-item" :aria-current="activeWorkspace === 'library' ? 'page' : undefined" :class="{ active: activeWorkspace === 'library' }" @click="activeWorkspace = 'library'"><b aria-hidden="true">◎</b><small>Identity</small></button>
       <button class="rail-item" :aria-current="activeWorkspace === 'compare' ? 'page' : undefined" :class="{ active: activeWorkspace === 'compare' }" @click="activeWorkspace = 'compare'"><b aria-hidden="true">⇄</b><small>Compare</small></button>
       <button class="rail-item" :aria-current="activeWorkspace === 'repair' ? 'page' : undefined" :class="{ active: activeWorkspace === 'repair' }" @click="activeWorkspace = 'repair'"><b aria-hidden="true">✦</b><small>Repair</small></button>
       <button class="rail-item" :aria-current="activeWorkspace === 'reports' ? 'page' : undefined" :class="{ active: activeWorkspace === 'reports' }" @click="activeWorkspace = 'reports'"><b aria-hidden="true">▤</b><small>Reports</small></button>
@@ -1954,6 +2131,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
                     <template v-if="selected.oracle.measurements.replayGain.albumGainDb !== null">
                       · album {{ selected.oracle.measurements.replayGain.albumGainDb.toFixed(2) }} dB across {{ selected.oracle.measurements.replayGain.albumTrackCount }} tracks
                     </template>.
+                    {{ selected.oracle.measurements.replayGain.albumReason ?? "Album eligibility was not recorded by this earlier Oracle result." }}
                   </p>
                 </article>
                 <article>
@@ -2184,6 +2362,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
               <div><dt>AcoustID</dt><dd>{{ selected.oracle.technical?.fingerprint?.acoustIdLookup.status?.replaceAll("-", " ") ?? "Not requested" }}</dd></div>
               <div><dt>ReplayGain</dt><dd>{{ selected.metadata?.replayGain.trackGainDb === null || selected.metadata?.replayGain.trackGainDb === undefined ? "Not tagged" : `${selected.metadata.replayGain.trackGainDb.toFixed(2)} dB track gain` }}</dd></div>
               <div><dt>Calculated ReplayGain</dt><dd>{{ selected.oracle.measurements?.replayGain?.trackGainDb === null || selected.oracle.measurements?.replayGain?.trackGainDb === undefined ? "Not measured" : `${selected.oracle.measurements.replayGain.trackGainDb.toFixed(2)} dB track${selected.oracle.measurements.replayGain.albumGainDb === null ? "" : ` · ${selected.oracle.measurements.replayGain.albumGainDb.toFixed(2)} dB album`}` }}</dd></div>
+              <div v-if="selected.oracle.measurements?.replayGain"><dt>Album ReplayGain status</dt><dd>{{ selected.oracle.measurements.replayGain.albumReason ?? "Eligibility explanation unavailable for this earlier result" }}</dd></div>
               <div><dt>Cue sheet</dt><dd>{{ selected.metadata?.cueSheet.embedded ? "Embedded" : selected.metadata?.cueSheet.sidecarPaths.length ? `${selected.metadata.cueSheet.sidecarPaths.length} sidecar` : "None found" }}</dd></div>
               <div v-if="selected.oracle.technical?.repairProvenance"><dt>Audio-V action</dt><dd>−{{ selected.oracle.technical.repairProvenance.gainReductionDb.toFixed(2) }} dB · {{ selected.oracle.technical.repairProvenance.outputBitDepth }}-bit copy</dd></div>
             </dl>
@@ -2270,13 +2449,16 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
               <header>
                 <span class="eyebrow">Cue-track analysis</span>
                 <strong>{{ selected.oracle.cueTracks.length }} indexed tracks decoded</strong>
-                <em>INDEX 01 segment evidence</em>
+                <em>INDEX 01 programme and INDEX 00 pregap evidence</em>
               </header>
               <ul>
                 <li v-for="track in selected.oracle.cueTracks" :key="`${track.trackNumber}-${track.index01Seconds}`">
                   {{ String(track.trackNumber).padStart(2, "0") }} · {{ track.title ?? "Untitled" }} · {{ track.verdict }} ·
                   {{ track.integratedLufs === null ? "loudness unavailable" : `${track.integratedLufs.toFixed(1)} LUFS` }} ·
                   {{ track.clippedSamples === null ? "decode error" : `${track.clippedSamples} clipped samples` }}
+                  <template v-if="track.pregap">
+                    · INDEX 00 {{ track.pregap.durationSeconds.toFixed(3) }} s · {{ track.pregap.verdict }}
+                  </template>
                 </li>
               </ul>
               <small>{{ selected.oracle.cueTracks[0].limitation }}</small>
@@ -2295,6 +2477,43 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
         </div>
       </section>
       </template>
+
+      <section v-else-if="activeWorkspace === 'library'" class="module-page">
+        <header class="module-header">
+          <div><span class="eyebrow">Historical identity library</span><h1>Fingerprint index</h1></div>
+          <p>Browse acoustic identities retained from completed audits. This index stores Chromaprint evidence and source paths—not audio—and can be rebuilt from saved audit sessions.</p>
+        </header>
+        <div class="fingerprint-library-summary">
+          <article><span>Indexed sources</span><strong>{{ fingerprintLibrarySummary.indexed.toLocaleString() }}</strong></article>
+          <article><span>Exact duplicate members</span><strong>{{ fingerprintLibrarySummary.duplicateMembers.toLocaleString() }}</strong></article>
+          <article><span>Missing source paths</span><strong>{{ fingerprintLibrarySummary.missing.toLocaleString() }}</strong></article>
+        </div>
+        <div class="fingerprint-library-toolbar">
+          <label>
+            Search identity library
+            <input v-model="fingerprintLibraryFilter" type="search" placeholder="Filename, path, or fingerprint SHA-256">
+          </label>
+          <button :disabled="fingerprintLibraryLoading" @click="refreshFingerprintLibrary">Refresh</button>
+          <button :disabled="fingerprintLibraryLoading" @click="rebuildFingerprintLibrary">Rebuild from history</button>
+          <button :disabled="fingerprintLibraryLoading || fingerprintLibrarySummary.missing === 0" @click="pruneFingerprintLibrary">Prune missing</button>
+          <button class="danger-action" :disabled="fingerprintLibraryLoading || fingerprintLibrarySummary.indexed === 0" @click="clearFingerprintLibrary">Clear index</button>
+        </div>
+        <p class="fingerprint-library-message" role="status" aria-live="polite">{{ fingerprintLibraryMessage }}</p>
+        <div v-if="filteredFingerprintLibrary.length" class="fingerprint-library-table">
+          <div class="fingerprint-library-head">
+            <span>Source</span><span>Acoustic identity</span><span>Last seen</span><span>Status</span>
+          </div>
+          <article v-for="entry in filteredFingerprintLibrary" :key="entry.filePath">
+            <div><strong>{{ entry.fileName }}</strong><small :title="entry.filePath">{{ entry.filePath }}</small></div>
+            <div><code>{{ entry.fingerprintSha256?.slice(0, 20) ?? "No hash" }}{{ entry.fingerprintSha256 ? "…" : "" }}</code><small>{{ entry.durationSeconds === null ? "Duration unavailable" : `${entry.durationSeconds.toFixed(1)} seconds` }} · {{ entry.exactDuplicateCount }} exact peer{{ entry.exactDuplicateCount === 1 ? "" : "s" }}</small></div>
+            <time :datetime="entry.lastSeenAt">{{ new Date(entry.lastSeenAt).toLocaleString() }}</time>
+            <b :class="entry.fileExists ? 'source-present' : 'source-missing'">{{ entry.fileExists ? "Present" : "Missing" }}</b>
+          </article>
+        </div>
+        <div v-else class="module-empty">
+          {{ fingerprintLibraryLoading ? "Loading historical fingerprints…" : fingerprintLibraryFilter ? "No indexed fingerprints match this search." : "No historical fingerprints are indexed yet. Complete a Full Oracle Audit or rebuild from saved sessions." }}
+        </div>
+      </section>
 
       <section v-else-if="activeWorkspace === 'compare'" class="module-page">
         <header class="module-header">
@@ -2328,6 +2547,52 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
             </button>
           </div>
         </div>
+        <section v-if="compareA && compareB" class="channel-mapping-panel">
+          <header>
+            <div>
+              <span class="eyebrow">Channel mapping</span>
+              <strong>Choose exactly which decoded channels participate in the null test</strong>
+            </div>
+            <label>
+              Mapping policy
+              <select v-model="comparisonMappingMode">
+                <option value="automatic">Automatic position match</option>
+                <option value="explicit">Explicit channel map</option>
+              </select>
+            </label>
+          </header>
+          <p v-if="comparisonMappingMode === 'automatic'">
+            Full-track null testing runs only when channel counts match. Differing layouts retain the bounded alignment preview so Audio-V never invents a channel relationship.
+          </p>
+          <template v-else>
+            <div
+              v-for="(mapping, index) in comparisonChannelMappings"
+              :key="index"
+              class="channel-mapping-row"
+            >
+              <label>File A channel
+                <select v-model.number="mapping.leftChannel">
+                  <option v-for="channel in compareA.channels ?? 0" :key="channel" :value="channel - 1">Channel {{ channel }}</option>
+                </select>
+              </label>
+              <span aria-hidden="true">→</span>
+              <label>File B channel
+                <select v-model.number="mapping.rightChannel">
+                  <option v-for="channel in compareB.channels ?? 0" :key="channel" :value="channel - 1">Channel {{ channel }}</option>
+                </select>
+              </label>
+              <button aria-label="Remove channel mapping" :disabled="comparisonChannelMappings.length === 1" @click="removeComparisonChannelMapping(index)">Remove</button>
+            </div>
+            <button
+              class="secondary-action"
+              :disabled="comparisonChannelMappings.length >= Math.min(compareA.channels ?? 0, compareB.channels ?? 0)"
+              @click="addComparisonChannelMapping"
+            >
+              Add channel pair
+            </button>
+            <p :class="{ 'mapping-error': comparisonMappingError }">{{ comparisonMappingError || "Each source channel can be used once. Reordering is explicit in the exported comparison evidence." }}</p>
+          </template>
+        </section>
         <div v-if="comparisonSummary" class="comparison-summary">
           <article><span>Relationship</span><strong>{{ comparisonSummary.relationship }}</strong></article>
           <article><span>File identity</span><strong>{{ comparisonSummary.exact ? "SHA-256 match" : "Different SHA-256" }}</strong></article>
@@ -2361,7 +2626,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
           </div>
           <dl v-if="signalComparison?.perChannel.length" class="comparison-table">
             <div v-for="channel in signalComparison.perChannel" :key="channel.channel">
-              <dt>Channel {{ channel.channel + 1 }}</dt>
+              <dt>A {{ channel.leftChannel + 1 }} → B {{ channel.rightChannel + 1 }}</dt>
               <dd>{{ channel.nullDepthDb === null ? "No null depth" : channel.nullDepthDb === Infinity ? "Exact decoded null" : `${channel.nullDepthDb.toFixed(2)} dB null depth` }}</dd>
             </div>
           </dl>
@@ -2624,7 +2889,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
           <article><span>Spectral origin</span><strong>Conservative review classifier</strong><p>Measured cutoffs can flag compatible patterns with rule strength, evidence coverage, reason codes, and explicit mastering limitations.</p></article>
           <article><span>Content provenance</span><strong>Offline C2PA verification</strong><p>Content Credentials are cryptographically inspected with remote manifest and OCSP fetching disabled. Valid credentials record claims; they do not certify truth or human authorship.</p></article>
           <article><span>Acoustic identity</span><strong>Chromaprint duplicates</strong><p>Local fingerprints identify same-recording and high-similarity candidates. Optional AcoustID lookup is session-only and never runs without a key and explicit opt-in.</p></article>
-          <article><span>Metadata depth</span><strong>Tags, cue, ReplayGain</strong><p>Audio-V inventories identity tags, calculates ReplayGain 2.0 track/album values, and independently decodes cue INDEX 01 tracks without becoming a tag editor.</p></article>
+          <article><span>Metadata depth</span><strong>Tags, cue, ReplayGain</strong><p>Audio-V inventories identity tags, explains ReplayGain 2.0 album eligibility, and independently decodes cue INDEX 01 programme plus INDEX 00 pregap regions without becoming a tag editor.</p></article>
           <article class="resource-controls">
             <span>Analysis resources</span>
             <strong>Bounded worker controls</strong>
@@ -2676,14 +2941,14 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
           </article>
           <article><span>Open-source license</span><strong>AGPL-3.0-only</strong><p>Code remains available under strong copyleft. Audio-V and Oracle Engine names and artwork remain governed by the trademark policy.</p></article>
           <article><span>Support diagnostics</span><strong>Privacy-safe export</strong><p>{{ diagnosticsMessage }}</p><button class="secondary-action" @click="exportDiagnostics">Export diagnostics</button></article>
-          <article><span>Keyboard workflow</span><strong>Fast navigation</strong><p>Use {{ primaryModifier }}+O for files, {{ primaryModifier }}+Shift+O for a folder, and {{ primaryModifier }}+1–5 for workspaces.</p></article>
+          <article><span>Keyboard workflow</span><strong>Fast navigation</strong><p>Use {{ primaryModifier }}+O for files, {{ primaryModifier }}+Shift+O for a folder, and {{ primaryModifier }}+1–6 for workspaces.</p></article>
         </div>
       </section>
 
       <footer class="statusbar">
         <span role="status" aria-live="polite"><i></i>{{ scanMessage }}</span>
         <span>{{ files.length.toLocaleString() }} files in session</span>
-        <span>Oracle integrity, fidelity &amp; forensics scope v9</span>
+        <span>Oracle integrity, fidelity &amp; forensics scope v10</span>
       </footer>
     </main>
   </div>

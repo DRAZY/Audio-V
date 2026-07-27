@@ -1,4 +1,7 @@
-import type { DecodedSignalComparison } from "../../shared/contracts";
+import type {
+  ComparisonChannelMapping,
+  DecodedSignalComparison,
+} from "../../shared/contracts";
 import { runEngine } from "./ffmpeg-runtime";
 
 const comparisonSampleRate = 8_000;
@@ -195,6 +198,8 @@ function alignDecodedSignals(
       (count / Math.max(left.length, right.length)) * 100,
     perChannel: [{
       channel: 0,
+      leftChannel: 0,
+      rightChannel: 0,
       sampleCorrelation: correlation,
       residualRmsDb,
       peakResidualDbfs: null,
@@ -263,6 +268,7 @@ export async function compareAudioFiles(
   leftPath: string,
   rightPath: string,
   signal?: AbortSignal,
+  requestedMapping?: ComparisonChannelMapping[],
 ): Promise<DecodedSignalComparison> {
   const [left, right] = await Promise.all([
     decodePreview(leftPath, signal),
@@ -281,7 +287,36 @@ export async function compareAudioFiles(
     probeComparison(leftPath, signal),
     probeComparison(rightPath, signal),
   ]);
-  if (leftProbe.channels !== rightProbe.channels) {
+  const channelMapping = requestedMapping?.map((mapping) => ({
+    leftChannel: Math.trunc(mapping.leftChannel),
+    rightChannel: Math.trunc(mapping.rightChannel),
+  }));
+  if (channelMapping) {
+    if (channelMapping.length === 0 || channelMapping.length > 32) {
+      throw new Error("Explicit comparison requires between 1 and 32 channel mappings.");
+    }
+    const leftChannels = new Set<number>();
+    const rightChannels = new Set<number>();
+    for (const mapping of channelMapping) {
+      if (
+        mapping.leftChannel < 0 ||
+        mapping.leftChannel >= leftProbe.channels ||
+        mapping.rightChannel < 0 ||
+        mapping.rightChannel >= rightProbe.channels
+      ) {
+        throw new Error("A comparison channel mapping is outside the decoded layout.");
+      }
+      if (
+        leftChannels.has(mapping.leftChannel) ||
+        rightChannels.has(mapping.rightChannel)
+      ) {
+        throw new Error("Each decoded channel can appear only once in an explicit mapping.");
+      }
+      leftChannels.add(mapping.leftChannel);
+      rightChannels.add(mapping.rightChannel);
+    }
+  }
+  if (leftProbe.channels !== rightProbe.channels && !channelMapping) {
     return {
       ...aligned.result,
       limitation:
@@ -298,9 +333,20 @@ export async function compareAudioFiles(
   const gain = Number.isFinite(aligned.signedGain)
     ? aligned.signedGain
     : 1;
+  const mappings = channelMapping ??
+    Array.from({ length: leftProbe.channels }, (_, channel) => ({
+      leftChannel: channel,
+      rightChannel: channel,
+    }));
+  const pan = (side: "leftChannel" | "rightChannel") =>
+    channelMapping
+      ? `,pan=${mappings.length}c|${mappings.map((mapping, output) =>
+          `c${output}=c${mapping[side]}`
+        ).join("|")}`
+      : "";
   const filter = [
-    `[0:a:0]atrim=start=${trimLeft.toFixed(8)},asetpts=PTS-STARTPTS,aresample=${outputRate},aformat=sample_fmts=dblp,volume=${gain.toFixed(12)}[a]`,
-    `[1:a:0]atrim=start=${trimRight.toFixed(8)},asetpts=PTS-STARTPTS,aresample=${outputRate},aformat=sample_fmts=dblp[b]`,
+    `[0:a:0]atrim=start=${trimLeft.toFixed(8)},asetpts=PTS-STARTPTS,aresample=${outputRate},aformat=sample_fmts=dblp${pan("leftChannel")},volume=${gain.toFixed(12)}[a]`,
+    `[1:a:0]atrim=start=${trimRight.toFixed(8)},asetpts=PTS-STARTPTS,aresample=${outputRate},aformat=sample_fmts=dblp${pan("rightChannel")}[b]`,
     "[a][b]apsnr[out]",
   ].join(";");
   const full = await runEngine(
@@ -327,7 +373,7 @@ export async function compareAudioFiles(
     signal,
   );
   const psnr = parsePsnr(full.stderr);
-  if (psnr.length !== leftProbe.channels) {
+  if (psnr.length !== mappings.length) {
     throw new Error("Full-track null comparison did not return every channel.");
   }
   const finiteDepths = psnr.filter(Number.isFinite);
@@ -355,7 +401,9 @@ export async function compareAudioFiles(
           : "distinct";
   return {
     ...aligned.result,
-    method: "Audio-V full-track multichannel null v2",
+    method: channelMapping
+      ? "Audio-V explicit channel-map null v3"
+      : "Audio-V full-track multichannel null v2",
     sampleRate: outputRate,
     analyzedSeconds,
     residualRmsDb: Number.isFinite(worstDepth)
@@ -363,12 +411,14 @@ export async function compareAudioFiles(
       : Number.NEGATIVE_INFINITY,
     relationship,
     fullTrack: true,
-    comparedChannels: leftProbe.channels,
+    comparedChannels: mappings.length,
     comparedFrames: Math.round(analyzedSeconds * outputRate),
     durationCoveragePercent:
       maximumDuration > 0 ? (analyzedSeconds / maximumDuration) * 100 : 0,
     perChannel: psnr.map((depth, channel) => ({
       channel,
+      leftChannel: mappings[channel].leftChannel,
+      rightChannel: mappings[channel].rightChannel,
       sampleCorrelation: null,
       residualRmsDb: Number.isFinite(depth)
         ? -depth
@@ -377,6 +427,6 @@ export async function compareAudioFiles(
       nullDepthDb: depth,
     })),
     limitation:
-      `Audio-V aligned the files from a bounded mono preview, then compared every overlapping frame across ${leftProbe.channels} channel${leftProbe.channels === 1 ? "" : "s"} at ${outputRate.toLocaleString()} Hz. A signed ${gain.toFixed(8)} gain correction was applied to File A before the null measurement. Resampling occurs only when declared sample rates differ; null depth is decoded-signal evidence, not byte identity.`,
+      `Audio-V aligned the files from a bounded mono preview, then compared every overlapping frame across ${mappings.length} ${channelMapping ? "explicitly mapped" : "position-matched"} channel${mappings.length === 1 ? "" : "s"} at ${outputRate.toLocaleString()} Hz. A signed ${gain.toFixed(8)} gain correction was applied to File A before the null measurement. Resampling occurs only when declared sample rates differ; null depth is decoded-signal evidence, not byte identity.`,
   };
 }

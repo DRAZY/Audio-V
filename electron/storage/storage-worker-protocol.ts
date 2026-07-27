@@ -16,6 +16,10 @@ export type StorageWorkerRequest =
   | { id: string; operation: "get-cached"; filePath: string }
   | { id: string; operation: "set-cached"; file: AudioFileRecord }
   | { id: string; operation: "find-fingerprints"; filePath: string; limit?: number }
+  | { id: string; operation: "list-fingerprint-library"; limit?: number }
+  | { id: string; operation: "rebuild-fingerprint-library" }
+  | { id: string; operation: "prune-fingerprint-library" }
+  | { id: string; operation: "clear-fingerprint-library" }
   | { id: string; operation: "update-session-file"; sessionId: string; filePath: string; file: AudioFileRecord }
   | { id: string; operation: "import-legacy"; filePath: string }
   | { id: string; operation: "export-session"; sessionId: string; format: ReportExportFormat; outputPath: string }

@@ -147,6 +147,12 @@ export function audioFileReportRow(file: AudioFileRecord): ReportRow {
       "Calculated ReplayGain album peak": display(
         signal?.replayGain?.albumPeak,
       ),
+      "Calculated ReplayGain album status": display(
+        signal?.replayGain?.albumStatus,
+      ),
+      "Calculated ReplayGain album explanation": display(
+        signal?.replayGain?.albumReason,
+      ),
       "Cue sheet": file.metadata
         ? `${file.metadata.cueSheet.embedded ? "embedded" : ""}${file.metadata.cueSheet.sidecarPaths.length ? ` sidecar:${file.metadata.cueSheet.sidecarPaths.join("|")}` : ""}`.trim()
         : "",
@@ -154,7 +160,11 @@ export function audioFileReportRow(file: AudioFileRecord): ReportRow {
       "Analyzed cue tracks": file.oracle.cueTracks
         ?.map(
           (track) =>
-            `${track.trackNumber}:${track.verdict}:${track.integratedLufs ?? ""}LUFS`,
+            `${track.trackNumber}:${track.verdict}:${track.integratedLufs ?? ""}LUFS${
+              track.pregap
+                ? `:INDEX00-${track.pregap.verdict}-${track.pregap.durationSeconds}s`
+                : ""
+            }`,
         )
         .join(" | ") ?? "",
       "Duration seconds": display(signal?.durationSeconds ?? file.durationSeconds),

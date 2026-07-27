@@ -12,7 +12,7 @@ A release candidate is evidence-backed, not simply a successful packaging comman
 - [ ] Real-world corpus infrastructure and packaged validation disclosure verify.
 - [ ] Accessibility audit has no serious or critical violations.
 - [ ] Scale budgets pass for 100, 1,000, and 10,000 records.
-- [ ] Packaged CLI folder audit emits the v9 JSON evidence model, honors evidence-policy and native resource limits, and does not persist external-service keys.
+- [ ] Packaged CLI folder audit emits the v10 JSON evidence model, honors evidence-policy and native resource limits, and does not persist external-service keys.
 - [ ] Production dependency audit reports zero known vulnerabilities.
 - [ ] Apple Silicon DMG, Universal DMG, Windows installer, and Windows portable artifacts pass structural inspection.
 - [ ] Native packaged applications complete the reference FLAC audit.
@@ -26,7 +26,7 @@ A release candidate is evidence-backed, not simply a successful packaging comman
 - [ ] Universal DMG launches natively on Intel macOS and Apple Silicon macOS.
 - [ ] Windows installer install, custom location, first launch, audit, report export, upgrade, uninstall, and retained-data behavior tested on a clean supported Windows VM.
 - [ ] Windows portable build runs without installation and documents its per-user state.
-- [ ] Keyboard-only Audit, Compare, Repair, Reports, Settings, dialogs, and history workflows completed.
+- [ ] Keyboard-only Audit, Identity, Compare, Repair, Reports, Settings, dialogs, and history workflows completed.
 - [ ] VoiceOver on macOS and Narrator on Windows can identify navigation, status, result rows, tabs, controls, evidence, and report actions.
 - [ ] 100%, 125%, 150%, and 200% display scaling checked without clipped primary actions.
 - [ ] Long filenames, Unicode paths, removable media, read-only sources, unavailable volumes, corrupt files, and cancellation under load checked.

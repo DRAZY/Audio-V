@@ -80,7 +80,7 @@ try {
     result.discovered !== 1 ||
     result.completed !== 1 ||
     !["verified", "review"].includes(result.verdicts?.[0]) ||
-    result.engineVersions?.[0] !== "0.7.0-oracle-v9"
+    result.engineVersions?.[0] !== "0.8.0-oracle-v10"
   ) {
     throw new Error(
       `Packaged runtime returned an unexpected audit result: ${JSON.stringify(result)}`,
@@ -136,9 +136,9 @@ try {
   const cliEvidence = JSON.parse(await fs.readFile(cliOutput, "utf8"));
   if (
     cliEvidence.summary?.discovered !== 1 ||
-    cliEvidence.files?.[0]?.oracle?.engineVersion !== "0.7.0-oracle-v9"
+    cliEvidence.files?.[0]?.oracle?.engineVersion !== "0.8.0-oracle-v10"
   ) {
-    throw new Error("Packaged CLI did not produce v9 Oracle evidence.");
+    throw new Error("Packaged CLI did not produce v10 Oracle evidence.");
   }
   console.log(`Verified packaged ${target} CLI launcher and bundled engine.`);
 } finally {

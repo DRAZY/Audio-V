@@ -108,6 +108,14 @@ port.on("message", (request: StorageWorkerRequest) => {
         return store.setCached(request.file);
       case "find-fingerprints":
         return store.findFingerprintCandidates(request.filePath, request.limit);
+      case "list-fingerprint-library":
+        return store.listFingerprintLibrary(request.limit);
+      case "rebuild-fingerprint-library":
+        return store.rebuildFingerprintLibrary();
+      case "prune-fingerprint-library":
+        return store.pruneMissingFingerprints();
+      case "clear-fingerprint-library":
+        return store.clearFingerprintLibrary();
       case "update-session-file":
         return store.updateSessionFile(request.sessionId, request.filePath, request.file);
       case "import-legacy":

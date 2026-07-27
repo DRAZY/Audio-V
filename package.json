@@ -1,6 +1,6 @@
 {
   "name": "audio-v",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "license": "AGPL-3.0-only",
   "engines": {
@@ -29,7 +29,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "fixtures:fidelity": "node scripts/generate-fidelity-fixtures.mjs",
+    "fixtures:defects": "node scripts/generate-defect-fixtures.mjs",
     "validate:fidelity": "npm run build:electron && node scripts/validate-fidelity-corpus.mjs",
+    "validate:defects": "npm run build:electron && node scripts/validate-defect-corpus.mjs",
     "corpus:import": "node scripts/import-validation-master.mjs",
     "corpus:generate": "node scripts/generate-real-world-corpus.mjs",
     "validation:status": "node scripts/write-real-world-validation-status.mjs",
@@ -40,7 +42,7 @@
     "verify:worker": "node scripts/verify-oracle-worker.mjs",
     "verify:cli": "npm run build:electron && node scripts/verify-headless-cli.mjs",
     "benchmark:scale": "npm run build:electron && node scripts/benchmark-scale.mjs",
-    "verify": "npm run test && npm run build && electron scripts/verify-accessibility.cjs && node scripts/validate-fidelity-corpus.mjs && node scripts/evaluate-real-world-corpus.mjs && node scripts/write-real-world-validation-status.mjs && node scripts/validate-format-matrix.mjs && npm run verify:worker && node scripts/verify-headless-cli.mjs && npm audit --omit=dev",
+    "verify": "npm run test && npm run build && electron scripts/verify-accessibility.cjs && node scripts/validate-fidelity-corpus.mjs && node scripts/validate-defect-corpus.mjs && node scripts/evaluate-real-world-corpus.mjs && node scripts/write-real-world-validation-status.mjs && node scripts/validate-format-matrix.mjs && npm run verify:worker && node scripts/verify-headless-cli.mjs && npm audit --omit=dev",
     "prepare:notices": "node scripts/write-third-party-notices.mjs",
     "prepare:manifest": "node scripts/write-engine-manifest.mjs",
     "provision:engines": "node scripts/provision-engines.mjs && node scripts/provision-analysis-tools.mjs",

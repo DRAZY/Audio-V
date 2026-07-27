@@ -24,8 +24,21 @@ const api: AudioVDesktopApi = {
   listAuditSessions: () => ipcRenderer.invoke("sessions:list"),
   openAuditSession: (sessionId) =>
     ipcRenderer.invoke("sessions:open", sessionId),
-  compareSignals: (leftPath, rightPath) =>
-    ipcRenderer.invoke("comparison:analyze-signals", leftPath, rightPath),
+  compareSignals: (leftPath, rightPath, channelMapping) =>
+    ipcRenderer.invoke(
+      "comparison:analyze-signals",
+      leftPath,
+      rightPath,
+      channelMapping,
+    ),
+  listFingerprintLibrary: () =>
+    ipcRenderer.invoke("fingerprints:list"),
+  rebuildFingerprintLibrary: () =>
+    ipcRenderer.invoke("fingerprints:rebuild"),
+  pruneFingerprintLibrary: () =>
+    ipcRenderer.invoke("fingerprints:prune"),
+  clearFingerprintLibrary: () =>
+    ipcRenderer.invoke("fingerprints:clear"),
   pauseScan: () => ipcRenderer.invoke("library:pause-scan"),
   resumeScan: () => ipcRenderer.invoke("library:resume-scan"),
   cancelScan: () => ipcRenderer.invoke("library:cancel-scan"),

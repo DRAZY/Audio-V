@@ -4,6 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { inspectAudioFile, scanSources } from "../electron/scanner";
 import { analyzeAudioFile } from "../electron/oracle/oracle-engine";
+import { runEngine } from "../electron/oracle/ffmpeg-runtime";
 import { pcmWave } from "./helpers/wave-fixture";
 
 const temporaryDirectories: string[] = [];
@@ -64,6 +65,52 @@ describe("inspectAudioFile", () => {
 });
 
 describe("scanSources", () => {
+  it("records why album ReplayGain is or is not available", async () => {
+    const directory = await makeTemporaryDirectory();
+    const files = [
+      path.join(directory, "01.flac"),
+      path.join(directory, "02.flac"),
+    ];
+    for (const [index, filePath] of files.entries()) {
+      await runEngine("ffmpeg", [
+        "-nostdin", "-hide_banner", "-v", "error",
+        "-f", "lavfi", "-i",
+        `sine=frequency=${440 + index * 110}:sample_rate=48000:duration=0.5`,
+        "-metadata", "album=Eligibility Suite",
+        "-metadata", "album_artist=Audio-V",
+        "-metadata", `track=${index + 1}`,
+        "-c:a", "flac", "-y", filePath,
+      ]);
+    }
+
+    const grouped = await scanSources({
+      kind: "files",
+      label: "ReplayGain album",
+      paths: files,
+    });
+    expect(
+      grouped.files.every(
+        (file) =>
+          file.oracle.measurements?.replayGain.albumStatus === "calculated" &&
+          file.oracle.measurements.replayGain.albumTrackCount === 2,
+      ),
+    ).toBe(true);
+    expect(
+      grouped.files[0].oracle.measurements?.replayGain.albumReason,
+    ).toContain("matching album identity");
+
+    const untaggedPath = path.join(directory, "untagged.wav");
+    await fs.writeFile(untaggedPath, pcmWave());
+    const untagged = await scanSources({
+      kind: "files",
+      label: "No album tag",
+      paths: [untaggedPath],
+    });
+    expect(
+      untagged.files[0].oracle.measurements?.replayGain.albumReason,
+    ).toContain("no declared album identity");
+  });
+
   it("decodes cue INDEX 01 tracks as independent evidence segments", async () => {
     const directory = await makeTemporaryDirectory();
     const filePath = path.join(directory, "album.wav");
@@ -77,6 +124,7 @@ describe("scanSources", () => {
         "    INDEX 01 00:00:00",
         "  TRACK 02 AUDIO",
         '    TITLE "Second"',
+        "    INDEX 00 00:00:60",
         "    INDEX 01 00:01:00",
       ].join("\n"),
     );
@@ -98,6 +146,16 @@ describe("scanSources", () => {
         (track) => track.analysisState === "completed",
       ),
     ).toBe(true);
+    expect(result.files[0].oracle.cueTracks?.[0].durationSeconds).toBeCloseTo(
+      0.8,
+      2,
+    );
+    expect(result.files[0].oracle.cueTracks?.[1].pregap?.analysisState).toBe(
+      "completed",
+    );
+    expect(
+      result.files[0].oracle.cueTracks?.[1].pregap?.durationSeconds,
+    ).toBeCloseTo(0.2, 6);
   });
 
   it("runs metadata inventory without invoking the Oracle decoder", async () => {

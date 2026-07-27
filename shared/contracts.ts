@@ -199,6 +199,8 @@ export interface ComputedReplayGain {
   albumPeak: number | null;
   albumGroup: string | null;
   albumTrackCount: number;
+  albumStatus: "calculated" | "unavailable";
+  albumReason: string;
   limitation: string;
 }
 
@@ -318,6 +320,22 @@ export interface FingerprintIndexCandidate {
   lastSeenAt: string;
 }
 
+export interface FingerprintLibraryEntry {
+  filePath: string;
+  fileName: string;
+  fingerprintSha256: string | null;
+  durationSeconds: number | null;
+  engineVersion: string;
+  lastSeenAt: string;
+  fileExists: boolean;
+  exactDuplicateCount: number;
+}
+
+export interface FingerprintLibraryMutationResult {
+  affected: number;
+  remaining: number;
+}
+
 export interface MetadataInventory {
   title: string | null;
   artists: string[];
@@ -355,8 +373,23 @@ export interface CueTrackDefinition {
   title: string | null;
   performer: string | null;
   sourcePath: string;
+  index00Seconds: number | null;
   index01Seconds: number;
   endSeconds: number | null;
+}
+
+export interface CuePregapAnalysis {
+  startSeconds: number;
+  durationSeconds: number;
+  analysisState: "completed" | "error";
+  verdict: "clear" | "review" | "error";
+  samplePeakDbfs: number | null;
+  integratedLufs: number | null;
+  truePeakDbtp: number | null;
+  clippedSamples: number | null;
+  clickPopCandidates: number | null;
+  stuckSampleCandidates: number | null;
+  failure: string | null;
 }
 
 export interface CueTrackAnalysis extends CueTrackDefinition {
@@ -370,6 +403,7 @@ export interface CueTrackAnalysis extends CueTrackDefinition {
   clippedSamples: number | null;
   clickPopCandidates: number | null;
   stuckSampleCandidates: number | null;
+  pregap: CuePregapAnalysis | null;
   failure: string | null;
   limitation: string;
 }
@@ -446,7 +480,8 @@ export interface OracleResult {
     | "oracle-integrity-fidelity-v6"
     | "oracle-integrity-fidelity-v7"
     | "oracle-integrity-provenance-v8"
-    | "oracle-integrity-forensics-v9";
+    | "oracle-integrity-forensics-v9"
+    | "oracle-integrity-forensics-v10";
   verdict: OracleVerdict;
   analysisState?: OracleAnalysisState;
   failure?: OracleFailure | null;
@@ -531,7 +566,8 @@ export interface StoredAuditSession extends AuditSessionSummary {
 export interface DecodedSignalComparison {
   method:
     | "Audio-V aligned PCM preview v1"
-    | "Audio-V full-track multichannel null v2";
+    | "Audio-V full-track multichannel null v2"
+    | "Audio-V explicit channel-map null v3";
   sampleRate: number;
   analyzedSeconds: number;
   offsetSeconds: number;
@@ -546,6 +582,8 @@ export interface DecodedSignalComparison {
   durationCoveragePercent: number;
   perChannel: Array<{
     channel: number;
+    leftChannel: number;
+    rightChannel: number;
     sampleCorrelation: number | null;
     residualRmsDb: number;
     peakResidualDbfs: number | null;
@@ -557,6 +595,11 @@ export interface DecodedSignalComparison {
     | "possibly-related"
     | "distinct";
   limitation: string;
+}
+
+export interface ComparisonChannelMapping {
+  leftChannel: number;
+  rightChannel: number;
 }
 
 export interface ScanSelectionResult {
@@ -659,7 +702,12 @@ export interface AudioVDesktopApi {
   compareSignals(
     leftPath: string,
     rightPath: string,
+    channelMapping?: ComparisonChannelMapping[],
   ): Promise<DecodedSignalComparison>;
+  listFingerprintLibrary(): Promise<FingerprintLibraryEntry[]>;
+  rebuildFingerprintLibrary(): Promise<FingerprintLibraryMutationResult>;
+  pruneFingerprintLibrary(): Promise<FingerprintLibraryMutationResult>;
+  clearFingerprintLibrary(): Promise<FingerprintLibraryMutationResult>;
   onScanProgress(listener: (progress: ScanProgressUpdate) => void): () => void;
   pauseScan(): Promise<boolean>;
   resumeScan(): Promise<boolean>;

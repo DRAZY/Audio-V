@@ -163,6 +163,20 @@ describe("AuditSessionStore", () => {
         label: "Fingerprint history",
         paths: [firstPath, secondPath],
       });
+      const sessionId = store.create({
+        kind: "files",
+        label: "Fingerprint history",
+        paths: [firstPath, secondPath],
+      });
+      store.storeFiles(
+        sessionId,
+        result.files.map((file, ordinal) => ({
+          file,
+          ordinal,
+          fromCache: false,
+        })),
+      );
+      store.finish(sessionId, "completed", []);
       await Promise.all(result.files.map((file) => store.setCached(file)));
       const candidates = store.findFingerprintCandidates(firstPath);
 
@@ -173,6 +187,23 @@ describe("AuditSessionStore", () => {
           result.files[1].oracle.technical?.fingerprint.fingerprintSha256,
       });
       expect(candidates[0].rawFingerprint.length).toBeGreaterThan(20);
+      const library = await store.listFingerprintLibrary();
+      expect(library).toHaveLength(2);
+      expect(library.every((entry) => entry.exactDuplicateCount === 1)).toBe(true);
+
+      await fs.rm(secondPath);
+      const pruned = await store.pruneMissingFingerprints();
+      expect(pruned).toEqual({ affected: 1, remaining: 1 });
+      expect(store.clearFingerprintLibrary()).toEqual({
+        affected: 1,
+        remaining: 0,
+      });
+      expect(store.rebuildFingerprintLibrary().remaining).toBe(2);
+      expect(
+        (await store.listFingerprintLibrary()).filter(
+          (entry) => !entry.fileExists,
+        ),
+      ).toHaveLength(1);
     } finally {
       store.close();
     }

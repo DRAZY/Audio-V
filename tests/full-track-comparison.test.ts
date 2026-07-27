@@ -35,4 +35,43 @@ describe("compareAudioFiles", () => {
     expect(result.perChannel.every((channel) => channel.nullDepthDb === Infinity))
       .toBe(true);
   });
+
+  it("null-tests an explicit channel map across differing layouts", async () => {
+    temporaryDirectory = await fs.mkdtemp(
+      path.join(process.cwd(), "tests", ".tmp-channel-map-"),
+    );
+    const stereo = path.join(temporaryDirectory, "stereo.wav");
+    const mono = path.join(temporaryDirectory, "mono.wav");
+    await runEngine("ffmpeg", [
+      "-nostdin", "-hide_banner", "-v", "error",
+      "-f", "lavfi", "-i",
+      "aevalsrc=0.2*sin(2*PI*440*t)|0.15*sin(2*PI*660*t):s=48000:d=1",
+      "-c:a", "pcm_s24le", "-y", stereo,
+    ]);
+    await runEngine("ffmpeg", [
+      "-nostdin", "-hide_banner", "-v", "error",
+      "-f", "lavfi", "-i", "sine=frequency=660:sample_rate=48000:duration=1",
+      "-af", "volume=0.15/0.125",
+      "-c:a", "pcm_s24le", "-y", mono,
+    ]);
+
+    const fallback = await compareAudioFiles(stereo, mono);
+    expect(fallback.fullTrack).toBe(false);
+    expect(fallback.limitation).toContain("requires matching channel counts");
+
+    const mapped = await compareAudioFiles(
+      stereo,
+      mono,
+      undefined,
+      [{ leftChannel: 1, rightChannel: 0 }],
+    );
+    expect(mapped.method).toBe("Audio-V explicit channel-map null v3");
+    expect(mapped.fullTrack).toBe(true);
+    expect(mapped.comparedChannels).toBe(1);
+    expect(mapped.perChannel[0]).toMatchObject({
+      leftChannel: 1,
+      rightChannel: 0,
+    });
+    expect(mapped.perChannel[0].nullDepthDb).toBeGreaterThan(70);
+  });
 });

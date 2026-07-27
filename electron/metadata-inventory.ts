@@ -91,6 +91,7 @@ function parseCueTracks(text: string, filePath: string): CueTrackDefinition[] {
           title: null,
           performer: null,
           sourcePath: filePath,
+          index00Seconds: null,
           index01Seconds: -1,
           endSeconds: null,
         };
@@ -109,15 +110,18 @@ function parseCueTracks(text: string, filePath: string): CueTrackDefinition[] {
         (performer[1] ?? performer[2] ?? performer[3]).trim() || null;
       continue;
     }
-    const index = line.match(/^\s*INDEX\s+01\s+(\d+):(\d+):(\d+)/iu);
+    const index = line.match(/^\s*INDEX\s+(00|01)\s+(\d+):(\d+):(\d+)/iu);
     if (index) {
-      current.index01Seconds =
-        Number(index[1]) * 60 + Number(index[2]) + Number(index[3]) / 75;
+      const seconds =
+        Number(index[2]) * 60 + Number(index[3]) + Number(index[4]) / 75;
+      if (index[1] === "00") current.index00Seconds = seconds;
+      else current.index01Seconds = seconds;
     }
   }
   commit();
   for (let index = 0; index < tracks.length - 1; index += 1) {
-    tracks[index].endSeconds = tracks[index + 1].index01Seconds;
+    tracks[index].endSeconds =
+      tracks[index + 1].index00Seconds ?? tracks[index + 1].index01Seconds;
   }
   return tracks;
 }

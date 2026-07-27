@@ -24,7 +24,7 @@ const manifest = {
   projectLicense: packageJson.license,
   sourceRevision,
   oracleEngine: {
-    version: "0.7.0-oracle-v9",
+    version: "0.8.0-oracle-v10",
     schemaVersion: 1,
     decoderBundled: "FFmpeg-and-ffprobe-8.1.2-LGPL",
     capabilities: {
@@ -47,12 +47,14 @@ const manifest = {
         "implemented-per-channel-percent-events-timeline-and-scaled-plateau-review",
       waveformDefects:
         "implemented-click-pop-stuck-sample-and-steep-transition-candidate-review",
+      waveformDefectCorpus:
+        "implemented-native-decoded-clean-click-and-stuck-sample-regression",
       contentCredentials:
         "implemented-offline-c2pa-validation-with-network-fetch-disabled",
       metadataProvenance:
         "implemented-generator-tag-and-raw-identifier-inventory-not-ai-verdict",
       acousticFingerprint:
-        "implemented-chromaprint-1.6.0-current-and-persistent-library-duplicates-with-opt-in-acoustid",
+        "implemented-chromaprint-1.6.0-current-and-manageable-persistent-library-duplicates-with-opt-in-acoustid",
       metadataDepth:
         "implemented-declared-tags-calculated-rg2-track-album-cue-segments-bpm-isrc-musicbrainz",
       bitUtilization:
@@ -71,9 +73,9 @@ const manifest = {
       fidelityGoldenCorpus: "implemented-regression-only-not-probability-calibrated",
       persistentCache: "implemented-versioned-size-mtime-invalidated",
       batchCancellation: "implemented-active-process-termination",
-      scopedVerdictRules: "implemented-for-oracle-integrity-forensics-v9",
+      scopedVerdictRules: "implemented-for-oracle-integrity-forensics-v10",
       compareWorkflow:
-        "implemented-independent-files-preview-alignment-and-full-track-multichannel-null",
+        "implemented-independent-files-preview-alignment-full-track-null-and-explicit-channel-mapping",
       repairTriage: "implemented-actions-evidence-reveal-acknowledge",
       truePeakSafeCopy:
         "implemented-source-depth-default-explicit-16-24-dither-artwork-and-reaudit",

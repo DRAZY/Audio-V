@@ -9,6 +9,8 @@ import type {
   AuditSessionSummary,
   StoredAuditSession,
   FingerprintIndexCandidate,
+  FingerprintLibraryEntry,
+  FingerprintLibraryMutationResult,
 } from "../shared/contracts";
 
 interface SessionRow {
@@ -366,6 +368,103 @@ export class AuditSessionStore {
     }));
   }
 
+  async listFingerprintLibrary(limit = 5_000): Promise<FingerprintLibraryEntry[]> {
+    const rows = this.#database
+      .prepare(`
+        SELECT file_path, file_name, fingerprint_sha256, duration_seconds,
+          engine_version, last_seen_at,
+          CASE
+            WHEN fingerprint_sha256 IS NULL THEN 0
+            ELSE (
+              SELECT COUNT(*) - 1
+              FROM fingerprint_index AS duplicate
+              WHERE duplicate.fingerprint_sha256 =
+                fingerprint_index.fingerprint_sha256
+            )
+          END AS exact_duplicate_count
+        FROM fingerprint_index
+        ORDER BY last_seen_at DESC, file_name COLLATE NOCASE
+        LIMIT ?
+      `)
+      .all(Math.max(1, Math.min(20_000, Math.trunc(limit)))) as unknown as Array<{
+        file_path: string;
+        file_name: string;
+        fingerprint_sha256: string | null;
+        duration_seconds: number | null;
+        engine_version: string;
+        last_seen_at: string;
+        exact_duplicate_count: number;
+      }>;
+    return Promise.all(rows.map(async (row) => ({
+      filePath: row.file_path,
+      fileName: row.file_name,
+      fingerprintSha256: row.fingerprint_sha256,
+      durationSeconds: row.duration_seconds,
+      engineVersion: row.engine_version,
+      lastSeenAt: row.last_seen_at,
+      fileExists: await fs.access(row.file_path).then(() => true).catch(() => false),
+      exactDuplicateCount: row.exact_duplicate_count,
+    })));
+  }
+
+  rebuildFingerprintLibrary(): FingerprintLibraryMutationResult {
+    const rows = this.#database
+      .prepare(`
+        SELECT record_json, updated_at
+        FROM audit_files
+        ORDER BY updated_at
+      `)
+      .all() as unknown as Array<{ record_json: string; updated_at: string }>;
+    const before = this.fingerprintCount();
+    this.#database.exec("BEGIN IMMEDIATE");
+    try {
+      this.#database.exec("DELETE FROM fingerprint_index");
+      for (const row of rows) {
+        this.#indexFingerprint(
+          JSON.parse(row.record_json) as AudioFileRecord,
+          row.updated_at,
+        );
+      }
+      this.#database.exec("COMMIT");
+    } catch (error) {
+      this.#database.exec("ROLLBACK");
+      throw error;
+    }
+    const remaining = this.fingerprintCount();
+    return { affected: Math.max(before, remaining), remaining };
+  }
+
+  async pruneMissingFingerprints(): Promise<FingerprintLibraryMutationResult> {
+    const rows = this.#database
+      .prepare("SELECT file_path FROM fingerprint_index")
+      .all() as unknown as Array<{ file_path: string }>;
+    const missing = (
+      await Promise.all(rows.map(async (row) =>
+        await fs.access(row.file_path).then(() => null).catch(() => row.file_path)
+      ))
+    ).filter((filePath): filePath is string => filePath !== null);
+    if (missing.length > 0) {
+      this.#database.exec("BEGIN IMMEDIATE");
+      try {
+        const remove = this.#database.prepare(
+          "DELETE FROM fingerprint_index WHERE file_path = ?",
+        );
+        for (const filePath of missing) remove.run(filePath);
+        this.#database.exec("COMMIT");
+      } catch (error) {
+        this.#database.exec("ROLLBACK");
+        throw error;
+      }
+    }
+    return { affected: missing.length, remaining: this.fingerprintCount() };
+  }
+
+  clearFingerprintLibrary(): FingerprintLibraryMutationResult {
+    const affected = this.fingerprintCount();
+    this.#database.exec("DELETE FROM fingerprint_index");
+    return { affected, remaining: 0 };
+  }
+
   deleteCached(filePath: string): void {
     this.#database
       .prepare("DELETE FROM oracle_cache WHERE file_path = ?")
@@ -375,6 +474,13 @@ export class AuditSessionStore {
   cacheCount(): number {
     const row = this.#database
       .prepare("SELECT COUNT(*) AS count FROM oracle_cache")
+      .get() as unknown as { count: number };
+    return row.count;
+  }
+
+  fingerprintCount(): number {
+    const row = this.#database
+      .prepare("SELECT COUNT(*) AS count FROM fingerprint_index")
       .get() as unknown as { count: number };
     return row.count;
   }

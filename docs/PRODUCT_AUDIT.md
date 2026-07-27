@@ -52,7 +52,7 @@ Status meanings:
 - **Planned** — specified and prioritized, but not implemented.
 - **Excluded** — intentionally outside the core product.
 
-| Capability | User value | v0.3.0 status | Disposition |
+| Capability | User value | v0.4.0 source status | Disposition |
 | --- | --- | --- | --- |
 | File and folder ingest | Analyze one track or a full library | Implemented | Current |
 | Recursive bounded discovery | Avoid freezing on large trees | Implemented | Current |
@@ -197,17 +197,24 @@ Infrastructure is complete, while source acquisition remains factual external wo
 
 ### Provenance, automation, and identity milestone status
 
-- Oracle Engine v9 validates embedded and locally resolvable C2PA Content Credentials with C2PA Tool 0.27.3. Remote-manifest and OCSP fetching are disabled so ordinary audits remain deterministic and private.
+- Oracle Engine v10 validates embedded and locally resolvable C2PA Content Credentials with C2PA Tool 0.27.3. Remote-manifest and OCSP fetching are disabled so ordinary audits remain deterministic and private.
 - Valid, untrusted-signer, invalid, absent, unsupported, and tool-error states remain distinct. A credential can validate a signed provenance statement; it does not establish truthfulness, human authorship, ownership, or audio quality.
 - Known generator names in editable metadata and known watermark/signature identifier strings in raw file bytes are inventoried with their exact source and limitation. Audio-V does not claim to decode proprietary watermarks and does not produce a generic AI Yes/No badge.
-- Local Chromaprint fingerprints identify exact-fingerprint and high-similarity relationships within the current audit and across the persistent historical-session index. Optional AcoustID lookup sends only fingerprint plus rounded duration and returns linked MusicBrainz recording leads; it is off by default and its key is never persisted.
-- Metadata Inventory includes bounded native tags, BPM, ISRC, MusicBrainz IDs, declared ReplayGain values, embedded cue sheets, and adjacent cue-sheet references without invoking the decoder. Full Audit adds calculated RG2 track/album gain and independent cue INDEX 01 segment analysis.
+- Local Chromaprint fingerprints identify exact-fingerprint and high-similarity relationships within the current audit and across a dedicated, browsable Identity workspace. The historical index can be rebuilt from sessions, pruned for missing sources, or cleared without deleting audit evidence. Optional AcoustID lookup sends only fingerprint plus rounded duration and returns linked MusicBrainz recording leads; it is off by default and its key is never persisted.
+- Metadata Inventory includes bounded native tags, BPM, ISRC, MusicBrainz IDs, declared ReplayGain values, embedded cue sheets, and adjacent cue-sheet references without invoking the decoder. Full Audit adds calculated RG2 track gain, album eligibility/reason evidence, grouped album gain, independent cue INDEX 01 programme analysis, and separate INDEX 00 pregap analysis.
 - Full audits add DR meter values and integer-lossless bit-utilization/truncation assessment. Possible zero-padded depth is Review evidence, not deterministic file damage.
 - The accepted format list now follows a broad FFmpeg-backed set of common audio and audio-container extensions. Actual support remains decoder-runtime evidence rather than a promise based only on a filename suffix.
 - The packaged headless CLI accepts files and recursive folders, emits the same compact JSON evidence model, supports CI evidence-policy exit codes, and exposes worker, JavaScript heap, FFmpeg-thread, and native-process RSS limits. The desktop exposes the same resource policy for the next audit.
 - EBU R128 and DR measurements share one FFmpeg filter-graph pass. Full PCM analysis remains streaming and bounded; local fingerprinting performs one additional decode capped at 120 seconds. Opting into AcoustID performs a second capped fpcalc pass to create the service’s encoded fingerprint.
 
 This milestone deliberately stops before a statistical AI classifier or automatic network service. Those claims remain corpus-gated.
+
+### Oracle v10 refinement status
+
+- A three-case native decoded defect corpus gates the clean, single-impulse click/pop, and non-zero stuck-sample behaviors. It is labeled synthetic regression evidence and does not claim real-world calibration.
+- Compare accepts explicit one-to-one channel maps for differing decoded layouts. Without a map, mismatched layouts remain a bounded preview rather than receiving a misleading null.
+- ReplayGain reports why album gain is unavailable, including missing album identity, insufficient matching tracks, incompatible channel counts, and measurement failure.
+- Cue programme segments stop at the next INDEX 00/01 boundary; declared INDEX 00 pregaps are decoded and reported separately.
 
 Recommended layers:
 
@@ -279,6 +286,6 @@ No build may be called a beta until:
 - Compare renders bounded full-track waveform envelopes, paired measured spectrograms, and a normalized B-minus-A spectral heatmap alongside identity, format, loudness, clipping, bandwidth, stereo, and checksum values; no playback surface was introduced.
 - Audit and per-file evidence export to PDF, XLSX, DOCX, CSV, or JSON from a shared 40+ column evidence model. Production dependencies remain free of known audit advisories.
 - The desktop typography floor is 11px for utility labels and 12–14px for working text, with larger rows, controls, and analysis panels.
-- The 92-test regression suite covers discovery, malformed metadata, PCM math, internal WAVE decoding, spectral-bin detection, multi-codec full decoding, FLAC audio-MD5 mismatch, loudness/true peak, continuity, packet-rate behavior, fidelity controls, persistent fingerprints, cue segments, calculated ReplayGain, resource enforcement, cache invalidation, process cancellation, source-preserving repair output, attached-artwork retention, source preservation, truncation, and verdict truthfulness.
+- The 94-test regression suite covers discovery, malformed metadata, PCM math, internal WAVE decoding, spectral-bin detection, multi-codec full decoding, FLAC audio-MD5 mismatch, loudness/true peak, continuity, packet-rate behavior, fidelity controls, persistent fingerprint management, cue programme/pregap segments, calculated ReplayGain eligibility, explicit comparison channel mapping, resource enforcement, cache invalidation, process cancellation, source-preserving repair output, attached-artwork retention, source preservation, truncation, and verdict truthfulness.
 - Production dependencies pass `npm audit --omit=dev`; remaining advisories are confined to the upstream packaging toolchain.
 - Release packages contain third-party notices and a machine-readable engine capability manifest.

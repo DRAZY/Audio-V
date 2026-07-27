@@ -109,8 +109,8 @@ Findings such as clipping, positive true peak, digital-silence dropout candidate
 - Conservative possible-transcode and possible-upsample review rules
 - Offline C2PA Content Credentials validation with remote manifest and OCSP fetching disabled
 - Known generator metadata and raw identifier inventory without an AI yes/no verdict
-- Chromaprint duplicate/similarity candidates across both the current audit and a persistent historical-session index, with optional explicit AcoustID lookup
-- BPM, ISRC, MusicBrainz IDs, declared ReplayGain tags, calculated ReplayGain 2.0 track/album values, independently decoded cue INDEX 01 tracks, DR meter, and integer bit-utilization evidence
+- Chromaprint duplicate/similarity candidates across both the current audit and a dedicated historical Identity library with browse, rebuild, missing-source prune, and clear controls, plus optional explicit AcoustID lookup
+- BPM, ISRC, MusicBrainz IDs, declared ReplayGain tags, calculated ReplayGain 2.0 track/album values with eligibility explanations, independently decoded cue INDEX 01 programme tracks and INDEX 00 pregaps, DR meter, and integer bit-utilization evidence
 
 ### Automate audits
 
@@ -132,7 +132,7 @@ Desktop packages include the same CLI at `Audio-V.app/Contents/Resources/cli/aud
 
 ### Compare two independent files
 
-Load either side directly from disk or select files from the active audit. Audio-V estimates offset, gain, and polarity from a bounded alignment preview, then null-tests the complete overlapping decoded track across every matching channel. It reports per-channel null depth and coverage alongside duration, loudness, waveform envelopes, spectra, and a normalized spectral-difference heatmap.
+Load either side directly from disk or select files from the active audit. Audio-V estimates offset, gain, and polarity from a bounded alignment preview, then null-tests the complete overlapping decoded track across every matching channel. Differing layouts can use an explicit one-to-one channel map; without one, Audio-V retains the preview rather than inventing correspondence. It reports mapped per-channel null depth and coverage alongside duration, loudness, waveform envelopes, spectra, and a normalized spectral-difference heatmap.
 
 ![Audio-V decoded-signal and spectral comparison](docs/assets/audio-v-signal-compare.png)
 

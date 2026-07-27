@@ -351,64 +351,123 @@ async function attachAlbumReplayGain(
   signal?: AbortSignal,
   warnings?: string[],
 ): Promise<AudioFileRecord[]> {
-  const groups = new Map<string, AudioFileRecord[]>();
+  const identityGroups = new Map<string, AudioFileRecord[]>();
+  const replacements = new Map<string, AudioFileRecord>();
+  const setUnavailable = (file: AudioFileRecord, reason: string) => {
+    const measurements = file.oracle.measurements;
+    if (!measurements) return;
+    replacements.set(file.path, {
+      ...file,
+      oracle: {
+        ...file.oracle,
+        measurements: {
+          ...measurements,
+          replayGain: {
+            ...measurements.replayGain,
+            albumGainDb: null,
+            albumPeak: null,
+            albumGroup: null,
+            albumTrackCount: 0,
+            albumStatus: "unavailable",
+            albumReason: reason,
+          },
+        },
+      },
+    });
+  };
   for (const file of files) {
     const measurements = file.oracle.measurements;
     const album = file.metadata.album?.trim();
-    if (!measurements || !album || !file.channels) continue;
+    if (!measurements) continue;
+    if (!album) {
+      setUnavailable(
+        file,
+        "Album ReplayGain was not calculated because the file has no declared album identity.",
+      );
+      continue;
+    }
     const artist =
       file.metadata.albumArtists[0] ?? file.metadata.artists[0] ?? "";
-    const key = `${artist.trim().toLocaleLowerCase()}\0${album.toLocaleLowerCase()}\0${file.channels}`;
-    const group = groups.get(key) ?? [];
+    const key =
+      `${artist.trim().toLocaleLowerCase()}\0${album.toLocaleLowerCase()}`;
+    const group = identityGroups.get(key) ?? [];
     group.push(file);
-    groups.set(key, group);
+    identityGroups.set(key, group);
   }
-  const replacements = new Map<string, AudioFileRecord>();
-  for (const [key, group] of groups) {
-    if (group.length < 2) continue;
-    const ordered = [...group].sort(
+  for (const [identityKey, identityGroup] of identityGroups) {
+    const channelGroups = new Map<number, AudioFileRecord[]>();
+    for (const file of identityGroup) {
+      const channels = file.oracle.measurements?.channels;
+      if (!channels) {
+        setUnavailable(
+          file,
+          "Album ReplayGain was not calculated because decoded channel count is unavailable.",
+        );
+        continue;
+      }
+      const group = channelGroups.get(channels) ?? [];
+      group.push(file);
+      channelGroups.set(channels, group);
+    }
+    for (const [channels, group] of channelGroups) {
+      if (group.length < 2) {
+        setUnavailable(
+          group[0],
+          identityGroup.length > 1
+            ? `Album identity matched other audited files, but no second track had the same ${channels}-channel layout.`
+            : "Album ReplayGain requires at least two fully analyzed tracks with matching album identity and channel count.",
+        );
+        continue;
+      }
+      const key = `${identityKey}\0${channels}`;
+      const ordered = [...group].sort(
       (left, right) =>
         (left.metadata.discNumber ?? 0) - (right.metadata.discNumber ?? 0) ||
         (left.metadata.trackNumber ?? 0) - (right.metadata.trackNumber ?? 0) ||
         left.path.localeCompare(right.path),
-    );
-    try {
-      const album = await measureAlbumReplayGain(
-        ordered.map((file) => file.path),
-        signal,
       );
-      const albumPeak = Math.max(
-        ...ordered.map(
-          (file) => file.oracle.measurements?.replayGain.trackPeak ?? 0,
-        ),
-      );
-      for (const file of ordered) {
-        const measurements = file.oracle.measurements!;
-        replacements.set(file.path, {
-          ...file,
-          oracle: {
-            ...file.oracle,
-            measurements: {
-              ...measurements,
-              replayGain: {
-                ...measurements.replayGain,
-                albumGainDb: album.gainDb,
-                albumPeak,
-                albumGroup: key,
-                albumTrackCount: ordered.length,
-                limitation:
-                  "ReplayGain 2.0 album gain was calculated by concatenating the complete decoded tracks in disc/track order at the -18 LUFS reference.",
+      try {
+        const album = await measureAlbumReplayGain(
+          ordered.map((file) => file.path),
+          signal,
+        );
+        const albumPeak = Math.max(
+          ...ordered.map(
+            (file) => file.oracle.measurements?.replayGain.trackPeak ?? 0,
+          ),
+        );
+        for (const file of ordered) {
+          const measurements = file.oracle.measurements!;
+          replacements.set(file.path, {
+            ...file,
+            oracle: {
+              ...file.oracle,
+              measurements: {
+                ...measurements,
+                replayGain: {
+                  ...measurements.replayGain,
+                  albumGainDb: album.gainDb,
+                  albumPeak,
+                  albumGroup: key,
+                  albumTrackCount: ordered.length,
+                  albumStatus: "calculated",
+                  albumReason:
+                    `Calculated across ${ordered.length} fully decoded tracks with matching album identity and ${channels}-channel layout.`,
+                  limitation:
+                    "ReplayGain 2.0 album gain was calculated by concatenating the complete decoded tracks in disc/track order at the -18 LUFS reference.",
+                },
               },
             },
-          },
-        });
+          });
+        }
+      } catch (error) {
+        const reason =
+          `Album ReplayGain measurement failed: ${
+            error instanceof Error ? error.message : "measurement failed"
+          }`;
+        for (const file of ordered) setUnavailable(file, reason);
+        warnings?.push(`Album ReplayGain (${ordered[0].metadata.album}): ${reason}`);
       }
-    } catch (error) {
-      warnings?.push(
-        `Album ReplayGain (${ordered[0].metadata.album}): ${
-          error instanceof Error ? error.message : "measurement failed"
-        }`,
-      );
     }
   }
   return files.map((file) => replacements.get(file.path) ?? file);

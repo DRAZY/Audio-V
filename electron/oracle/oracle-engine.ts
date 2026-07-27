@@ -3,7 +3,7 @@ import { analyzeWithFfmpeg } from "./ffmpeg-analyzer";
 import { assessFidelityOrigin } from "./fidelity-assessment";
 import { classifyOracleFailure } from "./analysis-failure";
 
-export const engineVersion = "0.7.0-oracle-v9";
+export const engineVersion = "0.8.0-oracle-v10";
 
 export async function analyzeAudioFile(
   filePath: string,
@@ -132,7 +132,7 @@ export async function analyzeAudioFile(
     return {
       schemaVersion: 1,
       engineVersion,
-      scope: "oracle-integrity-forensics-v9",
+      scope: "oracle-integrity-forensics-v10",
       verdict,
       analysisState: flacMd5Mismatch ? "failed" : "completed",
       failure: flacMd5Mismatch
@@ -349,7 +349,7 @@ export async function analyzeAudioFile(
     return {
       schemaVersion: 1,
       engineVersion,
-      scope: "oracle-integrity-forensics-v9",
+      scope: "oracle-integrity-forensics-v10",
       verdict: integrityFailure ? "damaged" : "inconclusive",
       analysisState: integrityFailure ? "failed" : "error",
       failure,

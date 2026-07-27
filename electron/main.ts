@@ -365,6 +365,22 @@ ipcMain.handle("library:select-folder", async () => {
 
 ipcMain.handle("sessions:list", () => auditSessions.listSessions());
 
+ipcMain.handle("fingerprints:list", () =>
+  auditSessions.listFingerprintLibrary(),
+);
+
+ipcMain.handle("fingerprints:rebuild", () =>
+  auditSessions.rebuildFingerprintLibrary(),
+);
+
+ipcMain.handle("fingerprints:prune", () =>
+  auditSessions.pruneFingerprintLibrary(),
+);
+
+ipcMain.handle("fingerprints:clear", () =>
+  auditSessions.clearFingerprintLibrary(),
+);
+
 ipcMain.handle("sessions:open", async (_event, requestedSessionId: unknown) => {
   if (
     typeof requestedSessionId !== "string" ||
@@ -385,7 +401,12 @@ ipcMain.handle("sessions:open", async (_event, requestedSessionId: unknown) => {
 
 ipcMain.handle(
   "comparison:analyze-signals",
-  async (_event, requestedLeft: unknown, requestedRight: unknown) => {
+  async (
+    _event,
+    requestedLeft: unknown,
+    requestedRight: unknown,
+    requestedMapping: unknown,
+  ) => {
     if (
       typeof requestedLeft !== "string" ||
       typeof requestedRight !== "string"
@@ -400,6 +421,29 @@ ipcMain.handle(
     ) {
       throw new Error("Select both files through Audio-V before comparing them.");
     }
+    const channelMapping =
+      requestedMapping === undefined
+        ? undefined
+        : Array.isArray(requestedMapping) &&
+            requestedMapping.every(
+              (mapping) =>
+                typeof mapping === "object" &&
+                mapping !== null &&
+                Number.isInteger(
+                  (mapping as { leftChannel?: unknown }).leftChannel,
+                ) &&
+                Number.isInteger(
+                  (mapping as { rightChannel?: unknown }).rightChannel,
+                ),
+            )
+          ? (requestedMapping as Array<{
+              leftChannel: number;
+              rightChannel: number;
+            }>)
+          : null;
+    if (channelMapping === null) {
+      throw new TypeError("Comparison channel mappings must use integer channel indexes.");
+    }
     activeComparisonController?.abort();
     const controller = new AbortController();
     activeComparisonController = controller;
@@ -410,6 +454,7 @@ ipcMain.handle(
         rightPath,
         currentResourceLimits,
         controller.signal,
+        channelMapping,
       );
     } finally {
       if (activeComparisonController === controller) {

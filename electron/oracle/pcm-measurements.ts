@@ -534,6 +534,9 @@ export class PcmMeasurementAccumulator {
         albumPeak: null,
         albumGroup: null,
         albumTrackCount: 0,
+        albumStatus: "unavailable",
+        albumReason:
+          "Album eligibility is evaluated after every file in the audit finishes.",
         limitation:
           "Track gain requires a completed BS.1770 loudness measurement; album gain requires a complete grouped-album scan.",
       },

@@ -466,6 +466,9 @@ export async function analyzeWithFfmpeg(
         albumPeak: null,
         albumGroup: null,
         albumTrackCount: 0,
+        albumStatus: "unavailable",
+        albumReason:
+          "Album eligibility is evaluated after every file in the audit finishes.",
         limitation:
           "Track gain is computed from BS.1770 integrated loudness at the ReplayGain 2.0 −18 LUFS reference. Album gain is populated only after Audio-V fully scans a multi-track album group.",
       },

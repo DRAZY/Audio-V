@@ -8,6 +8,8 @@ import type {
   ReportExportFormat,
   StoredAuditSession,
   FingerprintIndexCandidate,
+  FingerprintLibraryEntry,
+  FingerprintLibraryMutationResult,
 } from "../../shared/contracts";
 import type {
   StorageWorkerCommand,
@@ -93,6 +95,22 @@ export class AuditStorageClient {
     limit?: number,
   ): Promise<FingerprintIndexCandidate[]> {
     return this.#request({ operation: "find-fingerprints", filePath, limit });
+  }
+
+  listFingerprintLibrary(limit?: number): Promise<FingerprintLibraryEntry[]> {
+    return this.#request({ operation: "list-fingerprint-library", limit });
+  }
+
+  rebuildFingerprintLibrary(): Promise<FingerprintLibraryMutationResult> {
+    return this.#request({ operation: "rebuild-fingerprint-library" });
+  }
+
+  pruneFingerprintLibrary(): Promise<FingerprintLibraryMutationResult> {
+    return this.#request({ operation: "prune-fingerprint-library" });
+  }
+
+  clearFingerprintLibrary(): Promise<FingerprintLibraryMutationResult> {
+    return this.#request({ operation: "clear-fingerprint-library" });
   }
 
   updateSessionFile(sessionId: string, filePath: string, file: AudioFileRecord): Promise<boolean> {

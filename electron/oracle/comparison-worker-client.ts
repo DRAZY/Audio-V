@@ -1,5 +1,9 @@
 import { Worker } from "node:worker_threads";
-import type { AnalysisResourceLimits, DecodedSignalComparison } from "../../shared/contracts";
+import type {
+  AnalysisResourceLimits,
+  ComparisonChannelMapping,
+  DecodedSignalComparison,
+} from "../../shared/contracts";
 
 export async function runComparisonWorker(
   workerPath: string,
@@ -7,6 +11,7 @@ export async function runComparisonWorker(
   rightPath: string,
   enginePolicy: Pick<AnalysisResourceLimits, "ffmpegThreads" | "nativeProcessMemoryMb">,
   signal?: AbortSignal,
+  channelMapping?: ComparisonChannelMapping[],
 ): Promise<DecodedSignalComparison> {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) {
@@ -52,6 +57,6 @@ export async function runComparisonWorker(
         });
       }
     });
-    worker.postMessage({ leftPath, rightPath });
+    worker.postMessage({ leftPath, rightPath, channelMapping });
   });
 }
