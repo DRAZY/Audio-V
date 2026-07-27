@@ -33,7 +33,20 @@ app.whenReady().then(async () => {
       label: sourcePath,
     };
     const result = await scanSources(source);
-    process.env.AUDIO_V_QA_PAYLOAD = JSON.stringify({ source, result });
+    const { compareAudioFiles } = require(
+      "../dist-electron/electron/oracle/signal-comparison.js",
+    );
+    const comparison = result.files.length
+      ? await compareAudioFiles(
+          result.files[0].path,
+          result.files[1]?.path ?? result.files[0].path,
+        )
+      : null;
+    process.env.AUDIO_V_QA_PAYLOAD = JSON.stringify({
+      source,
+      result,
+      comparison,
+    });
   }
 
   const window = new BrowserWindow({
@@ -59,7 +72,7 @@ app.whenReady().then(async () => {
     );
     await window.webContents.executeJavaScript(`
       new Promise((resolve, reject) => {
-        const deadline = Date.now() + 5000;
+        const deadline = Date.now() + 20000;
         const check = () => {
           const text = document.querySelector(".scan-state")?.textContent ?? "";
           if (text.includes("files loaded")) resolve(text);

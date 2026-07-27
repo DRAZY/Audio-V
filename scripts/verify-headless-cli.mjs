@@ -26,6 +26,10 @@ try {
     "1",
     "--memory-mb",
     "128",
+    "--ffmpeg-threads",
+    "1",
+    "--native-memory-mb",
+    "512",
     "--fail-on",
     "never",
   ], { cwd: root, timeout: 120_000, maxBuffer: 4 * 1024 * 1024 });
@@ -35,15 +39,17 @@ try {
   const checks = {
     schema: evidence.schema === "Audio-V Oracle CLI evidence v1",
     oneFile: evidence.summary?.discovered === 1,
-    engine: file?.oracle?.engineVersion === "0.6.0-oracle-v8",
-    scope: file?.oracle?.scope === "oracle-integrity-provenance-v8",
+    engine: file?.oracle?.engineVersion === "0.7.0-oracle-v9",
+    scope: file?.oracle?.scope === "oracle-integrity-forensics-v9",
     contentCredentials:
       typeof file?.oracle?.technical?.contentCredentials?.status === "string",
     chromaprint:
       file?.oracle?.technical?.fingerprint?.status === "measured",
     resourcePolicy:
       evidence.source?.resourceLimits?.concurrency === 1 &&
-      evidence.source?.resourceLimits?.workerMemoryMb === 128,
+      evidence.source?.resourceLimits?.workerMemoryMb === 128 &&
+      evidence.source?.resourceLimits?.ffmpegThreads === 1 &&
+      evidence.source?.resourceLimits?.nativeProcessMemoryMb === 512,
     noCredentialMaterial:
       !/acoustidApiKey|--acoustid-key/iu.test(evidenceText),
   };
@@ -60,7 +66,7 @@ try {
   if (!passed) {
     throw new Error(`CLI validation failed: ${JSON.stringify(checks)}`);
   }
-  console.log("Verified headless CLI v8 evidence, resource policy, and credential boundary.");
+  console.log("Verified headless CLI v9 evidence, native resource policy, and credential boundary.");
 } finally {
   await fs.rm(temporary, { recursive: true, force: true });
 }

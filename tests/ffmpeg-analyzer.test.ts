@@ -38,6 +38,14 @@ describe("FFmpeg Oracle analyzer", () => {
       ).toEqual([512, 2048]);
       expect(result.measurements.spectrogram.effectiveBandwidthHz).toBeGreaterThan(0);
       expect(result.technical.fileSha256).toMatch(/^[a-f0-9]{64}$/);
+      expect(result.technical.packetBitrateP05).not.toBeNull();
+      expect(result.technical.packetBitrateP95).not.toBeNull();
+      expect(result.technical.packetBitrateStdDev).not.toBeNull();
+      expect(result.technical.packetDurationCoverage).toBeGreaterThan(90);
+      expect(result.measurements.replayGain.trackGainDb).toBeCloseTo(
+        -18 - result.measurements.integratedLufs!,
+        2,
+      );
       if (codec === "flac") {
         expect(result.technical.flacMd5?.status).toBe("verified");
       }

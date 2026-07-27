@@ -39,6 +39,8 @@ const isAnalyzing = ref(false);
 const scanMode = ref<AnalysisMode>("full-audit");
 const analysisConcurrency = ref<1 | 2 | 3 | 4>(2);
 const analysisWorkerMemoryMb = ref<128 | 256 | 384 | 512>(256);
+const analysisFfmpegThreads = ref<1 | 2 | 4>(2);
+const analysisNativeMemoryMb = ref<256 | 512 | 1024 | 2048>(1024);
 const acoustIdEnabled = ref(false);
 const acoustIdApiKey = ref("");
 const filter = ref<
@@ -791,6 +793,8 @@ async function scanSource(source: AudioSourceSelection): Promise<void> {
     resourceLimits: {
       concurrency: analysisConcurrency.value,
       workerMemoryMb: analysisWorkerMemoryMb.value,
+      ffmpegThreads: analysisFfmpegThreads.value,
+      nativeProcessMemoryMb: analysisNativeMemoryMb.value,
     },
     externalLookup: {
       acoustIdEnabled: acoustIdEnabled.value,
@@ -1942,10 +1946,37 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
                   <strong>{{ selected.oracle.measurements.drMeter === null || selected.oracle.measurements.drMeter === undefined ? "—" : `DR ${selected.oracle.measurements.drMeter.toFixed(1)}` }}</strong>
                   <p>Windowed crest-to-RMS dynamics from FFmpeg drmeter; this complements LRA and PLR.</p>
                 </article>
+                <article v-if="selected.oracle.measurements.replayGain">
+                  <span class="eyebrow">Calculated ReplayGain 2.0</span>
+                  <strong>{{ selected.oracle.measurements.replayGain.trackGainDb === null ? "—" : `${selected.oracle.measurements.replayGain.trackGainDb.toFixed(2)} dB` }}</strong>
+                  <p>
+                    Track gain at −18 LUFS
+                    <template v-if="selected.oracle.measurements.replayGain.albumGainDb !== null">
+                      · album {{ selected.oracle.measurements.replayGain.albumGainDb.toFixed(2) }} dB across {{ selected.oracle.measurements.replayGain.albumTrackCount }} tracks
+                    </template>.
+                  </p>
+                </article>
                 <article>
                   <span class="eyebrow">Bit utilization</span>
                   <strong>{{ selected.oracle.measurements.bitUtilization?.effectiveBitDepth ?? "—" }}{{ selected.oracle.measurements.bitUtilization?.effectiveBitDepth ? ` of ${selected.oracle.measurements.bitUtilization.declaredBitDepth} bits` : "" }}</strong>
                   <p>{{ selected.oracle.measurements.bitUtilization?.classification?.replaceAll("-", " ") ?? "Not measured for this legacy result" }}. This can flag padded/truncated integer lossless PCM; it does not recover precision.</p>
+                </article>
+                <article v-if="selected.oracle.measurements.defects" class="clipping-diagnostics">
+                  <span class="eyebrow">Waveform defect diagnostics</span>
+                  <strong>{{ selected.oracle.measurements.defects.clickPopCandidateCount }} click/pop · {{ selected.oracle.measurements.defects.stuckSampleCandidateCount }} stuck</strong>
+                  <p>{{ selected.oracle.measurements.defects.steepTransitionCandidateCount }} steep transition candidates. Findings trigger Review, never deterministic damage by themselves.</p>
+                  <div class="clipping-timeline" role="img" aria-label="Waveform defect candidate timeline">
+                    <i
+                      v-for="(event, index) in selected.oracle.measurements.defects.events"
+                      :key="`${event.kind}-${index}`"
+                      :style="{
+                        left: `${(event.startSeconds / selected.oracle.measurements.durationSeconds) * 100}%`,
+                        width: `${Math.max(0.25, ((event.endSeconds - event.startSeconds) / selected.oracle.measurements.durationSeconds) * 100)}%`
+                      }"
+                      :title="`${event.kind} · channel ${event.channel + 1} · ${event.startSeconds.toFixed(4)}–${event.endSeconds.toFixed(4)} s`"
+                    ></i>
+                  </div>
+                  <small>{{ selected.oracle.measurements.defects.limitation }}</small>
                 </article>
                 <article
                   v-if="selected.oracle.measurements.clipping"
@@ -2135,6 +2166,9 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
               <div><dt>Channels</dt><dd>{{ selected.channels ?? "—" }}</dd></div>
               <div><dt>Channel layout</dt><dd>{{ selected.oracle.technical?.channelLayout ?? selected.channelMode ?? "—" }}</dd></div>
               <div><dt>Bitrate mode</dt><dd>{{ selected.bitrateMode ?? "Not probed" }}</dd></div>
+              <div><dt>Packet bitrate p05 / p95</dt><dd>{{ selected.oracle.technical?.packetBitrateP05 === null || selected.oracle.technical?.packetBitrateP05 === undefined ? "Not available" : `${formatBitrate(selected.oracle.technical.packetBitrateP05)} / ${formatBitrate(selected.oracle.technical.packetBitrateP95)}` }}</dd></div>
+              <div><dt>Packet bitrate deviation</dt><dd>{{ selected.oracle.technical?.packetBitrateStdDev === null || selected.oracle.technical?.packetBitrateStdDev === undefined ? "Not available" : formatBitrate(selected.oracle.technical.packetBitrateStdDev) }}</dd></div>
+              <div><dt>Packet duration coverage</dt><dd>{{ selected.oracle.technical?.packetDurationCoverage === null || selected.oracle.technical?.packetDurationCoverage === undefined ? "Not available" : `${selected.oracle.technical.packetDurationCoverage.toFixed(2)}%` }}</dd></div>
               <div><dt>Decoder</dt><dd>{{ selected.oracle.measurements?.decoder ?? "Decode failed" }}</dd></div>
               <div><dt>SHA-256</dt><dd class="hash-value">{{ selected.oracle.technical?.fileSha256.slice(0, 16) ?? "—" }}{{ selected.oracle.technical ? "…" : "" }}</dd></div>
               <div v-if="selected.oracle.technical?.flacMd5"><dt>FLAC audio MD5</dt><dd>{{ selected.oracle.technical.flacMd5.status }}</dd></div>
@@ -2149,6 +2183,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
               <div><dt>Acoustic matches</dt><dd>{{ selected.oracle.technical?.fingerprint?.matches.length ?? 0 }}</dd></div>
               <div><dt>AcoustID</dt><dd>{{ selected.oracle.technical?.fingerprint?.acoustIdLookup.status?.replaceAll("-", " ") ?? "Not requested" }}</dd></div>
               <div><dt>ReplayGain</dt><dd>{{ selected.metadata?.replayGain.trackGainDb === null || selected.metadata?.replayGain.trackGainDb === undefined ? "Not tagged" : `${selected.metadata.replayGain.trackGainDb.toFixed(2)} dB track gain` }}</dd></div>
+              <div><dt>Calculated ReplayGain</dt><dd>{{ selected.oracle.measurements?.replayGain?.trackGainDb === null || selected.oracle.measurements?.replayGain?.trackGainDb === undefined ? "Not measured" : `${selected.oracle.measurements.replayGain.trackGainDb.toFixed(2)} dB track${selected.oracle.measurements.replayGain.albumGainDb === null ? "" : ` · ${selected.oracle.measurements.replayGain.albumGainDb.toFixed(2)} dB album`}` }}</dd></div>
               <div><dt>Cue sheet</dt><dd>{{ selected.metadata?.cueSheet.embedded ? "Embedded" : selected.metadata?.cueSheet.sidecarPaths.length ? `${selected.metadata.cueSheet.sidecarPaths.length} sidecar` : "None found" }}</dd></div>
               <div v-if="selected.oracle.technical?.repairProvenance"><dt>Audio-V action</dt><dd>−{{ selected.oracle.technical.repairProvenance.gainReductionDb.toFixed(2) }} dB · {{ selected.oracle.technical.repairProvenance.outputBitDepth }}-bit copy</dd></div>
             </dl>
@@ -2222,7 +2257,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
               </ul>
               <ul v-if="selected.oracle.technical.fingerprint?.matches.length">
                 <li v-for="match in selected.oracle.technical.fingerprint.matches" :key="match.filePath">
-                  {{ match.fileName }} · {{ (match.similarity * 100).toFixed(1) }}% · {{ match.relationship.replaceAll("-", " ") }}
+                  {{ match.fileName }} · {{ (match.similarity * 100).toFixed(1) }}% · {{ match.relationship.replaceAll("-", " ") }} · {{ match.source === "history-index" ? "historical library" : "current audit" }}
                 </li>
               </ul>
               <ul v-if="selected.oracle.technical.fingerprint?.acoustIdLookup.recordingIds.length">
@@ -2230,6 +2265,21 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
                   AcoustID {{ selected.oracle.technical.fingerprint.acoustIdLookup.score === null ? "match" : `${(selected.oracle.technical.fingerprint.acoustIdLookup.score * 100).toFixed(1)}%` }} · {{ selected.oracle.technical.fingerprint.acoustIdLookup.recordingTitles[index] || "Untitled recording" }} · MusicBrainz {{ recordingId }}
                 </li>
               </ul>
+            </section>
+            <section v-if="selected.oracle.cueTracks?.length" class="origin-assessment-card">
+              <header>
+                <span class="eyebrow">Cue-track analysis</span>
+                <strong>{{ selected.oracle.cueTracks.length }} indexed tracks decoded</strong>
+                <em>INDEX 01 segment evidence</em>
+              </header>
+              <ul>
+                <li v-for="track in selected.oracle.cueTracks" :key="`${track.trackNumber}-${track.index01Seconds}`">
+                  {{ String(track.trackNumber).padStart(2, "0") }} · {{ track.title ?? "Untitled" }} · {{ track.verdict }} ·
+                  {{ track.integratedLufs === null ? "loudness unavailable" : `${track.integratedLufs.toFixed(1)} LUFS` }} ·
+                  {{ track.clippedSamples === null ? "decode error" : `${track.clippedSamples} clipped samples` }}
+                </li>
+              </ul>
+              <small>{{ selected.oracle.cueTracks[0].limitation }}</small>
             </section>
             <div class="oracle-card" :class="fileStateClass(selected)">
               <span class="oracle-glyph">◇</span>
@@ -2306,7 +2356,15 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
             <article><span>Polarity</span><strong>{{ signalComparison.polarity }}</strong></article>
             <article><span>Gain B − A</span><strong>{{ signalComparison.gainDifferenceDb === null ? "Unavailable" : `${signalComparison.gainDifferenceDb >= 0 ? "+" : ""}${signalComparison.gainDifferenceDb.toFixed(2)} dB` }}</strong></article>
             <article><span>Aligned residual</span><strong>{{ signalComparison.residualRmsDb.toFixed(1) }} dB</strong></article>
+            <article><span>Track coverage</span><strong>{{ signalComparison.fullTrack ? `${signalComparison.durationCoveragePercent.toFixed(2)}%` : "Preview only" }}</strong></article>
+            <article><span>Channels / frames</span><strong>{{ signalComparison.comparedChannels }} / {{ signalComparison.comparedFrames.toLocaleString() }}</strong></article>
           </div>
+          <dl v-if="signalComparison?.perChannel.length" class="comparison-table">
+            <div v-for="channel in signalComparison.perChannel" :key="channel.channel">
+              <dt>Channel {{ channel.channel + 1 }}</dt>
+              <dd>{{ channel.nullDepthDb === null ? "No null depth" : channel.nullDepthDb === Infinity ? "Exact decoded null" : `${channel.nullDepthDb.toFixed(2)} dB null depth` }}</dd>
+            </div>
+          </dl>
           <p v-if="signalComparison">{{ signalComparison.limitation }}</p>
           <p v-else-if="signalComparisonError">{{ signalComparisonError }}</p>
         </section>
@@ -2566,11 +2624,11 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
           <article><span>Spectral origin</span><strong>Conservative review classifier</strong><p>Measured cutoffs can flag compatible patterns with rule strength, evidence coverage, reason codes, and explicit mastering limitations.</p></article>
           <article><span>Content provenance</span><strong>Offline C2PA verification</strong><p>Content Credentials are cryptographically inspected with remote manifest and OCSP fetching disabled. Valid credentials record claims; they do not certify truth or human authorship.</p></article>
           <article><span>Acoustic identity</span><strong>Chromaprint duplicates</strong><p>Local fingerprints identify same-recording and high-similarity candidates. Optional AcoustID lookup is session-only and never runs without a key and explicit opt-in.</p></article>
-          <article><span>Metadata depth</span><strong>Tags, cue, ReplayGain</strong><p>Audio-V inventories BPM, MusicBrainz/ISRC identifiers, ReplayGain, embedded and sidecar cue sheets, generator strings, and dynamics fields without becoming a tag editor.</p></article>
+          <article><span>Metadata depth</span><strong>Tags, cue, ReplayGain</strong><p>Audio-V inventories identity tags, calculates ReplayGain 2.0 track/album values, and independently decodes cue INDEX 01 tracks without becoming a tag editor.</p></article>
           <article class="resource-controls">
             <span>Analysis resources</span>
             <strong>Bounded worker controls</strong>
-            <p>Changes apply to the next audit. Every worker receives an enforced JavaScript heap cap; decoded audio remains streamed.</p>
+            <p>Changes apply to the next audit. JavaScript heap, FFmpeg threads, and native-process memory are enforced while decoded audio remains streamed.</p>
             <label>Concurrent files
               <select v-model.number="analysisConcurrency" :disabled="isDiscovering">
                 <option :value="1">1</option><option :value="2">2</option><option :value="3">3</option><option :value="4">4</option>
@@ -2579,6 +2637,16 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
             <label>Memory per worker
               <select v-model.number="analysisWorkerMemoryMb" :disabled="isDiscovering">
                 <option :value="128">128 MB</option><option :value="256">256 MB</option><option :value="384">384 MB</option><option :value="512">512 MB</option>
+              </select>
+            </label>
+            <label>FFmpeg threads per file
+              <select v-model.number="analysisFfmpegThreads" :disabled="isDiscovering">
+                <option :value="1">1</option><option :value="2">2</option><option :value="4">4</option>
+              </select>
+            </label>
+            <label>Native process memory
+              <select v-model.number="analysisNativeMemoryMb" :disabled="isDiscovering">
+                <option :value="256">256 MB</option><option :value="512">512 MB</option><option :value="1024">1 GB</option><option :value="2048">2 GB</option>
               </select>
             </label>
           </article>
@@ -2615,7 +2683,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
       <footer class="statusbar">
         <span role="status" aria-live="polite"><i></i>{{ scanMessage }}</span>
         <span>{{ files.length.toLocaleString() }} files in session</span>
-        <span>Oracle integrity, fidelity &amp; provenance scope v8</span>
+        <span>Oracle integrity, fidelity &amp; forensics scope v9</span>
       </footer>
     </main>
   </div>

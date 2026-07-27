@@ -11,6 +11,7 @@ import type {
 import { compactReportFile } from "./report-exporter";
 import { scanSources } from "./scanner";
 import { OracleWorkerPool } from "./oracle/oracle-worker-pool";
+import { configureEngineResourcePolicy } from "./oracle/ffmpeg-runtime";
 
 interface CliOptions {
   inputs: string[];
@@ -18,6 +19,8 @@ interface CliOptions {
   mode: AnalysisMode;
   concurrency: AnalysisResourceLimits["concurrency"];
   memoryMb: AnalysisResourceLimits["workerMemoryMb"];
+  ffmpegThreads: AnalysisResourceLimits["ffmpegThreads"];
+  nativeMemoryMb: AnalysisResourceLimits["nativeProcessMemoryMb"];
   failOn: "never" | "review" | "failed" | "error";
   acoustIdApiKey: string | null;
 }
@@ -33,6 +36,8 @@ Options:
   --metadata-only         Inventory metadata without decoding
   --concurrency <1-4>     Parallel Oracle jobs (default: 2)
   --memory-mb <value>     Per-worker heap cap: 128, 256, 384, or 512
+  --ffmpeg-threads <n>    FFmpeg threads per file: 1, 2, or 4
+  --native-memory-mb <n>  Native-process cap: 256, 512, 1024, or 2048
   --acoustid-key <key>    Opt in to AcoustID lookup (or set AUDIO_V_ACOUSTID_KEY)
   --fail-on <policy>      never, review, failed, or error (default: failed)
   --help                  Show this help
@@ -46,6 +51,8 @@ function parseArguments(args: string[]): CliOptions {
     mode: "full-audit",
     concurrency: 2,
     memoryMb: 256,
+    ffmpegThreads: 2,
+    nativeMemoryMb: 1024,
     failOn: "failed",
     acoustIdApiKey: process.env.AUDIO_V_ACOUSTID_KEY ?? null,
   };
@@ -76,6 +83,18 @@ function parseArguments(args: string[]): CliOptions {
         throw new Error("--fail-on must be never, review, failed, or error.");
       }
       options.failOn = parsed;
+    } else if (value === "--ffmpeg-threads") {
+      const parsed = Number(args[++index]);
+      if (![1, 2, 4].includes(parsed)) {
+        throw new Error("--ffmpeg-threads must be 1, 2, or 4.");
+      }
+      options.ffmpegThreads = parsed as CliOptions["ffmpegThreads"];
+    } else if (value === "--native-memory-mb") {
+      const parsed = Number(args[++index]);
+      if (![256, 512, 1024, 2048].includes(parsed)) {
+        throw new Error("--native-memory-mb must be 256, 512, 1024, or 2048.");
+      }
+      options.nativeMemoryMb = parsed as CliOptions["nativeMemoryMb"];
     } else if (value === "--acoustid-key") {
       options.acoustIdApiKey = args[++index] ?? null;
     } else if (value.startsWith("-")) {
@@ -120,6 +139,10 @@ function shouldFail(
 
 async function main(): Promise<void> {
   const options = parseArguments(process.argv.slice(2));
+  configureEngineResourcePolicy({
+    ffmpegThreads: options.ffmpegThreads,
+    nativeProcessMemoryMb: options.nativeMemoryMb,
+  });
   for (const input of options.inputs) await fs.access(path.resolve(input));
   const source: AudioSourceSelection = {
     kind: options.inputs.length === 1 &&
@@ -134,6 +157,8 @@ async function main(): Promise<void> {
     resourceLimits: {
       concurrency: options.concurrency,
       workerMemoryMb: options.memoryMb,
+      ffmpegThreads: options.ffmpegThreads,
+      nativeProcessMemoryMb: options.nativeMemoryMb,
     },
     externalLookup: options.acoustIdApiKey
       ? {
@@ -146,6 +171,10 @@ async function main(): Promise<void> {
     path.join(__dirname, "oracle", "oracle-worker.js"),
     options.concurrency,
     options.memoryMb,
+    {
+      ffmpegThreads: options.ffmpegThreads,
+      nativeProcessMemoryMb: options.nativeMemoryMb,
+    },
   );
   const result = await scanSources(source, undefined, {
     concurrency: options.concurrency,

@@ -1,10 +1,11 @@
 import { Worker } from "node:worker_threads";
-import type { DecodedSignalComparison } from "../../shared/contracts";
+import type { AnalysisResourceLimits, DecodedSignalComparison } from "../../shared/contracts";
 
 export async function runComparisonWorker(
   workerPath: string,
   leftPath: string,
   rightPath: string,
+  enginePolicy: Pick<AnalysisResourceLimits, "ffmpegThreads" | "nativeProcessMemoryMb">,
   signal?: AbortSignal,
 ): Promise<DecodedSignalComparison> {
   return new Promise((resolve, reject) => {
@@ -12,7 +13,7 @@ export async function runComparisonWorker(
       reject(new Error("Signal comparison canceled."));
       return;
     }
-    const worker = new Worker(workerPath);
+    const worker = new Worker(workerPath, { workerData: { enginePolicy } });
     let settled = false;
     const finish = (
       outcome:

@@ -1,8 +1,25 @@
-import { spawn } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import path from "node:path";
 
 const outputLimit = 32 * 1024 * 1024;
 const timeoutMs = 30 * 60 * 1000;
+let resourcePolicy = {
+  ffmpegThreads: 2,
+  nativeProcessMemoryMb: 1024,
+};
+
+export function configureEngineResourcePolicy(policy: {
+  ffmpegThreads: number;
+  nativeProcessMemoryMb: number;
+}): void {
+  resourcePolicy = {
+    ffmpegThreads: Math.max(1, Math.min(4, Math.floor(policy.ffmpegThreads))),
+    nativeProcessMemoryMb: Math.max(
+      256,
+      Math.min(2048, Math.floor(policy.nativeProcessMemoryMb)),
+    ),
+  };
+}
 
 function platformDirectory(): string {
   if (process.platform === "darwin") return `mac-${process.arch}`;
@@ -37,6 +54,7 @@ export interface ProcessResult {
 export type EngineFailureReason =
   | "launch"
   | "timeout"
+  | "memory-limit"
   | "output-limit"
   | "exit";
 
@@ -64,7 +82,11 @@ export async function runEngine(
       reject(new Error("Audio analysis canceled."));
       return;
     }
-    const child = spawn(enginePath(tool), args, {
+    const effectiveArgs =
+      tool === "ffmpeg"
+        ? ["-threads", String(resourcePolicy.ffmpegThreads), ...args]
+        : args;
+    const child = spawn(enginePath(tool), effectiveArgs, {
       windowsHide: true,
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -73,10 +95,61 @@ export async function runEngine(
     let stdoutBytes = 0;
     let stderrBytes = 0;
     let settled = false;
+    let memoryProbeRunning = false;
+    const memoryLimitBytes = resourcePolicy.nativeProcessMemoryMb * 1024 * 1024;
+    const probeMemory = () => {
+      if (settled || memoryProbeRunning || !child.pid) return;
+      memoryProbeRunning = true;
+      const finishProbe = (residentBytes: number | null) => {
+        memoryProbeRunning = false;
+        if (
+          residentBytes !== null &&
+          residentBytes > memoryLimitBytes &&
+          !settled
+        ) {
+          child.kill("SIGKILL");
+          settleWithError(
+            new EngineProcessError(
+              `${tool} exceeded the ${resourcePolicy.nativeProcessMemoryMb} MB native-process memory limit.`,
+              tool,
+              "memory-limit",
+            ),
+          );
+        }
+      };
+      if (process.platform === "win32") {
+        execFile(
+          "powershell.exe",
+          [
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            `(Get-Process -Id ${child.pid} -ErrorAction SilentlyContinue).WorkingSet64`,
+          ],
+          { windowsHide: true, timeout: 2_000 },
+          (error, stdout) => {
+            const value = Number(String(stdout).trim());
+            finishProbe(!error && Number.isFinite(value) ? value : null);
+          },
+        );
+      } else {
+        execFile(
+          "ps",
+          ["-o", "rss=", "-p", String(child.pid)],
+          { timeout: 2_000 },
+          (error, stdout) => {
+            const value = Number(String(stdout).trim());
+            finishProbe(!error && Number.isFinite(value) ? value * 1024 : null);
+          },
+        );
+      }
+    };
+    const memoryTimer = setInterval(probeMemory, 500);
     const settleWithError = (error: Error) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      clearInterval(memoryTimer);
       signal?.removeEventListener("abort", abort);
       reject(error);
     };
@@ -130,6 +203,7 @@ export async function runEngine(
     });
     child.on("close", (code, terminationSignal) => {
       clearTimeout(timer);
+      clearInterval(memoryTimer);
       if (settled) return;
       settled = true;
       signal?.removeEventListener("abort", abort);

@@ -107,6 +107,13 @@ export function compareDecodedSignals(
   left: Float32Array,
   right: Float32Array,
 ): DecodedSignalComparison {
+  return alignDecodedSignals(left, right).result;
+}
+
+function alignDecodedSignals(
+  left: Float32Array,
+  right: Float32Array,
+): { result: DecodedSignalComparison; signedGain: number; sampleLag: number } {
   const leftEnvelope = energyEnvelope(left);
   const rightEnvelope = energyEnvelope(right);
   const maximumLag = Math.round(
@@ -163,6 +170,9 @@ export function compareDecodedSignals(
           : "distinct";
 
   return {
+    signedGain: gain,
+    sampleLag,
+    result: {
     method: "Audio-V aligned PCM preview v1",
     sampleRate: comparisonSampleRate,
     analyzedSeconds: count / comparisonSampleRate,
@@ -178,10 +188,75 @@ export function compareDecodedSignals(
     gainDifferenceDb:
       Math.abs(gain) <= 1e-12 ? null : 20 * Math.log10(Math.abs(gain)),
     residualRmsDb,
+    fullTrack: false,
+    comparedChannels: 1,
+    comparedFrames: count,
+    durationCoveragePercent:
+      (count / Math.max(left.length, right.length)) * 100,
+    perChannel: [{
+      channel: 0,
+      sampleCorrelation: correlation,
+      residualRmsDb,
+      peakResidualDbfs: null,
+      nullDepthDb: -residualRmsDb,
+    }],
     relationship,
     limitation:
       "Alignment uses the first 120 seconds, resampled to an 8 kHz mono analysis preview. It is decoded-signal evidence, not byte identity or a full-track null test.",
+    },
   };
+}
+
+interface ComparisonProbe {
+  sampleRate: number;
+  channels: number;
+  durationSeconds: number | null;
+}
+
+async function probeComparison(
+  filePath: string,
+  signal?: AbortSignal,
+): Promise<ComparisonProbe> {
+  const result = await runEngine(
+    "ffprobe",
+    [
+      "-v",
+      "error",
+      "-select_streams",
+      "a:0",
+      "-show_entries",
+      "stream=sample_rate,channels,duration:format=duration",
+      "-of",
+      "json",
+      filePath,
+    ],
+    undefined,
+    signal,
+  );
+  const parsed = JSON.parse(result.stdout.toString("utf8")) as {
+    streams?: Array<{ sample_rate?: string; channels?: number; duration?: string }>;
+    format?: { duration?: string };
+  };
+  const stream = parsed.streams?.[0];
+  const sampleRate = Number(stream?.sample_rate);
+  const channels = Number(stream?.channels);
+  const duration = Number(stream?.duration ?? parsed.format?.duration);
+  if (!Number.isFinite(sampleRate) || !Number.isInteger(channels)) {
+    throw new Error("Comparison probing did not return a valid audio stream.");
+  }
+  return {
+    sampleRate,
+    channels,
+    durationSeconds: Number.isFinite(duration) ? duration : null,
+  };
+}
+
+function parsePsnr(stderr: string): number[] {
+  return [...stderr.matchAll(/\bPSNR\s+ch(\d+):\s+(inf|-?[\d.]+)\s+dB/giu)]
+    .sort((left, right) => Number(left[1]) - Number(right[1]))
+    .map((match) => match[2].toLowerCase() === "inf"
+      ? Number.POSITIVE_INFINITY
+      : Number(match[2]));
 }
 
 export async function compareAudioFiles(
@@ -201,5 +276,107 @@ export async function compareAudioFiles(
       "At least 250 milliseconds of decoded audio is required to align files.",
     );
   }
-  return compareDecodedSignals(left, right);
+  const aligned = alignDecodedSignals(left, right);
+  const [leftProbe, rightProbe] = await Promise.all([
+    probeComparison(leftPath, signal),
+    probeComparison(rightPath, signal),
+  ]);
+  if (leftProbe.channels !== rightProbe.channels) {
+    return {
+      ...aligned.result,
+      limitation:
+        `Full-track null comparison requires matching channel counts; File A has ${leftProbe.channels} and File B has ${rightProbe.channels}. ${aligned.result.limitation}`,
+    };
+  }
+  const outputRate = Math.max(leftProbe.sampleRate, rightProbe.sampleRate);
+  const trimLeft = aligned.sampleLag < 0
+    ? Math.abs(aligned.sampleLag) / comparisonSampleRate
+    : 0;
+  const trimRight = aligned.sampleLag > 0
+    ? aligned.sampleLag / comparisonSampleRate
+    : 0;
+  const gain = Number.isFinite(aligned.signedGain)
+    ? aligned.signedGain
+    : 1;
+  const filter = [
+    `[0:a:0]atrim=start=${trimLeft.toFixed(8)},asetpts=PTS-STARTPTS,aresample=${outputRate},aformat=sample_fmts=dblp,volume=${gain.toFixed(12)}[a]`,
+    `[1:a:0]atrim=start=${trimRight.toFixed(8)},asetpts=PTS-STARTPTS,aresample=${outputRate},aformat=sample_fmts=dblp[b]`,
+    "[a][b]apsnr[out]",
+  ].join(";");
+  const full = await runEngine(
+    "ffmpeg",
+    [
+      "-nostdin",
+      "-hide_banner",
+      "-nostats",
+      "-v",
+      "info",
+      "-i",
+      leftPath,
+      "-i",
+      rightPath,
+      "-filter_complex",
+      filter,
+      "-map",
+      "[out]",
+      "-f",
+      "null",
+      "-",
+    ],
+    undefined,
+    signal,
+  );
+  const psnr = parsePsnr(full.stderr);
+  if (psnr.length !== leftProbe.channels) {
+    throw new Error("Full-track null comparison did not return every channel.");
+  }
+  const finiteDepths = psnr.filter(Number.isFinite);
+  const worstDepth = finiteDepths.length
+    ? Math.min(...finiteDepths)
+    : Number.POSITIVE_INFINITY;
+  const analyzedSeconds = Math.max(
+    0,
+    Math.min(
+      (leftProbe.durationSeconds ?? aligned.result.analyzedSeconds) - trimLeft,
+      (rightProbe.durationSeconds ?? aligned.result.analyzedSeconds) - trimRight,
+    ),
+  );
+  const maximumDuration = Math.max(
+    leftProbe.durationSeconds ?? analyzedSeconds,
+    rightProbe.durationSeconds ?? analyzedSeconds,
+  );
+  const relationship =
+    worstDepth >= 80
+      ? "aligned-equivalent"
+      : worstDepth >= 50
+        ? "strongly-related"
+        : worstDepth >= 25
+          ? "possibly-related"
+          : "distinct";
+  return {
+    ...aligned.result,
+    method: "Audio-V full-track multichannel null v2",
+    sampleRate: outputRate,
+    analyzedSeconds,
+    residualRmsDb: Number.isFinite(worstDepth)
+      ? -worstDepth
+      : Number.NEGATIVE_INFINITY,
+    relationship,
+    fullTrack: true,
+    comparedChannels: leftProbe.channels,
+    comparedFrames: Math.round(analyzedSeconds * outputRate),
+    durationCoveragePercent:
+      maximumDuration > 0 ? (analyzedSeconds / maximumDuration) * 100 : 0,
+    perChannel: psnr.map((depth, channel) => ({
+      channel,
+      sampleCorrelation: null,
+      residualRmsDb: Number.isFinite(depth)
+        ? -depth
+        : Number.NEGATIVE_INFINITY,
+      peakResidualDbfs: null,
+      nullDepthDb: depth,
+    })),
+    limitation:
+      `Audio-V aligned the files from a bounded mono preview, then compared every overlapping frame across ${leftProbe.channels} channel${leftProbe.channels === 1 ? "" : "s"} at ${outputRate.toLocaleString()} Hz. A signed ${gain.toFixed(8)} gain correction was applied to File A before the null measurement. Resampling occurs only when declared sample rates differ; null depth is decoded-signal evidence, not byte identity.`,
+  };
 }

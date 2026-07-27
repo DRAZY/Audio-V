@@ -8,6 +8,7 @@ import type {
   AuditSessionStatus,
   AuditSessionSummary,
   StoredAuditSession,
+  FingerprintIndexCandidate,
 } from "../shared/contracts";
 
 interface SessionRow {
@@ -27,7 +28,7 @@ interface FileRow {
   record_json: string;
 }
 
-const schemaVersion = 2;
+const schemaVersion = 3;
 
 export class AuditSessionStore {
   readonly #database: DatabaseSync;
@@ -72,6 +73,19 @@ export class AuditSessionStore {
       );
       CREATE INDEX IF NOT EXISTS oracle_cache_cached_at
         ON oracle_cache(cached_at DESC);
+      CREATE TABLE IF NOT EXISTS fingerprint_index (
+        file_path TEXT PRIMARY KEY,
+        file_name TEXT NOT NULL,
+        fingerprint_sha256 TEXT,
+        raw_fingerprint_json TEXT NOT NULL,
+        duration_seconds REAL,
+        engine_version TEXT NOT NULL,
+        last_seen_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS fingerprint_index_sha256
+        ON fingerprint_index(fingerprint_sha256);
+      CREATE INDEX IF NOT EXISTS fingerprint_index_last_seen
+        ON fingerprint_index(last_seen_at DESC);
       CREATE TABLE IF NOT EXISTS application_metadata (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
@@ -143,6 +157,7 @@ export class AuditSessionStore {
           JSON.stringify(entry.file),
           now,
         );
+        this.#indexFingerprint(entry.file, now);
       }
       this.#database
         .prepare(`
@@ -314,6 +329,41 @@ export class AuditSessionStore {
         JSON.stringify(record),
         new Date().toISOString(),
       );
+    this.#indexFingerprint(record, new Date().toISOString());
+  }
+
+  findFingerprintCandidates(
+    filePath: string,
+    limit = 5_000,
+  ): FingerprintIndexCandidate[] {
+    const rows = this.#database
+      .prepare(`
+        SELECT file_path, file_name, fingerprint_sha256,
+          raw_fingerprint_json, duration_seconds, last_seen_at
+        FROM fingerprint_index
+        WHERE file_path <> ?
+        ORDER BY last_seen_at DESC
+        LIMIT ?
+      `)
+      .all(
+        path.resolve(filePath),
+        Math.max(1, Math.min(20_000, Math.trunc(limit))),
+      ) as unknown as Array<{
+        file_path: string;
+        file_name: string;
+        fingerprint_sha256: string | null;
+        raw_fingerprint_json: string;
+        duration_seconds: number | null;
+        last_seen_at: string;
+      }>;
+    return rows.map((row) => ({
+      filePath: row.file_path,
+      fileName: row.file_name,
+      fingerprintSha256: row.fingerprint_sha256,
+      rawFingerprint: JSON.parse(row.raw_fingerprint_json) as number[],
+      durationSeconds: row.duration_seconds,
+      lastSeenAt: row.last_seen_at,
+    }));
   }
 
   deleteCached(filePath: string): void {
@@ -368,6 +418,38 @@ export class AuditSessionStore {
 
   close(): void {
     this.#database.close();
+  }
+
+  #indexFingerprint(record: AudioFileRecord, now: string): void {
+    const fingerprint = record.oracle.technical?.fingerprint;
+    if (
+      !fingerprint ||
+      fingerprint.status !== "measured" ||
+      fingerprint.rawFingerprint.length === 0
+    ) return;
+    this.#database
+      .prepare(`
+        INSERT INTO fingerprint_index (
+          file_path, file_name, fingerprint_sha256, raw_fingerprint_json,
+          duration_seconds, engine_version, last_seen_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(file_path) DO UPDATE SET
+          file_name = excluded.file_name,
+          fingerprint_sha256 = excluded.fingerprint_sha256,
+          raw_fingerprint_json = excluded.raw_fingerprint_json,
+          duration_seconds = excluded.duration_seconds,
+          engine_version = excluded.engine_version,
+          last_seen_at = excluded.last_seen_at
+      `)
+      .run(
+        path.resolve(record.path),
+        record.name,
+        fingerprint.fingerprintSha256,
+        JSON.stringify(fingerprint.rawFingerprint),
+        fingerprint.durationSeconds,
+        record.oracle.engineVersion,
+        now,
+      );
   }
 
   #summary(row: SessionRow): AuditSessionSummary {

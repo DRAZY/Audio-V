@@ -94,7 +94,7 @@ Findings such as clipping, positive true peak, digital-silence dropout candidate
 - Process work concurrently with pause, cancellation, saved sessions, and cache reuse
 - Normalize codec/container labels and expose sample rate, bit depth, channel layout, bitrate, profile, duration, and encoder information
 - Calculate SHA-256 identity and verify adjacent or folder-level MD5, SHA-1, SHA-256, and SHA-512 manifests
-- Accept more than 35 FFmpeg-backed audio/container extensions, including AAC, AC-3/E-AC-3, AIFF, ALAC, AMR, APE, AU, CAF, DSF/DFF, FLAC, Matroska/WebM, M4A/M4B, MP2/MP3, Musepack, OGG/Opus/Speex, TAK, TTA, VOC, WAV, WMA, and WavPack
+- Accept 39 FFmpeg-backed audio/container extensions, including AAC, AC-3/E-AC-3, AIFF, ALAC, AMR, APE, AU, CAF, DSF, FLAC, Matroska/WebM, M4A/M4B, MP2/MP3, Musepack, OGG/Opus/Speex, TAK, TTA, VOC, WAV, WMA, and WavPack. Every extension runs through a native macOS and Windows routing/capability fixture gate; 25 have locally generated native-codec fixtures.
 
 ### Inspect decoded fidelity
 
@@ -103,14 +103,14 @@ Findings such as clipping, positive true peak, digital-silence dropout candidate
 - EBU R128 integrated loudness and loudness range
 - BS.1770 oversampled true peak
 - Sample peak, RMS, clipping percentage, per-channel counts, contiguous-event timeline, possible scaled-clipping review, near clipping, DC offset, and crest factor
-- Exact digital-silence runs, dropout candidates, and steep transition candidates
+- Exact digital-silence runs, dropout candidates, conservative click/pop candidates, non-zero stuck-sample runs, and steep transition candidates
 - Stereo correlation, side-to-mid energy, dual-mono, and near-mono assessment
-- MP3 packet analysis with observed CBR/VBR behavior
+- Streaming packet-rate distribution for every demuxer that reports packet size and duration, including p05/p95, deviation, coverage, and observed CBR/VBR behavior
 - Conservative possible-transcode and possible-upsample review rules
 - Offline C2PA Content Credentials validation with remote manifest and OCSP fetching disabled
 - Known generator metadata and raw identifier inventory without an AI yes/no verdict
-- Chromaprint duplicate/similarity candidates with optional, explicit AcoustID lookup
-- BPM, ISRC, MusicBrainz IDs, ReplayGain, embedded/sidecar cue sheets, DR meter, and integer bit-utilization evidence
+- Chromaprint duplicate/similarity candidates across both the current audit and a persistent historical-session index, with optional explicit AcoustID lookup
+- BPM, ISRC, MusicBrainz IDs, declared ReplayGain tags, calculated ReplayGain 2.0 track/album values, independently decoded cue INDEX 01 tracks, DR meter, and integer bit-utilization evidence
 
 ### Automate audits
 
@@ -121,14 +121,18 @@ npm run cli -- /music/archive \
   --output audit.json \
   --concurrency 2 \
   --memory-mb 256 \
+  --ffmpeg-threads 2 \
+  --native-memory-mb 1024 \
   --fail-on failed
 ```
 
 Use `--metadata-only` for non-decoding inventory, `--fail-on review` for strict archival/CI policy, or set `AUDIO_V_ACOUSTID_KEY` to explicitly enable an external identity lookup. `--acoustid-key` is also supported, but the environment variable avoids placing a key in the command line. API keys are not written to evidence or saved source records.
 
+Desktop packages include the same CLI at `Audio-V.app/Contents/Resources/cli/audio-v-cli` on macOS and `resources\cli\Audio-V-CLI.cmd` on Windows. It uses the bundled Oracle Engine and FFmpeg rather than requiring a source checkout.
+
 ### Compare two independent files
 
-Load either side directly from disk or select files from the active audit. Audio-V compares format and identity, estimates bounded signal alignment, and reports duration, loudness, offset, gain, polarity, correlation, residual energy, waveform envelopes, spectra, and a normalized spectral-difference heatmap.
+Load either side directly from disk or select files from the active audit. Audio-V estimates offset, gain, and polarity from a bounded alignment preview, then null-tests the complete overlapping decoded track across every matching channel. It reports per-channel null depth and coverage alongside duration, loudness, waveform envelopes, spectra, and a normalized spectral-difference heatmap.
 
 ![Audio-V decoded-signal and spectral comparison](docs/assets/audio-v-signal-compare.png)
 
@@ -185,6 +189,7 @@ Run the complete source verification gate:
 ```bash
 npm run verify
 npm run validate:platform
+npm run validate:formats
 npm run verify:release-candidate
 ```
 

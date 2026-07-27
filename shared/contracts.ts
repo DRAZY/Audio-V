@@ -11,7 +11,6 @@ export const AUDIO_EXTENSIONS = [
   ".au",
   ".caf",
   ".dsf",
-  ".dff",
   ".eac3",
   ".ec3",
   ".flac",
@@ -174,6 +173,35 @@ export interface SignalContinuityMeasurements {
   discontinuityCandidateCount: number;
 }
 
+export interface SignalDefectEvent {
+  startSeconds: number;
+  endSeconds: number;
+  channel: number;
+  amplitude: number;
+  kind: "click-pop-candidate" | "stuck-sample-candidate";
+}
+
+export interface SignalDefectDiagnostics {
+  clickPopCandidateCount: number;
+  stuckSampleCandidateCount: number;
+  steepTransitionCandidateCount: number;
+  events: SignalDefectEvent[];
+  eventsTruncated: boolean;
+  limitation: string;
+}
+
+export interface ComputedReplayGain {
+  standard: "ReplayGain 2.0 / ITU-R BS.1770";
+  referenceLufs: -18;
+  trackGainDb: number | null;
+  trackPeak: number | null;
+  albumGainDb: number | null;
+  albumPeak: number | null;
+  albumGroup: string | null;
+  albumTrackCount: number;
+  limitation: string;
+}
+
 export interface BitUtilizationAssessment {
   applicable: boolean;
   declaredBitDepth: number | null;
@@ -217,8 +245,10 @@ export interface SignalMeasurements {
   crestFactorDb: number | null;
   drMeter: number | null;
   drMeterPerChannel: Array<number | null>;
+  replayGain: ComputedReplayGain;
   bitUtilization: BitUtilizationAssessment;
   continuity: SignalContinuityMeasurements;
+  defects: SignalDefectDiagnostics;
   waveform: WaveformMeasurements | null;
   spectrogram: SpectrogramMeasurements;
   spectrogramPyramid?: SpectrogramMeasurements[];
@@ -272,9 +302,20 @@ export interface ChromaprintAssessment {
     fileName: string;
     similarity: number;
     relationship: "same-fingerprint" | "high-similarity";
+    source?: "current-audit" | "history-index";
+    lastSeenAt?: string;
   }>;
   acoustIdLookup: AcoustIdLookup;
   limitation: string;
+}
+
+export interface FingerprintIndexCandidate {
+  filePath: string;
+  fileName: string;
+  fingerprintSha256: string | null;
+  rawFingerprint: number[];
+  durationSeconds: number | null;
+  lastSeenAt: string;
 }
 
 export interface MetadataInventory {
@@ -304,8 +345,33 @@ export interface MetadataInventory {
     embedded: boolean;
     sidecarPaths: string[];
     trackCount: number;
+    tracks: CueTrackDefinition[];
   };
   tags: Array<{ key: string; value: string }>;
+}
+
+export interface CueTrackDefinition {
+  trackNumber: number;
+  title: string | null;
+  performer: string | null;
+  sourcePath: string;
+  index01Seconds: number;
+  endSeconds: number | null;
+}
+
+export interface CueTrackAnalysis extends CueTrackDefinition {
+  durationSeconds: number;
+  analysisState: "completed" | "error";
+  verdict: "clear" | "review" | "error";
+  samplePeakDbfs: number | null;
+  integratedLufs: number | null;
+  truePeakDbtp: number | null;
+  replayGainTrackDb: number | null;
+  clippedSamples: number | null;
+  clickPopCandidates: number | null;
+  stuckSampleCandidates: number | null;
+  failure: string | null;
+  limitation: string;
 }
 
 export interface StreamTechnicalAnalysis {
@@ -327,6 +393,10 @@ export interface StreamTechnicalAnalysis {
   packetBitrateMinimum: number | null;
   packetBitrateMaximum: number | null;
   packetBitrateAverage: number | null;
+  packetBitrateP05: number | null;
+  packetBitrateP95: number | null;
+  packetBitrateStdDev: number | null;
+  packetDurationCoverage: number | null;
   flacMd5: FlacMd5Integrity | null;
   externalChecksums: ExternalChecksumVerification[];
   metadata: MetadataInventory;
@@ -375,7 +445,8 @@ export interface OracleResult {
     | "oracle-integrity-fidelity-v5"
     | "oracle-integrity-fidelity-v6"
     | "oracle-integrity-fidelity-v7"
-    | "oracle-integrity-provenance-v8";
+    | "oracle-integrity-provenance-v8"
+    | "oracle-integrity-forensics-v9";
   verdict: OracleVerdict;
   analysisState?: OracleAnalysisState;
   failure?: OracleFailure | null;
@@ -386,6 +457,7 @@ export interface OracleResult {
   measurements: SignalMeasurements | null;
   technical: StreamTechnicalAnalysis | null;
   fidelity: FidelityAssessment | null;
+  cueTracks?: CueTrackAnalysis[];
   measuredAt: string | null;
 }
 
@@ -428,6 +500,8 @@ export interface AudioSourceSelection {
 export interface AnalysisResourceLimits {
   concurrency: 1 | 2 | 3 | 4;
   workerMemoryMb: 128 | 256 | 384 | 512;
+  ffmpegThreads: 1 | 2 | 4;
+  nativeProcessMemoryMb: 256 | 512 | 1024 | 2048;
 }
 
 export type AuditSessionStatus =
@@ -455,8 +529,10 @@ export interface StoredAuditSession extends AuditSessionSummary {
 }
 
 export interface DecodedSignalComparison {
-  method: "Audio-V aligned PCM preview v1";
-  sampleRate: 8000;
+  method:
+    | "Audio-V aligned PCM preview v1"
+    | "Audio-V full-track multichannel null v2";
+  sampleRate: number;
   analyzedSeconds: number;
   offsetSeconds: number;
   envelopeCorrelation: number;
@@ -464,6 +540,17 @@ export interface DecodedSignalComparison {
   polarity: "same" | "inverted" | "inconclusive";
   gainDifferenceDb: number | null;
   residualRmsDb: number;
+  fullTrack: boolean;
+  comparedChannels: number;
+  comparedFrames: number;
+  durationCoveragePercent: number;
+  perChannel: Array<{
+    channel: number;
+    sampleCorrelation: number | null;
+    residualRmsDb: number;
+    peakResidualDbfs: number | null;
+    nullDepthDb: number;
+  }>;
   relationship:
     | "aligned-equivalent"
     | "strongly-related"

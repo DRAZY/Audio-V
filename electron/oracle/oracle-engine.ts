@@ -3,7 +3,7 @@ import { analyzeWithFfmpeg } from "./ffmpeg-analyzer";
 import { assessFidelityOrigin } from "./fidelity-assessment";
 import { classifyOracleFailure } from "./analysis-failure";
 
-export const engineVersion = "0.6.0-oracle-v8";
+export const engineVersion = "0.7.0-oracle-v9";
 
 export async function analyzeAudioFile(
   filePath: string,
@@ -51,6 +51,11 @@ export async function analyzeAudioFile(
       );
     const bitUtilizationConcern =
       measurements.bitUtilization.classification === "possible-bit-padding";
+    const clickPopConcern = measurements.defects.clickPopCandidateCount > 0;
+    const stuckSampleConcern =
+      measurements.defects.stuckSampleCandidateCount > 0;
+    const steepTransitionConcern =
+      measurements.defects.steepTransitionCandidateCount > 0;
     const rawSignatureConcern = technical.provenanceIndicators.some(
       (indicator) => indicator.type === "watermark-signature",
     );
@@ -61,6 +66,9 @@ export async function analyzeAudioFile(
       algorithmicSourceDeclaration ||
       rawSignatureConcern ||
       bitUtilizationConcern ||
+      clickPopConcern ||
+      stuckSampleConcern ||
+      steepTransitionConcern ||
       dcOffsetConcern ||
       phaseConcern ||
       stereoAuthenticityConcern ||
@@ -87,6 +95,15 @@ export async function analyzeAudioFile(
         : null,
       bitUtilizationConcern
         ? `${measurements.bitUtilization.unusedLeastSignificantBits} consistently unused least-significant bits`
+        : null,
+      clickPopConcern
+        ? `${measurements.defects.clickPopCandidateCount.toLocaleString()} isolated click/pop waveform candidate${measurements.defects.clickPopCandidateCount === 1 ? "" : "s"}`
+        : null,
+      stuckSampleConcern
+        ? `${measurements.defects.stuckSampleCandidateCount.toLocaleString()} non-zero stuck-sample plateau candidate${measurements.defects.stuckSampleCandidateCount === 1 ? "" : "s"}`
+        : null,
+      steepTransitionConcern
+        ? `${measurements.defects.steepTransitionCandidateCount.toLocaleString()} steep full-scale transition candidate${measurements.defects.steepTransitionCandidateCount === 1 ? "" : "s"}`
         : null,
       dcOffsetConcern ? "material DC offset" : null,
       phaseConcern ? "negative stereo correlation" : null,
@@ -115,7 +132,7 @@ export async function analyzeAudioFile(
     return {
       schemaVersion: 1,
       engineVersion,
-      scope: "oracle-integrity-provenance-v8",
+      scope: "oracle-integrity-forensics-v9",
       verdict,
       analysisState: flacMd5Mismatch ? "failed" : "completed",
       failure: flacMd5Mismatch
@@ -147,7 +164,7 @@ export async function analyzeAudioFile(
         ? "The complete FLAC stream decoded, but the MD5 calculated from its uncompressed audio does not match the checksum stored in STREAMINFO. This is deterministic evidence that the decoded audio differs from the stream's recorded identity."
         : requiresReview
           ? `Audio-V decoded the complete PCM stream but found ${concerns.join(", ")}. This verdict covers structural integrity and current signal rules; it does not certify source provenance.`
-        : "Audio-V decoded the complete PCM stream and found no clipping, positive true peak, material DC offset, silence, or negative stereo correlation. This clear verdict covers current structural and signal checks; it does not certify source provenance.",
+        : "Audio-V decoded the complete PCM stream and found no clipping, positive true peak, click/pop, stuck-sample, steep-transition, material DC-offset, silence, or negative stereo-correlation concerns. This clear verdict covers current structural and signal checks; it does not certify source provenance.",
       evidence: [
         {
           id: "full-decode",
@@ -222,6 +239,16 @@ export async function analyzeAudioFile(
           kind: "measured",
           disposition:
             measurements.clippedSamples > 0 || scaledClippingConcern
+              ? "contradicts"
+              : "neutral",
+        },
+        {
+          id: "waveform-defect-diagnostics",
+          label: "Click, pop, stuck-sample, and transition diagnostics",
+          summary: `${measurements.defects.clickPopCandidateCount.toLocaleString()} isolated click/pop candidates, ${measurements.defects.stuckSampleCandidateCount.toLocaleString()} stuck-sample plateaus, and ${measurements.defects.steepTransitionCandidateCount.toLocaleString()} steep transitions. ${measurements.defects.limitation}`,
+          kind: "measured",
+          disposition:
+            clickPopConcern || stuckSampleConcern || steepTransitionConcern
               ? "contradicts"
               : "neutral",
         },
@@ -322,7 +349,7 @@ export async function analyzeAudioFile(
     return {
       schemaVersion: 1,
       engineVersion,
-      scope: "oracle-integrity-provenance-v8",
+      scope: "oracle-integrity-forensics-v9",
       verdict: integrityFailure ? "damaged" : "inconclusive",
       analysisState: integrityFailure ? "failed" : "error",
       failure,

@@ -40,7 +40,7 @@ Intentional filtering, microphones, instruments, analog transfers, noise reducti
 
 ## Compare
 
-Load File A and File B independently from disk or choose current-audit files. Audio-V compares identity, properties, waveform envelopes, spectra, normalized spectral difference, offset, gain, polarity, correlation, and residual energy without adding playback.
+Load File A and File B independently from disk or choose current-audit files. Audio-V compares identity, properties, waveform envelopes, spectra, normalized spectral difference, preview-derived offset/gain/polarity, and a full-track per-channel null without adding playback.
 
 The current alignment measurement is bounded and is not a full-track multichannel null test.
 
@@ -71,7 +71,7 @@ Settings can export a privacy-safe diagnostic JSON file containing application/r
 
 Settings also displays the packaged Oracle validation basis: public independent source-master count, contributor groups, controlled cases, corpus version, current claim level, and the first material limitation. “Infrastructure ready · masters pending” means the validation machinery exists but no licensed real-world master has been counted; it is not a hidden calibration score.
 
-**Audit resource policy** applies to the next audit. Choose 1–4 concurrent Oracle workers and a 128–512 MB JavaScript heap cap per worker. Lower values improve responsiveness and memory predictability; higher concurrency can increase throughput on fast local storage and multi-core systems.
+**Audit resource policy** applies to the next audit. Choose 1–4 concurrent Oracle workers, a 128–512 MB JavaScript heap cap, 1/2/4 FFmpeg threads per file, and a 256 MB–2 GB native-process RSS limit. Crossing the native limit terminates that analysis as a resource error rather than calling the file damaged.
 
 **AcoustID / MusicBrainz lookup** is off by default. When enabled with an AcoustID application key, Audio-V sends the local Chromaprint value and rounded duration—not the audio—to AcoustID. The key remains only in application memory and is removed from saved sessions and reports. Matches are identity leads, not proof of ownership or mastering provenance.
 
@@ -83,6 +83,6 @@ Source and CI users can audit files or recursive folders without opening the des
 npm run cli -- ./collection --output ./audio-v-evidence.json --concurrency 2 --memory-mb 256 --fail-on failed
 ```
 
-Use `--fail-on review`, `failed`, or `never` to choose when evidence returns policy exit code 2. Processing errors return exit code 1. The output uses the same compact Oracle v8 JSON contract as desktop JSON reports.
+Use `--fail-on review`, `failed`, or `never` to choose when evidence returns policy exit code 2. Processing errors return exit code 1. The output uses the same compact Oracle v9 JSON contract as desktop JSON reports. Desktop packages include launchers under `Contents/Resources/cli` on macOS and `resources\cli` on Windows.
 
 For unsigned installation and checksum verification, see [UNSIGNED_INSTALLATION.md](UNSIGNED_INSTALLATION.md).

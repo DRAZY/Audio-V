@@ -165,6 +165,10 @@ async function probe(filePath: string, signal?: AbortSignal): Promise<{
       packetBitrateMinimum: null,
       packetBitrateMaximum: null,
       packetBitrateAverage: null,
+      packetBitrateP05: null,
+      packetBitrateP95: null,
+      packetBitrateStdDev: null,
+      packetDurationCoverage: null,
       flacMd5: null,
       externalChecksums: [],
       metadata: emptyMetadataInventory,
@@ -185,24 +189,18 @@ async function packetStatistics(
   technical: StreamTechnicalAnalysis,
   signal?: AbortSignal,
 ): Promise<void> {
-  if (technical.codecName !== "mp3") return;
-  const result = await runEngine("ffprobe", [
-    "-v",
-    "error",
-    "-select_streams",
-    "a:0",
-    "-show_packets",
-    "-show_entries",
-    "packet=size,duration_time",
-    "-of",
-    "compact=p=0:nk=0",
-    filePath,
-  ], undefined, signal);
   let count = 0;
+  let totalPackets = 0;
   let minimum = Number.POSITIVE_INFINITY;
   let maximum = Number.NEGATIVE_INFINITY;
-  let sum = 0;
-  for (const line of result.stdout.toString("utf8").split(/\r?\n/)) {
+  let mean = 0;
+  let sumSquaredDelta = 0;
+  const reservoir: number[] = [];
+  const reservoirLimit = 100_000;
+  let carry = "";
+  const processLine = (line: string) => {
+    if (!line.trim()) return;
+    totalPackets += 1;
     const fields = Object.fromEntries(
       line
         .trim()
@@ -216,17 +214,67 @@ async function packetStatistics(
       count += 1;
       minimum = Math.min(minimum, rate);
       maximum = Math.max(maximum, rate);
-      sum += rate;
+      const delta = rate - mean;
+      mean += delta / count;
+      sumSquaredDelta += delta * (rate - mean);
+      if (reservoir.length < reservoirLimit) reservoir.push(rate);
+      else {
+        const replacement =
+          ((Math.imul(count, 2_654_435_761) >>> 0) % count);
+        if (replacement < reservoirLimit) reservoir[replacement] = rate;
+      }
     }
-  }
+  };
+  await runEngine(
+    "ffprobe",
+    [
+      "-v",
+      "error",
+      "-select_streams",
+      "a:0",
+      "-show_packets",
+      "-show_entries",
+      "packet=size,duration_time",
+      "-of",
+      "compact=p=0:nk=0",
+      filePath,
+    ],
+    (chunk) => {
+      const text = carry + chunk.toString("utf8");
+      const lines = text.split(/\r?\n/u);
+      carry = lines.pop() ?? "";
+      for (const line of lines) processLine(line);
+    },
+    signal,
+  );
+  if (carry) processLine(carry);
   if (count === 0) return;
-  const average = sum / count;
+  reservoir.sort((left, right) => left - right);
+  const quantile = (proportion: number) =>
+    reservoir[
+      Math.min(
+        reservoir.length - 1,
+        Math.max(0, Math.round((reservoir.length - 1) * proportion)),
+      )
+    ];
+  const standardDeviation = Math.sqrt(
+    sumSquaredDelta / Math.max(1, count - 1),
+  );
   technical.packetCount = count;
   technical.packetBitrateMinimum = minimum;
   technical.packetBitrateMaximum = maximum;
-  technical.packetBitrateAverage = average;
+  technical.packetBitrateAverage = mean;
+  technical.packetBitrateP05 = quantile(0.05);
+  technical.packetBitrateP95 = quantile(0.95);
+  technical.packetBitrateStdDev = standardDeviation;
+  technical.packetDurationCoverage =
+    (count / Math.max(1, totalPackets)) * 100;
+  const centralSpread =
+    (technical.packetBitrateP95 - technical.packetBitrateP05) /
+    Math.max(mean, 1);
+  const coefficientOfVariation = standardDeviation / Math.max(mean, 1);
   technical.bitrateMode =
-    (maximum - minimum) / Math.max(average, 1) <= 0.02 ? "CBR" : "VBR";
+    centralSpread <= 0.03 && coefficientOfVariation <= 0.03 ? "CBR" : "VBR";
 }
 
 function parseLoudness(stderr: string): {
@@ -390,16 +438,37 @@ export async function analyzeWithFfmpeg(
         );
   const overviewSpectrum = spectrogram.finish();
   const detailSpectrum = detailSpectrogram.finish();
+  const pcmMeasurements = measurement.finish();
+  const trackGainDb =
+    loudness.integratedLufs === null
+      ? null
+      : Number((-18 - loudness.integratedLufs).toFixed(2));
+  const trackPeak =
+    pcmMeasurements.samplePeakDbfs === null
+      ? null
+      : Number((10 ** (pcmMeasurements.samplePeakDbfs / 20)).toFixed(8));
   return {
     technical,
     measurements: {
-      ...measurement.finish(),
+      ...pcmMeasurements,
       standard: "Audio-V signal measurement v2",
       decoder: technical.backend,
       decodeIntegrity: "complete",
       ...loudness,
       drMeter: drMeter.overall,
       drMeterPerChannel: drMeter.perChannel,
+      replayGain: {
+        standard: "ReplayGain 2.0 / ITU-R BS.1770",
+        referenceLufs: -18,
+        trackGainDb,
+        trackPeak,
+        albumGainDb: null,
+        albumPeak: null,
+        albumGroup: null,
+        albumTrackCount: 0,
+        limitation:
+          "Track gain is computed from BS.1770 integrated loudness at the ReplayGain 2.0 −18 LUFS reference. Album gain is populated only after Audio-V fully scans a multi-track album group.",
+      },
       peakToLoudnessRatioLu,
       waveform: waveform.finish(),
       spectrogram: overviewSpectrum,

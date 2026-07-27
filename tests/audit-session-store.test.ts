@@ -144,4 +144,37 @@ describe("AuditSessionStore", () => {
       store.close();
     }
   });
+
+  it("indexes measured fingerprints independently of cache invalidation", async () => {
+    const directory = await fs.mkdtemp(
+      path.join(process.cwd(), "tests/.tmp-fingerprint-index-"),
+    );
+    temporaryDirectories.push(directory);
+    const firstPath = path.join(directory, "first.wav");
+    const secondPath = path.join(directory, "second.wav");
+    const bytes = pcmWave({ seconds: 6 });
+    await fs.writeFile(firstPath, bytes);
+    await fs.writeFile(secondPath, bytes);
+    const store = new AuditSessionStore(path.join(directory, "sessions.sqlite3"));
+
+    try {
+      const result = await scanSources({
+        kind: "files",
+        label: "Fingerprint history",
+        paths: [firstPath, secondPath],
+      });
+      await Promise.all(result.files.map((file) => store.setCached(file)));
+      const candidates = store.findFingerprintCandidates(firstPath);
+
+      expect(candidates).toHaveLength(1);
+      expect(candidates[0]).toMatchObject({
+        filePath: secondPath,
+        fingerprintSha256:
+          result.files[1].oracle.technical?.fingerprint.fingerprintSha256,
+      });
+      expect(candidates[0].rawFingerprint.length).toBeGreaterThan(20);
+    } finally {
+      store.close();
+    }
+  });
 });

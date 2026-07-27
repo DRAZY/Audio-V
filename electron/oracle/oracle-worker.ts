@@ -1,5 +1,6 @@
-import { parentPort } from "node:worker_threads";
+import { parentPort, workerData } from "node:worker_threads";
 import { analyzeAudioFile } from "./oracle-engine";
+import { configureEngineResourcePolicy } from "./ffmpeg-runtime";
 import type {
   OracleWorkerRequest,
   OracleWorkerResponse,
@@ -11,6 +12,14 @@ if (!port) {
 }
 
 const jobs = new Map<string, AbortController>();
+configureEngineResourcePolicy(
+  (workerData as {
+    enginePolicy?: { ffmpegThreads: number; nativeProcessMemoryMb: number };
+  } | null)?.enginePolicy ?? {
+    ffmpegThreads: 2,
+    nativeProcessMemoryMb: 1024,
+  },
+);
 
 port.on("message", (request: OracleWorkerRequest) => {
   if (request.type === "cancel") {

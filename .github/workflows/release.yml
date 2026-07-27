@@ -24,6 +24,7 @@ jobs:
               release/*.dmg
               release/*.dmg.blockmap
               build/platform-validation-*.json
+              build/format-validation-*.json
           - label: Windows installer and portable
             os: windows-latest
             command: dist:win
@@ -32,6 +33,7 @@ jobs:
               release/*.exe
               release/*.exe.blockmap
               build/platform-validation-*.json
+              build/format-validation-*.json
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4

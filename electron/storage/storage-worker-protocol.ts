@@ -15,6 +15,7 @@ export type StorageWorkerRequest =
   | { id: string; operation: "get-session"; sessionId: string }
   | { id: string; operation: "get-cached"; filePath: string }
   | { id: string; operation: "set-cached"; file: AudioFileRecord }
+  | { id: string; operation: "find-fingerprints"; filePath: string; limit?: number }
   | { id: string; operation: "update-session-file"; sessionId: string; filePath: string; file: AudioFileRecord }
   | { id: string; operation: "import-legacy"; filePath: string }
   | { id: string; operation: "export-session"; sessionId: string; format: ReportExportFormat; outputPath: string }

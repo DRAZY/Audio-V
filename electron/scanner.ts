@@ -9,6 +9,7 @@ import {
   type OracleResult,
   type ScanProgressUpdate,
   type ScanSelectionResult,
+  type FingerprintIndexCandidate,
 } from "../shared/contracts";
 import {
   analyzeAudioFile,
@@ -33,6 +34,8 @@ import {
   lookupAcoustId,
   metadataProvenanceIndicators,
 } from "./oracle/analysis-tools";
+import { analyzeCueTracks } from "./oracle/cue-track-analyzer";
+import { measureAlbumReplayGain } from "./oracle/album-replaygain";
 
 const supportedExtensions = new Set<string>(AUDIO_EXTENSIONS);
 
@@ -40,6 +43,10 @@ export interface OracleRecordCache {
   get(filePath: string): Promise<AudioFileRecord | null>;
   set(record: AudioFileRecord): Promise<void>;
   flush(): Promise<void>;
+  findFingerprintCandidates?(
+    filePath: string,
+    limit?: number,
+  ): Promise<FingerprintIndexCandidate[]>;
 }
 
 function normalizeAudioRecordFormat(file: AudioFileRecord): AudioFileRecord {
@@ -339,11 +346,82 @@ function fingerprintSimilarity(left: number[], right: number[]): number {
   return Number((overlap * (1 - differingBits / (length * 32))).toFixed(6));
 }
 
-function attachFingerprintRelationships(files: AudioFileRecord[]): AudioFileRecord[] {
-  return files.map((file, index) => {
+async function attachAlbumReplayGain(
+  files: AudioFileRecord[],
+  signal?: AbortSignal,
+  warnings?: string[],
+): Promise<AudioFileRecord[]> {
+  const groups = new Map<string, AudioFileRecord[]>();
+  for (const file of files) {
+    const measurements = file.oracle.measurements;
+    const album = file.metadata.album?.trim();
+    if (!measurements || !album || !file.channels) continue;
+    const artist =
+      file.metadata.albumArtists[0] ?? file.metadata.artists[0] ?? "";
+    const key = `${artist.trim().toLocaleLowerCase()}\0${album.toLocaleLowerCase()}\0${file.channels}`;
+    const group = groups.get(key) ?? [];
+    group.push(file);
+    groups.set(key, group);
+  }
+  const replacements = new Map<string, AudioFileRecord>();
+  for (const [key, group] of groups) {
+    if (group.length < 2) continue;
+    const ordered = [...group].sort(
+      (left, right) =>
+        (left.metadata.discNumber ?? 0) - (right.metadata.discNumber ?? 0) ||
+        (left.metadata.trackNumber ?? 0) - (right.metadata.trackNumber ?? 0) ||
+        left.path.localeCompare(right.path),
+    );
+    try {
+      const album = await measureAlbumReplayGain(
+        ordered.map((file) => file.path),
+        signal,
+      );
+      const albumPeak = Math.max(
+        ...ordered.map(
+          (file) => file.oracle.measurements?.replayGain.trackPeak ?? 0,
+        ),
+      );
+      for (const file of ordered) {
+        const measurements = file.oracle.measurements!;
+        replacements.set(file.path, {
+          ...file,
+          oracle: {
+            ...file.oracle,
+            measurements: {
+              ...measurements,
+              replayGain: {
+                ...measurements.replayGain,
+                albumGainDb: album.gainDb,
+                albumPeak,
+                albumGroup: key,
+                albumTrackCount: ordered.length,
+                limitation:
+                  "ReplayGain 2.0 album gain was calculated by concatenating the complete decoded tracks in disc/track order at the -18 LUFS reference.",
+              },
+            },
+          },
+        });
+      }
+    } catch (error) {
+      warnings?.push(
+        `Album ReplayGain (${ordered[0].metadata.album}): ${
+          error instanceof Error ? error.message : "measurement failed"
+        }`,
+      );
+    }
+  }
+  return files.map((file) => replacements.get(file.path) ?? file);
+}
+
+async function attachFingerprintRelationships(
+  files: AudioFileRecord[],
+  cache?: OracleRecordCache,
+): Promise<AudioFileRecord[]> {
+  return Promise.all(files.map(async (file, index) => {
     const technical = file.oracle.technical;
     if (!technical || technical.fingerprint.status !== "measured") return file;
-    const matches = files.flatMap((candidate, candidateIndex) => {
+    const currentMatches = files.flatMap((candidate, candidateIndex) => {
       if (candidateIndex === index) return [];
       const other = candidate.oracle.technical?.fingerprint;
       if (!other || other.status !== "measured") return [];
@@ -373,8 +451,44 @@ function attachFingerprintRelationships(files: AudioFileRecord[]): AudioFileReco
         relationship: sameFingerprint
           ? ("same-fingerprint" as const)
           : ("high-similarity" as const),
+        source: "current-audit" as const,
       }];
     });
+    const historical = cache?.findFingerprintCandidates
+      ? await cache.findFingerprintCandidates(file.path)
+      : [];
+    const historicalMatches = historical.flatMap((candidate) => {
+      if (currentMatches.some((match) => match.filePath === candidate.filePath)) {
+        return [];
+      }
+      const sameFingerprint =
+        technical.fingerprint.fingerprintSha256 !== null &&
+        technical.fingerprint.fingerprintSha256 === candidate.fingerprintSha256;
+      const overlap = Math.min(
+        technical.fingerprint.rawFingerprint.length,
+        candidate.rawFingerprint.length,
+      );
+      const similarity = sameFingerprint
+        ? 1
+        : fingerprintSimilarity(
+            technical.fingerprint.rawFingerprint,
+            candidate.rawFingerprint,
+          );
+      if (!sameFingerprint && (overlap < 20 || similarity < 0.88)) return [];
+      return [{
+        filePath: candidate.filePath,
+        fileName: candidate.fileName,
+        similarity,
+        relationship: sameFingerprint
+          ? ("same-fingerprint" as const)
+          : ("high-similarity" as const),
+        source: "history-index" as const,
+        lastSeenAt: candidate.lastSeenAt,
+      }];
+    });
+    const matches = [...currentMatches, ...historicalMatches]
+      .sort((left, right) => right.similarity - left.similarity)
+      .slice(0, 100);
     if (
       matches.length === technical.fingerprint.matches.length &&
       matches.every((match, matchIndex) => {
@@ -397,7 +511,7 @@ function attachFingerprintRelationships(files: AudioFileRecord[]): AudioFileReco
         },
       },
     };
-  });
+  }));
 }
 
 export async function inspectAudioFile(filePath: string): Promise<AudioFileRecord> {
@@ -620,6 +734,18 @@ export async function scanSources(
         );
         const technical = oracle.technical;
         if (technical) technical.metadata = inspected.metadata;
+        if (
+          inspected.metadata.cueSheet.tracks.length > 0 &&
+          (technical?.sampleRate ?? inspected.sampleRate) &&
+          (technical?.channels ?? inspected.channels)
+        ) {
+          oracle.cueTracks = await analyzeCueTracks(
+            inspected.metadata.cueSheet.tracks,
+            (technical?.sampleRate ?? inspected.sampleRate)!,
+            (technical?.channels ?? inspected.channels)!,
+            options?.signal,
+          );
+        }
         let file = normalizeAudioRecordFormat({
           ...inspected,
           codec: technical?.codecLongName ?? inspected.codec,
@@ -693,8 +819,25 @@ export async function scanSources(
   let files = filesByIndex.filter(
     (file): file is AudioFileRecord => file !== undefined,
   );
+  if (!inventoryOnly) {
+    const beforeAlbumGain = files;
+    files = await attachAlbumReplayGain(files, options?.signal, warnings);
+    await Promise.all(
+      files.flatMap((file, index) =>
+        file === beforeAlbumGain[index]
+          ? []
+          : [
+              options?.cache?.set(file),
+              options?.onFileStored?.(file, index, false),
+            ],
+      ),
+    );
+  }
   const filesBeforeRelationships = files;
-  files = attachFingerprintRelationships(filesBeforeRelationships);
+  files = await attachFingerprintRelationships(
+    filesBeforeRelationships,
+    options?.cache,
+  );
   await Promise.all(
     files.flatMap((file, index) =>
       file === filesBeforeRelationships[index]

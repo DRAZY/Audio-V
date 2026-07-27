@@ -106,6 +106,8 @@ port.on("message", (request: StorageWorkerRequest) => {
         return store.getCached(request.filePath);
       case "set-cached":
         return store.setCached(request.file);
+      case "find-fingerprints":
+        return store.findFingerprintCandidates(request.filePath, request.limit);
       case "update-session-file":
         return store.updateSessionFile(request.sessionId, request.filePath, request.file);
       case "import-legacy":

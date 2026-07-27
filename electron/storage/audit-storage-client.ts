@@ -7,6 +7,7 @@ import type {
   AuditSessionSummary,
   ReportExportFormat,
   StoredAuditSession,
+  FingerprintIndexCandidate,
 } from "../../shared/contracts";
 import type {
   StorageWorkerCommand,
@@ -85,6 +86,13 @@ export class AuditStorageClient {
 
   setCached(file: AudioFileRecord): Promise<void> {
     return this.#request({ operation: "set-cached", file });
+  }
+
+  findFingerprintCandidates(
+    filePath: string,
+    limit?: number,
+  ): Promise<FingerprintIndexCandidate[]> {
+    return this.#request({ operation: "find-fingerprints", filePath, limit });
   }
 
   updateSessionFile(sessionId: string, filePath: string, file: AudioFileRecord): Promise<boolean> {

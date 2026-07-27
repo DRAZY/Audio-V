@@ -14,6 +14,10 @@ interface ChannelAccumulator {
   scaledClippingCandidateSamples: number;
   previousAbsolute: number | null;
   plateauLength: number;
+  defectWindow: Array<{ frame: number; sample: number }>;
+  stuckValue: number | null;
+  stuckStartFrame: number;
+  stuckLength: number;
 }
 
 function amplitudeToDbfs(amplitude: number): number | null {
@@ -57,6 +61,10 @@ export class PcmMeasurementAccumulator {
   #internalDigitalDropoutCount = 0;
   #signalSeenBeforeSilence = false;
   #discontinuityCandidateCount = 0;
+  #clickPopCandidateCount = 0;
+  #stuckSampleCandidateCount = 0;
+  #defectEvents: SignalMeasurements["defects"]["events"] = [];
+  #defectEventsTruncated = false;
   #previousFrame: Float64Array | null = null;
   #minimumTrailingZeroBits: number | null = null;
   #bitUtilizationSignalSamples = 0;
@@ -96,7 +104,93 @@ export class PcmMeasurementAccumulator {
       scaledClippingCandidateSamples: 0,
       previousAbsolute: null,
       plateauLength: 0,
+      defectWindow: [],
+      stuckValue: null,
+      stuckStartFrame: 0,
+      stuckLength: 0,
     }));
+  }
+
+  #appendDefectEvent(
+    event: SignalMeasurements["defects"]["events"][number],
+  ): void {
+    const previous = this.#defectEvents.at(-1);
+    if (
+      previous &&
+      previous.kind === event.kind &&
+      previous.channel === event.channel &&
+      event.startSeconds - previous.endSeconds <= 0.002
+    ) {
+      previous.endSeconds = event.endSeconds;
+      previous.amplitude = Math.max(previous.amplitude, event.amplitude);
+      return;
+    }
+    if (this.#defectEvents.length < 500) this.#defectEvents.push(event);
+    else this.#defectEventsTruncated = true;
+  }
+
+  #finishStuckRun(channel: number, accumulator: ChannelAccumulator): void {
+    const minimumFrames = Math.max(128, Math.round(this.#sampleRate * 0.01));
+    if (
+      accumulator.stuckValue !== null &&
+      Math.abs(accumulator.stuckValue) >= 0.0001 &&
+      accumulator.stuckLength >= minimumFrames
+    ) {
+      this.#stuckSampleCandidateCount += 1;
+      this.#appendDefectEvent({
+        startSeconds: roundMeasurement(
+          accumulator.stuckStartFrame / this.#sampleRate,
+        ),
+        endSeconds: roundMeasurement(
+          (accumulator.stuckStartFrame + accumulator.stuckLength) /
+            this.#sampleRate,
+        ),
+        channel,
+        amplitude: roundMeasurement(Math.abs(accumulator.stuckValue)),
+        kind: "stuck-sample-candidate",
+      });
+    }
+  }
+
+  #inspectDefectWindow(
+    channel: number,
+    accumulator: ChannelAccumulator,
+  ): void {
+    const window = accumulator.defectWindow;
+    if (window.length < 9) return;
+    const before = window.slice(0, 4).map((entry) => entry.sample);
+    const center = window[4];
+    const after = window.slice(5).map((entry) => entry.sample);
+    const mean = (values: number[]) =>
+      values.reduce((sum, value) => sum + value, 0) / values.length;
+    const beforeMean = mean(before);
+    const afterMean = mean(after);
+    const neighbors = [...before, ...after];
+    const neighborRms = Math.sqrt(
+      neighbors.reduce((sum, value) => sum + value * value, 0) /
+        neighbors.length,
+    );
+    const range = (values: number[]) =>
+      Math.max(...values) - Math.min(...values);
+    const baseline = (beforeMean + afterMean) / 2;
+    const impulse = Math.abs(center.sample - baseline);
+    if (
+      range(before) <= 0.04 &&
+      range(after) <= 0.04 &&
+      Math.abs(beforeMean - afterMean) <= 0.05 &&
+      impulse >= 0.25 &&
+      impulse >= 6 * Math.max(neighborRms, 0.005)
+    ) {
+      this.#clickPopCandidateCount += 1;
+      this.#appendDefectEvent({
+        startSeconds: roundMeasurement(center.frame / this.#sampleRate),
+        endSeconds: roundMeasurement((center.frame + 1) / this.#sampleRate),
+        channel,
+        amplitude: roundMeasurement(impulse),
+        kind: "click-pop-candidate",
+      });
+    }
+    window.shift();
   }
 
   pushInterleaved(samples: ArrayLike<number>): void {
@@ -145,6 +239,19 @@ export class PcmMeasurementAccumulator {
           frameHasDiscontinuity = true;
         }
         const accumulator = this.#perChannel[channel];
+        accumulator.defectWindow.push({ frame: this.#frames, sample });
+        this.#inspectDefectWindow(channel, accumulator);
+        if (
+          accumulator.stuckValue !== null &&
+          Math.abs(sample - accumulator.stuckValue) <= 1e-12
+        ) {
+          accumulator.stuckLength += 1;
+        } else {
+          this.#finishStuckRun(channel, accumulator);
+          accumulator.stuckValue = sample;
+          accumulator.stuckStartFrame = this.#frames;
+          accumulator.stuckLength = 1;
+        }
         accumulator.peak = Math.max(accumulator.peak, absolute);
         accumulator.sum += sample;
         accumulator.sumSquares += sample * sample;
@@ -266,6 +373,9 @@ export class PcmMeasurementAccumulator {
 
   finish(): SignalMeasurements {
     this.#finishClippingEvent(this.#frames);
+    for (let channel = 0; channel < this.#perChannel.length; channel += 1) {
+      this.#finishStuckRun(channel, this.#perChannel[channel]);
+    }
     const totalSamples = this.#frames * this.#channels;
     const perChannel: ChannelMeasurements[] = this.#perChannel.map(
       (channel) => ({
@@ -415,6 +525,18 @@ export class PcmMeasurementAccumulator {
           : roundMeasurement(samplePeakDbfs - rmsDbfs),
       drMeter: null,
       drMeterPerChannel: [],
+      replayGain: {
+        standard: "ReplayGain 2.0 / ITU-R BS.1770",
+        referenceLufs: -18,
+        trackGainDb: null,
+        trackPeak: null,
+        albumGainDb: null,
+        albumPeak: null,
+        albumGroup: null,
+        albumTrackCount: 0,
+        limitation:
+          "Track gain requires a completed BS.1770 loudness measurement; album gain requires a complete grouped-album scan.",
+      },
       bitUtilization: {
         applicable: this.#bitUtilizationApplicable,
         declaredBitDepth: this.#declaredBitDepth,
@@ -437,6 +559,15 @@ export class PcmMeasurementAccumulator {
         ),
         internalDigitalDropoutCount: this.#internalDigitalDropoutCount,
         discontinuityCandidateCount: this.#discontinuityCandidateCount,
+      },
+      defects: {
+        clickPopCandidateCount: this.#clickPopCandidateCount,
+        stuckSampleCandidateCount: this.#stuckSampleCandidateCount,
+        steepTransitionCandidateCount: this.#discontinuityCandidateCount,
+        events: this.#defectEvents,
+        eventsTruncated: this.#defectEventsTruncated,
+        limitation:
+          "Click/pop and stuck-sample detections are conservative waveform-shape candidates. Percussion, synthesis, square waves, hard edits, and test tones can produce similar measurements, so candidates require review and never establish file damage.",
       },
       waveform: null,
       spectrogram: emptySpectrogram,

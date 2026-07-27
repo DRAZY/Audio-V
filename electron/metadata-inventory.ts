@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { IAudioMetadata } from "music-metadata";
-import type { MetadataInventory } from "../shared/contracts";
+import type { CueTrackDefinition, MetadataInventory } from "../shared/contracts";
 
 function finite(value: unknown): number | null {
   const parsed = Number(value);
@@ -42,13 +42,14 @@ function nativeTags(metadata: IAudioMetadata): Array<{ key: string; value: strin
 
 async function sidecarCueSheets(
   filePath: string,
-): Promise<{ paths: string[]; trackCount: number }> {
+): Promise<{ paths: string[]; tracks: CueTrackDefinition[]; trackCount: number }> {
   const directory = path.dirname(filePath);
   const base = path.basename(filePath);
   const candidates = (await fs.readdir(directory, { withFileTypes: true }))
     .filter((entry) => entry.isFile() && path.extname(entry.name).toLowerCase() === ".cue")
     .map((entry) => path.join(directory, entry.name));
   const matches: string[] = [];
+  const tracks: CueTrackDefinition[] = [];
   let trackCount = 0;
   for (const candidate of candidates.slice(0, 100)) {
     const text = await fs.readFile(candidate, "utf8").catch(() => "");
@@ -58,10 +59,67 @@ async function sidecarCueSheets(
       (candidates.length === 1 && !/\bFILE\b/iu.test(text));
     if (referencesFile) {
       matches.push(candidate);
-      trackCount += (text.match(/^\s*TRACK\s+\d+\s+/gimu) ?? []).length;
+      tracks.push(...parseCueTracks(text, filePath));
+      trackCount += (text.match(/^\s*TRACK\s+\d+\s+AUDIO\b/gimu) ?? []).length;
     }
   }
-  return { paths: matches, trackCount };
+  return { paths: matches, tracks, trackCount };
+}
+
+function parseCueTracks(text: string, filePath: string): CueTrackDefinition[] {
+  const targetName = path.basename(filePath).toLocaleLowerCase();
+  let currentFile = targetName;
+  let current: CueTrackDefinition | null = null;
+  const tracks: CueTrackDefinition[] = [];
+  const commit = () => {
+    if (current && current.index01Seconds >= 0) tracks.push(current);
+    current = null;
+  };
+  for (const line of text.split(/\r?\n/gu)) {
+    const file = line.match(/^\s*FILE\s+(?:"([^"]+)"|'([^']+)'|(\S+))/iu);
+    if (file) {
+      commit();
+      currentFile = path.basename(file[1] ?? file[2] ?? file[3]).toLocaleLowerCase();
+      continue;
+    }
+    const track = line.match(/^\s*TRACK\s+(\d+)\s+AUDIO\b/iu);
+    if (track) {
+      commit();
+      if (currentFile === targetName) {
+        current = {
+          trackNumber: Number(track[1]),
+          title: null,
+          performer: null,
+          sourcePath: filePath,
+          index01Seconds: -1,
+          endSeconds: null,
+        };
+      }
+      continue;
+    }
+    if (!current) continue;
+    const title = line.match(/^\s*TITLE\s+(?:"([^"]*)"|'([^']*)'|(.+))$/iu);
+    if (title) {
+      current.title = (title[1] ?? title[2] ?? title[3]).trim() || null;
+      continue;
+    }
+    const performer = line.match(/^\s*PERFORMER\s+(?:"([^"]*)"|'([^']*)'|(.+))$/iu);
+    if (performer) {
+      current.performer =
+        (performer[1] ?? performer[2] ?? performer[3]).trim() || null;
+      continue;
+    }
+    const index = line.match(/^\s*INDEX\s+01\s+(\d+):(\d+):(\d+)/iu);
+    if (index) {
+      current.index01Seconds =
+        Number(index[1]) * 60 + Number(index[2]) + Number(index[3]) / 75;
+    }
+  }
+  commit();
+  for (let index = 0; index < tracks.length - 1; index += 1) {
+    tracks[index].endSeconds = tracks[index + 1].index01Seconds;
+  }
+  return tracks;
 }
 
 export async function buildMetadataInventory(
@@ -72,6 +130,21 @@ export async function buildMetadataInventory(
   const tags = nativeTags(metadata);
   const embeddedCue = tags.find((tag) => /^(CUESHEET|CUE_SHEET)$/iu.test(tag.key));
   const sidecars = await sidecarCueSheets(filePath);
+  const embeddedTracks = embeddedCue
+    ? parseCueTracks(embeddedCue.value, filePath)
+    : [];
+  const cueTracks = [...sidecars.tracks, ...embeddedTracks].filter(
+    (track, index, all) =>
+      all.findIndex(
+        (candidate) =>
+          candidate.trackNumber === track.trackNumber &&
+          candidate.index01Seconds === track.index01Seconds,
+      ) === index,
+  );
+  const sourceDuration = finite(metadata.format.duration);
+  if (cueTracks.length > 0 && sourceDuration !== null) {
+    cueTracks[cueTracks.length - 1].endSeconds = sourceDuration;
+  }
   return {
     title: common.title ?? null,
     artists: unique([...(common.artists ?? []), common.artist]),
@@ -105,8 +178,9 @@ export async function buildMetadataInventory(
       trackCount:
         sidecars.trackCount +
         (embeddedCue
-          ? (embeddedCue.value.match(/^\s*TRACK\s+\d+\s+/gimu) ?? []).length
+          ? (embeddedCue.value.match(/^\s*TRACK\s+\d+\s+AUDIO\b/gimu) ?? []).length
           : 0),
+      tracks: cueTracks,
     },
     tags,
   };
@@ -135,6 +209,6 @@ export const emptyMetadataInventory: MetadataInventory = {
     albumGainDb: null,
     albumPeak: null,
   },
-  cueSheet: { embedded: false, sidecarPaths: [], trackCount: 0 },
+  cueSheet: { embedded: false, sidecarPaths: [], trackCount: 0, tracks: [] },
   tags: [],
 };

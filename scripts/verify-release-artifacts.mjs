@@ -74,7 +74,7 @@ async function requireUnsignedPe(file) {
   }
 }
 
-async function verifyResources(resources, engineNames) {
+async function verifyResources(resources, engineNames, cliName) {
   await requireFile(path.join(resources, "app.asar"), 100_000);
   await requireFile(path.join(resources, "engine-manifest.json"), 100);
   await requireFile(path.join(resources, "THIRD_PARTY_NOTICES.txt"), 100);
@@ -89,6 +89,7 @@ async function verifyResources(resources, engineNames) {
     path.join(resources, "engine", "c2pa-offline-settings.json"),
     40,
   );
+  await requireFile(path.join(resources, "cli", cliName), 50);
   await requireFile(
     path.join(resources, "engine", "ANALYSIS_TOOL_PROVENANCE.json"),
     100,
@@ -126,7 +127,7 @@ if (platform === "mac") {
       "ffprobe",
       "c2patool",
       "fpcalc",
-    ]);
+    ], "audio-v-cli");
   }
   const universalExecutable = path.join(
     release,
@@ -209,6 +210,6 @@ if (platform === "mac") {
     "ffprobe.exe",
     "c2patool.exe",
     "fpcalc.exe",
-  ]);
+  ], "Audio-V-CLI.cmd");
   console.log("Verified Windows installer, portable executable, and resources.");
 }

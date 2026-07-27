@@ -64,6 +64,42 @@ describe("inspectAudioFile", () => {
 });
 
 describe("scanSources", () => {
+  it("decodes cue INDEX 01 tracks as independent evidence segments", async () => {
+    const directory = await makeTemporaryDirectory();
+    const filePath = path.join(directory, "album.wav");
+    await fs.writeFile(filePath, pcmWave({ seconds: 2 }));
+    await fs.writeFile(
+      path.join(directory, "album.cue"),
+      [
+        'FILE "album.wav" WAVE',
+        "  TRACK 01 AUDIO",
+        '    TITLE "First"',
+        "    INDEX 01 00:00:00",
+        "  TRACK 02 AUDIO",
+        '    TITLE "Second"',
+        "    INDEX 01 00:01:00",
+      ].join("\n"),
+    );
+
+    const result = await scanSources({
+      kind: "files",
+      label: "Cue image",
+      paths: [filePath],
+    });
+
+    expect(result.files[0].metadata.cueSheet.trackCount).toBe(2);
+    expect(result.files[0].oracle.cueTracks).toHaveLength(2);
+    expect(result.files[0].oracle.cueTracks?.map((track) => track.title)).toEqual([
+      "First",
+      "Second",
+    ]);
+    expect(
+      result.files[0].oracle.cueTracks?.every(
+        (track) => track.analysisState === "completed",
+      ),
+    ).toBe(true);
+  });
+
   it("runs metadata inventory without invoking the Oracle decoder", async () => {
     const directory = await makeTemporaryDirectory();
     const filePath = path.join(directory, "inventory.wav");

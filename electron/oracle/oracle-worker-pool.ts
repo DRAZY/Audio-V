@@ -1,7 +1,7 @@
 import { availableParallelism } from "node:os";
 import { randomUUID } from "node:crypto";
 import { Worker } from "node:worker_threads";
-import type { OracleResult } from "../../shared/contracts";
+import type { AnalysisResourceLimits, OracleResult } from "../../shared/contracts";
 import type {
   OracleWorkerRequest,
   OracleWorkerResponse,
@@ -24,6 +24,7 @@ interface WorkerSlot {
 export class OracleWorkerPool {
   readonly #workerPath: string;
   readonly #workerMemoryMb: number;
+  readonly #enginePolicy: Pick<AnalysisResourceLimits, "ffmpegThreads" | "nativeProcessMemoryMb">;
   readonly #slots: WorkerSlot[] = [];
   readonly #queue: QueuedJob[] = [];
   #closed = false;
@@ -32,12 +33,17 @@ export class OracleWorkerPool {
     workerPath: string,
     workerCount = Math.max(1, Math.min(2, availableParallelism() - 1)),
     workerMemoryMb = 256,
+    enginePolicy: Pick<
+      AnalysisResourceLimits,
+      "ffmpegThreads" | "nativeProcessMemoryMb"
+    > = { ffmpegThreads: 2, nativeProcessMemoryMb: 1024 },
   ) {
     if (!Number.isInteger(workerCount) || workerCount < 1) {
       throw new RangeError("Oracle worker count must be at least one.");
     }
     this.#workerPath = workerPath;
     this.#workerMemoryMb = Math.max(128, Math.min(512, workerMemoryMb));
+    this.#enginePolicy = enginePolicy;
     for (let index = 0; index < workerCount; index += 1) {
       this.#slots.push(this.#createSlot());
     }
@@ -110,6 +116,7 @@ export class OracleWorkerPool {
   #createSlot(): WorkerSlot {
     const slot: WorkerSlot = {
       worker: new Worker(this.#workerPath, {
+        workerData: { enginePolicy: this.#enginePolicy },
         resourceLimits: {
           maxOldGenerationSizeMb: this.#workerMemoryMb,
           maxYoungGenerationSizeMb: Math.min(64, this.#workerMemoryMb / 4),

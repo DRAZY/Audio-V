@@ -20,6 +20,7 @@ import { runComparisonWorker } from "./oracle/comparison-worker-client";
 import { AuditStorageClient } from "./storage/audit-storage-client";
 import { createPrivacySafeDiagnostics } from "./diagnostics";
 import { inspectSpectrogram } from "./oracle/spectrogram-inspector";
+import { configureEngineResourcePolicy } from "./oracle/ffmpeg-runtime";
 
 const approvedSelections = new Map<string, AudioSourceSelection>();
 const approvedAudioFiles = new Set<string>();
@@ -43,6 +44,8 @@ const defaultResourceLimits: AnalysisResourceLimits = {
     Math.min(4, Math.floor(availableParallelism() / 4)),
   ) as AnalysisResourceLimits["concurrency"],
   workerMemoryMb: 256,
+  ffmpegThreads: 2,
+  nativeProcessMemoryMb: 1024,
 };
 let currentResourceLimits = defaultResourceLimits;
 
@@ -159,7 +162,9 @@ function isSourceSelection(value: unknown): value is AudioSourceSelection {
     source.paths.every((entry) => typeof entry === "string") &&
     (source.resourceLimits === undefined ||
       ([1, 2, 3, 4].includes(source.resourceLimits.concurrency) &&
-        [128, 256, 384, 512].includes(source.resourceLimits.workerMemoryMb))) &&
+        [128, 256, 384, 512].includes(source.resourceLimits.workerMemoryMb) &&
+        [1, 2, 4].includes(source.resourceLimits.ffmpegThreads) &&
+        [256, 512, 1024, 2048].includes(source.resourceLimits.nativeProcessMemoryMb))) &&
     (source.externalLookup === undefined ||
       (typeof source.externalLookup.acoustIdEnabled === "boolean" &&
         (source.externalLookup.acoustIdApiKey === undefined ||
@@ -403,6 +408,7 @@ ipcMain.handle(
         path.join(__dirname, "oracle", "comparison-worker.js"),
         leftPath,
         rightPath,
+        currentResourceLimits,
         controller.signal,
       );
     } finally {
@@ -431,14 +437,18 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
   activeScanController?.abort();
   if (
     requestedLimits.concurrency !== currentResourceLimits.concurrency ||
-    requestedLimits.workerMemoryMb !== currentResourceLimits.workerMemoryMb
+    requestedLimits.workerMemoryMb !== currentResourceLimits.workerMemoryMb ||
+    requestedLimits.ffmpegThreads !== currentResourceLimits.ffmpegThreads ||
+    requestedLimits.nativeProcessMemoryMb !== currentResourceLimits.nativeProcessMemoryMb
   ) {
     await oracleWorkers.close();
     oracleWorkers = new OracleWorkerPool(
       path.join(__dirname, "oracle", "oracle-worker.js"),
       requestedLimits.concurrency,
       requestedLimits.workerMemoryMb,
+      requestedLimits,
     );
+    configureEngineResourcePolicy(requestedLimits);
     currentResourceLimits = requestedLimits;
   }
   const controller = new AbortController();
@@ -866,12 +876,16 @@ app.whenReady().then(async () => {
     get: (filePath) => auditSessions.getCached(filePath),
     set: (record) => auditSessions.setCached(record),
     flush: async () => undefined,
+    findFingerprintCandidates: (filePath, limit) =>
+      auditSessions.findFingerprintCandidates(filePath, limit),
   };
   oracleWorkers = new OracleWorkerPool(
     path.join(__dirname, "oracle", "oracle-worker.js"),
     defaultResourceLimits.concurrency,
     defaultResourceLimits.workerMemoryMb,
+    defaultResourceLimits,
   );
+  configureEngineResourcePolicy(defaultResourceLimits);
   createWindow();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

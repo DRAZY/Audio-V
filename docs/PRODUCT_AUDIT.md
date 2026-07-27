@@ -41,7 +41,7 @@ The official [AudioAuditor website](https://audioauditor.org/) and [source repos
 | CSV / PDF / XLSX / DOCX export | Adopt and add JSON | Implemented from one evidence model; JSON remains the lossless machine-readable format |
 | Free / actively developed / open source | Product decision | Active development is current; licensing and public-repository status must be declared before release rather than inferred |
 
-AudioAuditor also advertises MQA, experimental AI checks, fingerprints, click/pop and stuck-sample checks, bit-truncation review, and silence analysis. Audio-V now covers exact/internal silence, steep-transition candidates, local Chromaprint identity relationships, offline C2PA inspection, known generator/signature inventory, and integer lossless bit-utilization review. Validated click/pop/stuck-sample classifiers, MQA markers, and a statistically calibrated AI classifier remain future work; none may appear as authoritative until fixtures and failure boundaries exist.
+AudioAuditor also advertises MQA and experimental AI checks. Audio-V now covers exact/internal silence, steep-transition, click/pop, and stuck-sample candidates; persistent Chromaprint identity relationships; offline C2PA inspection; known generator/signature inventory; and integer lossless bit-utilization review. MQA markers and a statistically calibrated AI classifier remain future work; neither may appear as authoritative until fixtures and failure boundaries exist.
 
 ## Capability matrix
 
@@ -76,7 +76,7 @@ Status meanings:
 | Saved cache and sessions | Resume audits and avoid repeated work | Missing | Beta 1 |
 | CSV/JSON/HTML reports | Share and automate results | Missing | Beta 1 |
 | File/edition comparison | Distinguish masters and encodes | Navigation placeholder | Beta 2 |
-| Duplicate fingerprints | Find identical audio across containers | Missing | Beta 2 |
+| Duplicate fingerprints | Find identical audio across containers and sessions | Implemented with persistent SQLite index | Current |
 | External MD5/SHA manifests | Verify file identity against supplied sidecars | Implemented | Preview 3 |
 | AccurateRip/CTDB verification | Verify CD extraction provenance when context exists | Missing | Post-1.0 |
 | AI-generated audio detection | Experimental and difficult to validate responsibly | Missing | Research only |
@@ -197,14 +197,14 @@ Infrastructure is complete, while source acquisition remains factual external wo
 
 ### Provenance, automation, and identity milestone status
 
-- Oracle Engine v8 validates embedded and locally resolvable C2PA Content Credentials with C2PA Tool 0.27.3. Remote-manifest and OCSP fetching are disabled so ordinary audits remain deterministic and private.
+- Oracle Engine v9 validates embedded and locally resolvable C2PA Content Credentials with C2PA Tool 0.27.3. Remote-manifest and OCSP fetching are disabled so ordinary audits remain deterministic and private.
 - Valid, untrusted-signer, invalid, absent, unsupported, and tool-error states remain distinct. A credential can validate a signed provenance statement; it does not establish truthfulness, human authorship, ownership, or audio quality.
 - Known generator names in editable metadata and known watermark/signature identifier strings in raw file bytes are inventoried with their exact source and limitation. Audio-V does not claim to decode proprietary watermarks and does not produce a generic AI Yes/No badge.
-- Local Chromaprint fingerprints identify exact-fingerprint and high-similarity relationships within the current audit. Optional AcoustID lookup sends only fingerprint plus rounded duration and returns linked MusicBrainz recording leads; it is off by default and its key is never persisted.
-- Metadata Inventory now includes bounded native tags, BPM, ISRC, MusicBrainz IDs, ReplayGain values, embedded cue sheets, and adjacent cue-sheet references without invoking the decoder.
+- Local Chromaprint fingerprints identify exact-fingerprint and high-similarity relationships within the current audit and across the persistent historical-session index. Optional AcoustID lookup sends only fingerprint plus rounded duration and returns linked MusicBrainz recording leads; it is off by default and its key is never persisted.
+- Metadata Inventory includes bounded native tags, BPM, ISRC, MusicBrainz IDs, declared ReplayGain values, embedded cue sheets, and adjacent cue-sheet references without invoking the decoder. Full Audit adds calculated RG2 track/album gain and independent cue INDEX 01 segment analysis.
 - Full audits add DR meter values and integer-lossless bit-utilization/truncation assessment. Possible zero-padded depth is Review evidence, not deterministic file damage.
 - The accepted format list now follows a broad FFmpeg-backed set of common audio and audio-container extensions. Actual support remains decoder-runtime evidence rather than a promise based only on a filename suffix.
-- The headless CLI accepts files and recursive folders, emits the same compact JSON evidence model, supports CI evidence-policy exit codes, and exposes 1–4 worker and 128–512 MB per-worker limits. The desktop exposes the same resource policy for the next audit.
+- The packaged headless CLI accepts files and recursive folders, emits the same compact JSON evidence model, supports CI evidence-policy exit codes, and exposes worker, JavaScript heap, FFmpeg-thread, and native-process RSS limits. The desktop exposes the same resource policy for the next audit.
 - EBU R128 and DR measurements share one FFmpeg filter-graph pass. Full PCM analysis remains streaming and bounded; local fingerprinting performs one additional decode capped at 120 seconds. Opting into AcoustID performs a second capped fpcalc pass to create the service’s encoded fingerprint.
 
 This milestone deliberately stops before a statistical AI classifier or automatic network service. Those claims remain corpus-gated.
@@ -256,7 +256,7 @@ No build may be called a beta until:
 - Packaged FFmpeg/ffprobe 8.1.2 LGPL engines perform complete multi-codec stream decoding and technical probing on macOS and Windows.
 - Real sample peak, RMS, DC offset, clipping, near-clipping, stereo correlation, duplicate-mono, EBU R128 integrated loudness/LRA, and BS.1770 true-peak metrics run automatically during batch ingest.
 - Measured 512- and 2,048-point Hann-window STFT tiers are persisted for every successfully decoded format; 4,096- and 16,384-point combined/L/R/L−R views decode on demand and expose zoom, pan, region measurement, scientific colormaps, and batch PNG export.
-- MP3 packet analysis distinguishes CBR from VBR and reports observed packet-rate bounds.
+- Streaming packet analysis reports p05/p95 bitrate, deviation, duration coverage, and observed CBR/VBR for every demuxer that exposes packet size and duration.
 - Native FLAC files receive an independent canonical decoded-PCM comparison against the MD5 stored in STREAMINFO.
 - Exact digital-silence runs, internal dropout candidates, steep transition candidates, crest factor, and peak-to-loudness ratio are measured and disclosed.
 - Conservative spectral-origin review is regression-tested against native-wideband, MP3-to-FLAC, and 44.1-to-96 kHz controls; it never claims that bandwidth alone proves provenance.

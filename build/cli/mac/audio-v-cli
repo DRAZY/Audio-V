@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+CONTENTS_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
+export ELECTRON_RUN_AS_NODE=1
+exec "$CONTENTS_DIR/MacOS/Audio-V" \
+  "$CONTENTS_DIR/Resources/app.asar/dist-electron/electron/cli.js" "$@"

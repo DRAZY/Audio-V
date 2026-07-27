@@ -1,6 +1,6 @@
 {
   "name": "audio-v",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "license": "AGPL-3.0-only",
   "engines": {
@@ -35,11 +35,12 @@
     "validation:status": "node scripts/write-real-world-validation-status.mjs",
     "validate:real-world": "npm run build:electron && node scripts/evaluate-real-world-corpus.mjs && node scripts/write-real-world-validation-status.mjs",
     "validate:platform": "npm run build:electron && node scripts/write-platform-validation.mjs",
+    "validate:formats": "npm run build:electron && node scripts/validate-format-matrix.mjs",
     "verify:accessibility": "npm run build:renderer && electron scripts/verify-accessibility.cjs",
     "verify:worker": "node scripts/verify-oracle-worker.mjs",
     "verify:cli": "npm run build:electron && node scripts/verify-headless-cli.mjs",
     "benchmark:scale": "npm run build:electron && node scripts/benchmark-scale.mjs",
-    "verify": "npm run test && npm run build && electron scripts/verify-accessibility.cjs && node scripts/validate-fidelity-corpus.mjs && node scripts/evaluate-real-world-corpus.mjs && node scripts/write-real-world-validation-status.mjs && npm run verify:worker && node scripts/verify-headless-cli.mjs && npm audit --omit=dev",
+    "verify": "npm run test && npm run build && electron scripts/verify-accessibility.cjs && node scripts/validate-fidelity-corpus.mjs && node scripts/evaluate-real-world-corpus.mjs && node scripts/write-real-world-validation-status.mjs && node scripts/validate-format-matrix.mjs && npm run verify:worker && node scripts/verify-headless-cli.mjs && npm audit --omit=dev",
     "prepare:notices": "node scripts/write-third-party-notices.mjs",
     "prepare:manifest": "node scripts/write-engine-manifest.mjs",
     "provision:engines": "node scripts/provision-engines.mjs && node scripts/provision-analysis-tools.mjs",
@@ -130,6 +131,10 @@
       "category": "public.app-category.music",
       "extraResources": [
         {
+          "from": "build/cli/mac",
+          "to": "cli"
+        },
+        {
           "from": "vendor/ffmpeg/mac-universal",
           "to": "engine"
         }
@@ -153,6 +158,10 @@
     "win": {
       "icon": "build/icon.png",
       "extraResources": [
+        {
+          "from": "build/cli/win",
+          "to": "cli"
+        },
         {
           "from": "vendor/ffmpeg/win-${arch}",
           "to": "engine"

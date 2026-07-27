@@ -24,7 +24,7 @@ const manifest = {
   projectLicense: packageJson.license,
   sourceRevision,
   oracleEngine: {
-    version: "0.6.0-oracle-v8",
+    version: "0.7.0-oracle-v9",
     schemaVersion: 1,
     decoderBundled: "FFmpeg-and-ffprobe-8.1.2-LGPL",
     capabilities: {
@@ -36,7 +36,8 @@ const manifest = {
       flacStreaminfoMd5: "implemented-by-canonical-decoded-pcm-comparison",
       externalChecksumManifests:
         "implemented-md5-sha1-sha256-sha512-gnu-bsd-and-sidecar",
-      bitrateMode: "implemented-for-mp3-packet-analysis",
+      bitrateMode:
+        "implemented-streaming-packet-distribution-for-all-demuxers-reporting-packet-sizes-and-durations",
       loudnessBs1770: "implemented-ebur128",
       truePeak: "implemented-bs1770-oversampled",
       spectrogram: "implemented-multicodec-stft-512-2048-4096-16384-hann",
@@ -44,20 +45,22 @@ const manifest = {
         "implemented-zoom-pan-region-channel-colormap-and-batch-png-export",
       clippingDiagnostics:
         "implemented-per-channel-percent-events-timeline-and-scaled-plateau-review",
+      waveformDefects:
+        "implemented-click-pop-stuck-sample-and-steep-transition-candidate-review",
       contentCredentials:
         "implemented-offline-c2pa-validation-with-network-fetch-disabled",
       metadataProvenance:
         "implemented-generator-tag-and-raw-identifier-inventory-not-ai-verdict",
       acousticFingerprint:
-        "implemented-chromaprint-1.6.0-duplicates-with-opt-in-acoustid",
+        "implemented-chromaprint-1.6.0-current-and-persistent-library-duplicates-with-opt-in-acoustid",
       metadataDepth:
-        "implemented-replaygain-bpm-cue-isrc-musicbrainz-and-bounded-raw-tags",
+        "implemented-declared-tags-calculated-rg2-track-album-cue-segments-bpm-isrc-musicbrainz",
       bitUtilization:
         "implemented-integer-lossless-effective-depth-and-padding-review",
       headlessCli:
-        "implemented-json-folder-automation-and-policy-exit-codes",
+        "implemented-source-and-desktop-package-launchers-json-folder-automation-and-policy-exit-codes",
       resourceControls:
-        "implemented-1-to-4-workers-and-128-to-512mb-worker-heap-cap",
+        "implemented-worker-concurrency-js-heap-ffmpeg-thread-and-native-rss-enforcement",
       signalContinuity: "implemented-exact-zero-dropout-and-transition-candidates",
       stereoAuthenticity:
         "implemented-correlation-side-to-mid-dual-and-near-mono-review",
@@ -68,9 +71,9 @@ const manifest = {
       fidelityGoldenCorpus: "implemented-regression-only-not-probability-calibrated",
       persistentCache: "implemented-versioned-size-mtime-invalidated",
       batchCancellation: "implemented-active-process-termination",
-      scopedVerdictRules: "implemented-for-oracle-integrity-provenance-v8",
+      scopedVerdictRules: "implemented-for-oracle-integrity-forensics-v9",
       compareWorkflow:
-        "implemented-independent-files-waveforms-spectra-and-difference-heatmap",
+        "implemented-independent-files-preview-alignment-and-full-track-multichannel-null",
       repairTriage: "implemented-actions-evidence-reveal-acknowledge",
       truePeakSafeCopy:
         "implemented-source-depth-default-explicit-16-24-dither-artwork-and-reaudit",

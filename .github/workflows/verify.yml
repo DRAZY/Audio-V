@@ -40,7 +40,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: platform-validation-${{ runner.os }}
-          path: build/platform-validation-*.json
+          path: |
+            build/platform-validation-*.json
+            build/format-validation-*.json
           if-no-files-found: error
 
   parity:

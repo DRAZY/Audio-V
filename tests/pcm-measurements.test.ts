@@ -126,4 +126,37 @@ describe("PcmMeasurementAccumulator", () => {
     expect(result.continuity.discontinuityCandidateCount).toBe(2);
     expect(result.crestFactorDb).not.toBeNull();
   });
+
+  it("detects isolated click/pop impulses without calling them clipping", () => {
+    const analyzer = new PcmMeasurementAccumulator(48_000, 1);
+    analyzer.pushInterleaved([0, 0, 0, 0, 0.8, 0, 0, 0, 0]);
+
+    const result = analyzer.finish();
+
+    expect(result.clippedSamples).toBe(0);
+    expect(result.defects.clickPopCandidateCount).toBe(1);
+    expect(result.defects.events[0]).toMatchObject({
+      kind: "click-pop-candidate",
+      channel: 0,
+      amplitude: 0.8,
+    });
+  });
+
+  it("groups a sustained non-zero constant run as one stuck-sample candidate", () => {
+    const analyzer = new PcmMeasurementAccumulator(48_000, 1);
+    analyzer.pushInterleaved([
+      ...Array.from({ length: 600 }, () => 0.125),
+      0.2,
+    ]);
+
+    const result = analyzer.finish();
+
+    expect(result.defects.stuckSampleCandidateCount).toBe(1);
+    expect(result.defects.events).toContainEqual(
+      expect.objectContaining({
+        kind: "stuck-sample-candidate",
+        channel: 0,
+      }),
+    );
+  });
 });

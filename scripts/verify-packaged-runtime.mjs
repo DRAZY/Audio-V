@@ -80,7 +80,7 @@ try {
     result.discovered !== 1 ||
     result.completed !== 1 ||
     !["verified", "review"].includes(result.verdicts?.[0]) ||
-    result.engineVersions?.[0] !== "0.6.0-oracle-v8"
+    result.engineVersions?.[0] !== "0.7.0-oracle-v9"
   ) {
     throw new Error(
       `Packaged runtime returned an unexpected audit result: ${JSON.stringify(result)}`,
@@ -89,6 +89,58 @@ try {
   console.log(
     `Verified packaged ${target} runtime: one FLAC fully analyzed as ${result.verdicts[0]} by ${result.engineVersions[0]}.`,
   );
+  const cliOutput = path.join(temporaryDirectory, "cli-evidence.json");
+  const launcher =
+    target === "mac"
+      ? path.join(
+          root,
+          "release",
+          "mac-arm64",
+          "Audio-V.app",
+          "Contents",
+          "Resources",
+          "cli",
+          "audio-v-cli",
+        )
+      : path.join(
+          root,
+          "release",
+          "win-unpacked",
+          "resources",
+          "cli",
+          "Audio-V-CLI.cmd",
+        );
+  const cliCommand = target === "win" ? "cmd.exe" : launcher;
+  const cliArguments = [
+    ...(target === "win" ? ["/d", "/c", launcher] : []),
+    source,
+    "--output",
+    cliOutput,
+    "--concurrency",
+    "1",
+    "--ffmpeg-threads",
+    "1",
+    "--native-memory-mb",
+    "512",
+    "--fail-on",
+    "never",
+  ];
+  const cliCode = await new Promise((resolve, reject) => {
+    const child = spawn(cliCommand, cliArguments, { stdio: "inherit" });
+    child.once("error", reject);
+    child.once("exit", resolve);
+  });
+  if (cliCode !== 0) {
+    throw new Error(`Packaged CLI exited with code ${cliCode}.`);
+  }
+  const cliEvidence = JSON.parse(await fs.readFile(cliOutput, "utf8"));
+  if (
+    cliEvidence.summary?.discovered !== 1 ||
+    cliEvidence.files?.[0]?.oracle?.engineVersion !== "0.7.0-oracle-v9"
+  ) {
+    throw new Error("Packaged CLI did not produce v9 Oracle evidence.");
+  }
+  console.log(`Verified packaged ${target} CLI launcher and bundled engine.`);
 } finally {
   await fs.rm(temporaryDirectory, { recursive: true, force: true });
 }

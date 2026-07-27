@@ -107,6 +107,14 @@ export function audioFileReportRow(file: AudioFileRecord): ReportRow {
       Channels: display(file.channels),
       "Channel layout": display(file.channelMode),
       "Bitrate mode": display(file.bitrateMode),
+      "Packet bitrate p05 bps": display(technical?.packetBitrateP05),
+      "Packet bitrate p95 bps": display(technical?.packetBitrateP95),
+      "Packet bitrate standard deviation bps": display(
+        technical?.packetBitrateStdDev,
+      ),
+      "Packet duration coverage percent": display(
+        technical?.packetDurationCoverage,
+      ),
       Title: display(file.metadata?.title),
       Artists: file.metadata?.artists.join(" | ") ?? "",
       Album: display(file.metadata?.album),
@@ -127,10 +135,28 @@ export function audioFileReportRow(file: AudioFileRecord): ReportRow {
       "ReplayGain album dB": display(
         file.metadata?.replayGain.albumGainDb,
       ),
+      "Calculated ReplayGain track dB": display(
+        signal?.replayGain?.trackGainDb,
+      ),
+      "Calculated ReplayGain track peak": display(
+        signal?.replayGain?.trackPeak,
+      ),
+      "Calculated ReplayGain album dB": display(
+        signal?.replayGain?.albumGainDb,
+      ),
+      "Calculated ReplayGain album peak": display(
+        signal?.replayGain?.albumPeak,
+      ),
       "Cue sheet": file.metadata
         ? `${file.metadata.cueSheet.embedded ? "embedded" : ""}${file.metadata.cueSheet.sidecarPaths.length ? ` sidecar:${file.metadata.cueSheet.sidecarPaths.join("|")}` : ""}`.trim()
         : "",
       "Cue tracks": display(file.metadata?.cueSheet.trackCount),
+      "Analyzed cue tracks": file.oracle.cueTracks
+        ?.map(
+          (track) =>
+            `${track.trackNumber}:${track.verdict}:${track.integratedLufs ?? ""}LUFS`,
+        )
+        .join(" | ") ?? "",
       "Duration seconds": display(signal?.durationSeconds ?? file.durationSeconds),
       "Complete decode":
         signal
@@ -196,6 +222,15 @@ export function audioFileReportRow(file: AudioFileRecord): ReportRow {
       "Discontinuity candidates": display(
         signal?.continuity.discontinuityCandidateCount,
       ),
+      "Click/pop candidates": display(
+        signal?.defects?.clickPopCandidateCount,
+      ),
+      "Stuck-sample candidates": display(
+        signal?.defects?.stuckSampleCandidateCount,
+      ),
+      "Steep-transition candidates": display(
+        signal?.defects?.steepTransitionCandidateCount,
+      ),
       "Origin assessment": display(file.oracle.fidelity?.classification),
       "Origin confidence": display(file.oracle.fidelity?.confidence),
       "Content Credentials": display(
@@ -222,7 +257,7 @@ export function audioFileReportRow(file: AudioFileRecord): ReportRow {
         technical?.fingerprint?.matches
           .map(
             (match) =>
-              `${match.relationship}:${match.similarity}:${match.fileName}`,
+              `${match.source ?? "current-audit"}:${match.relationship}:${match.similarity}:${match.fileName}`,
           )
           .join(" | ") ?? "",
       "AcoustID status": display(
