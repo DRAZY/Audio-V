@@ -34,14 +34,14 @@ Audio-V is deliberately not a music player, tag editor, or mastering suite. It i
 
 ## Download
 
-The `v0.4.0` development release provides all four requested desktop packages:
+The `v0.4.1` development release provides all four requested desktop packages:
 
 | Platform | Package | Intended system |
 |---|---|---|
-| macOS | [Apple Silicon DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.0/Audio-V-0.4.0-mac-arm64.dmg) | Native Apple Silicon |
-| macOS | [Universal DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.0/Audio-V-0.4.0-mac-universal.dmg) | Apple Silicon and Intel |
-| Windows | [x64 installer](https://github.com/DRAZY/Audio-V/releases/download/v0.4.0/Audio-V-0.4.0-win-x64.exe) | Guided desktop installation |
-| Windows | [x64 portable](https://github.com/DRAZY/Audio-V/releases/download/v0.4.0/Audio-V-Portable-0.4.0-x64.exe) | Run without installing the application |
+| macOS | [Apple Silicon DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.1/Audio-V-0.4.1-mac-arm64.dmg) | Native Apple Silicon |
+| macOS | [Universal DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.1/Audio-V-0.4.1-mac-universal.dmg) | Apple Silicon and Intel |
+| Windows | [x64 installer](https://github.com/DRAZY/Audio-V/releases/download/v0.4.1/Audio-V-0.4.1-win-x64.exe) | Guided desktop installation |
+| Windows | [x64 portable](https://github.com/DRAZY/Audio-V/releases/download/v0.4.1/Audio-V-Portable-0.4.1-x64.exe) | Run without installing the application |
 
 Every release also includes `SHA256SUMS.txt`, block maps, and `UNSIGNED_RELEASE_MANIFEST.json`. Read the [unsigned installation guide](docs/UNSIGNED_INSTALLATION.md) before opening a build.
 
@@ -90,6 +90,7 @@ Findings such as clipping, positive true peak, digital-silence dropout candidate
 ### Audit files and complete libraries
 
 - Choose individual files, multi-select, or recursively scan folders
+- Scan user-selected removable drives and operating-system-mounted network shares, including macOS `/Volumes` locations plus Windows mapped drives and UNC paths; Audio-V reports disconnected and permission-denied sources explicitly
 - Run a fast **Metadata Inventory** that catalogs declared format, codec, duration, bitrate, sample rate, bit depth, and channels while leaving every file explicitly **Not analyzed**
 - Process work concurrently with pause, cancellation, saved sessions, and cache reuse
 - Normalize codec/container labels and expose sample rate, bit depth, channel layout, bitrate, profile, duration, and encoder information

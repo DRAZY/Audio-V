@@ -21,6 +21,7 @@ import { AuditStorageClient } from "./storage/audit-storage-client";
 import { createPrivacySafeDiagnostics } from "./diagnostics";
 import { inspectSpectrogram } from "./oracle/spectrogram-inspector";
 import { configureEngineResourcePolicy } from "./oracle/ffmpeg-runtime";
+import { normalizeSourcePath, sourcePathKey } from "./source-path";
 
 const approvedSelections = new Map<string, AudioSourceSelection>();
 const approvedAudioFiles = new Set<string>();
@@ -135,14 +136,14 @@ class SessionPersistenceBuffer {
 function selectionKey(selection: AudioSourceSelection): string {
   return JSON.stringify({
     kind: selection.kind,
-    paths: selection.paths.map((entry) => path.resolve(entry)).sort(),
+    paths: selection.paths.map((entry) => sourcePathKey(entry)).sort(),
   });
 }
 
 function approveSelection(selection: AudioSourceSelection): AudioSourceSelection {
   const normalized = {
     ...selection,
-    paths: selection.paths.map((entry) => path.resolve(entry)),
+    paths: selection.paths.map((entry) => normalizeSourcePath(entry)),
   };
   approvedSelections.set(selectionKey(normalized), normalized);
   return normalized;

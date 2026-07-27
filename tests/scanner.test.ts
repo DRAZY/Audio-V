@@ -216,6 +216,25 @@ describe("scanSources", () => {
     expect(result.warnings).toEqual([]);
   });
 
+  it("follows directory aliases without looping when scanning mounted-style trees", async () => {
+    const directory = await makeTemporaryDirectory();
+    const mountedLibrary = path.join(directory, "Mounted Library");
+    const album = path.join(mountedLibrary, "Album");
+    await fs.mkdir(album, { recursive: true });
+    await fs.writeFile(path.join(album, "network-track.wav"), pcmWave());
+    await fs.symlink(album, path.join(mountedLibrary, "Album alias"), "dir");
+    await fs.symlink(mountedLibrary, path.join(album, "Library loop"), "dir");
+
+    const result = await scanSources({
+      kind: "folder",
+      label: mountedLibrary,
+      paths: [mountedLibrary],
+    });
+
+    expect(result.files.map((file) => file.name)).toEqual(["network-track.wav"]);
+    expect(result.warnings).toEqual([]);
+  });
+
   it("returns source warnings without aborting valid files", async () => {
     const directory = await makeTemporaryDirectory();
     const valid = path.join(directory, "valid.wav");

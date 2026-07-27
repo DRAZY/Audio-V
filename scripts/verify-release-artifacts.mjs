@@ -122,6 +122,24 @@ if (platform === "mac") {
   for (const directory of ["mac-arm64", "mac-universal"]) {
     const contents = path.join(release, directory, "Audio-V.app", "Contents");
     await requireFile(path.join(contents, "MacOS", "Audio-V"), 10_000);
+    for (const permission of [
+      "NSRemovableVolumesUsageDescription",
+      "NSNetworkVolumesUsageDescription",
+    ]) {
+      const value = execFileSync("plutil", [
+        "-extract",
+        permission,
+        "raw",
+        "-o",
+        "-",
+        path.join(contents, "Info.plist"),
+      ], { encoding: "utf8" }).trim();
+      if (!value.includes("Audio-V")) {
+        throw new Error(
+          `${directory} is missing a meaningful ${permission} declaration.`,
+        );
+      }
+    }
     await verifyResources(path.join(contents, "Resources"), [
       "ffmpeg",
       "ffprobe",

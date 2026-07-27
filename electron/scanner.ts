@@ -39,6 +39,28 @@ import { measureAlbumReplayGain } from "./oracle/album-replaygain";
 
 const supportedExtensions = new Set<string>(AUDIO_EXTENSIONS);
 
+function sourceReadError(sourcePath: string, error: unknown): string {
+  const code =
+    error && typeof error === "object" && "code" in error
+      ? String(error.code)
+      : "";
+  const message = error instanceof Error ? error.message : "Source could not be read";
+  if (code === "EACCES" || code === "EPERM") {
+    return `${sourcePath}: access was denied. Re-select the folder and allow Audio-V access to removable or network volumes in the operating-system privacy settings. (${message})`;
+  }
+  if (
+    code === "ENOENT" ||
+    code === "ENODEV" ||
+    code === "ENXIO" ||
+    code === "ENOTCONN" ||
+    code === "EHOSTDOWN" ||
+    code === "EHOSTUNREACH"
+  ) {
+    return `${sourcePath}: the external or network source is unavailable. Reconnect or remount it, then retry. (${message})`;
+  }
+  return `${sourcePath}: ${message}`;
+}
+
 export interface OracleRecordCache {
   get(filePath: string): Promise<AudioFileRecord | null>;
   set(record: AudioFileRecord): Promise<void>;
@@ -135,33 +157,51 @@ async function collectAudioFiles(
 ): Promise<string[]> {
   const discovered: string[] = [];
   const pending = [root];
+  const visitedDirectories = new Set<string>();
 
   while (pending.length > 0) {
     const current = pending.pop();
     if (!current) continue;
 
+    try {
+      const canonicalDirectory = await fs.realpath(current);
+      if (visitedDirectories.has(canonicalDirectory)) continue;
+      visitedDirectories.add(canonicalDirectory);
+    } catch (error) {
+      warnings.push(sourceReadError(current, error));
+      continue;
+    }
+
     let entries;
     try {
       entries = await fs.readdir(current, { withFileTypes: true });
     } catch (error) {
-      warnings.push(
-        `${current}: ${error instanceof Error ? error.message : "Directory could not be read"}`,
-      );
+      warnings.push(sourceReadError(current, error));
       continue;
     }
     for (const entry of entries) {
       if (entry.name.startsWith(".")) continue;
       const entryPath = path.join(current, entry.name);
-      if (entry.isSymbolicLink()) {
-        continue;
-      } else if (entry.isDirectory()) {
+      let isDirectory = entry.isDirectory();
+      let isFile = entry.isFile();
+      if (entry.isSymbolicLink() || (!isDirectory && !isFile)) {
+        try {
+          const stat = await fs.stat(entryPath);
+          isDirectory = stat.isDirectory();
+          isFile = stat.isFile();
+        } catch (error) {
+          warnings.push(sourceReadError(entryPath, error));
+          continue;
+        }
+      }
+      if (isDirectory) {
         pending.push(entryPath);
       } else if (
-        entry.isFile() &&
+        isFile &&
         supportedExtensions.has(path.extname(entry.name).toLowerCase())
       ) {
         discovered.push(entryPath);
-      } else if (entry.isFile() && isChecksumManifest(entryPath)) {
+      } else if (isFile && isChecksumManifest(entryPath)) {
         checksumManifests?.add(entryPath);
       }
     }
@@ -186,9 +226,7 @@ async function collectNearbyChecksumManifests(
       }
     }
   } catch (error) {
-    warnings.push(
-      `${path.dirname(filePath)}: ${error instanceof Error ? error.message : "Checksum manifests could not be discovered"}`,
-    );
+    warnings.push(sourceReadError(path.dirname(filePath), error));
   }
 }
 
@@ -704,9 +742,7 @@ export async function scanSources(
         warnings.push(`${selectedPath}: unsupported file type`);
       }
     } catch (error) {
-      warnings.push(
-        `${selectedPath}: ${error instanceof Error ? error.message : "Source could not be read"}`,
-      );
+      warnings.push(sourceReadError(selectedPath, error));
     }
   }
 

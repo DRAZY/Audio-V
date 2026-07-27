@@ -1,6 +1,6 @@
 {
   "name": "audio-v",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "private": true,
   "license": "AGPL-3.0-only",
   "engines": {
@@ -131,6 +131,10 @@
     "mac": {
       "icon": "build/icon.png",
       "category": "public.app-category.music",
+      "extendInfo": {
+        "NSRemovableVolumesUsageDescription": "Audio-V needs access to user-selected removable volumes to inventory and analyze audio files.",
+        "NSNetworkVolumesUsageDescription": "Audio-V needs access to user-selected network volumes to inventory and analyze audio files."
+      },
       "extraResources": [
         {
           "from": "build/cli/mac",

@@ -33,6 +33,7 @@ const activeWorkspace = ref<WorkspacePanel>("audit");
 const sourceRoot = ref("No source selected");
 const activeSessionId = ref("");
 const scanMessage = ref("Ready for files or a folder");
+const sourceWarnings = ref<string[]>([]);
 const diagnosticsMessage = ref(
   "Diagnostics exclude filenames, paths, checksums, tags, and audio evidence.",
 );
@@ -912,6 +913,7 @@ async function scanSource(source: AudioSourceSelection): Promise<void> {
   };
   isDiscovering.value = true;
   isScanPaused.value = false;
+  sourceWarnings.value = [];
   files.value = [];
   selectedId.value = "";
   scanMessage.value =
@@ -929,6 +931,7 @@ async function scanSource(source: AudioSourceSelection): Promise<void> {
     queuedProgressFiles = [];
     activeSessionId.value = result.sessionId ?? "";
     files.value = result.files;
+    sourceWarnings.value = result.warnings;
     const firstMeasured =
       result.files.find((file) => file.oracle.measurements) ?? result.files[0];
     selectedId.value = firstMeasured?.id ?? "";
@@ -958,6 +961,11 @@ async function scanSource(source: AudioSourceSelection): Promise<void> {
       warnings;
     await refreshAuditSessions();
   } catch (error) {
+    sourceWarnings.value = [
+      error instanceof Error
+        ? error.message
+        : "The selected source could not be scanned.",
+    ];
     scanMessage.value =
       error instanceof Error ? error.message : "The selected source could not be scanned.";
   } finally {
@@ -1906,6 +1914,15 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
           </button>
           <span class="scan-state">{{ scanMessage }}</span>
         </div>
+        <details v-if="sourceWarnings.length" class="source-warnings" open>
+          <summary>
+            {{ sourceWarnings.length }} source access warning{{ sourceWarnings.length === 1 ? "" : "s" }}
+          </summary>
+          <ul>
+            <li v-for="warning in sourceWarnings" :key="warning">{{ warning }}</li>
+          </ul>
+          <p>For mounted and network libraries, confirm the volume is connected, then re-select the folder so the operating system can grant this app access.</p>
+        </details>
         <div class="table-grid table-head">
           <span>File name</span><span>Format</span><span>Sample rate</span>
           <span>Bit depth</span><span>Duration</span><span>Bitrate</span>

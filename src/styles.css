@@ -406,6 +406,38 @@ button:focus-visible {
 .legend .workflow-state { color: var(--muted); }
 .legend b { color: var(--muted); font-weight: 500; }
 
+.source-warnings {
+  margin: 0 12px 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(244, 184, 90, 0.38);
+  border-radius: 7px;
+  background: rgba(244, 184, 90, 0.07);
+  color: #d9d3c6;
+  font-size: 11px;
+}
+
+.source-warnings summary {
+  cursor: pointer;
+  color: var(--amber);
+  font-weight: 700;
+}
+
+.source-warnings ul {
+  max-height: 110px;
+  margin: 8px 0;
+  padding-left: 20px;
+  overflow: auto;
+}
+
+.source-warnings li + li {
+  margin-top: 5px;
+}
+
+.source-warnings p {
+  margin: 0;
+  color: var(--muted);
+}
+
 .selected-summary h1 {
   margin: 9px 0 8px;
   overflow: hidden;

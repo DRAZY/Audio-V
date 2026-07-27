@@ -24,6 +24,8 @@ FFmpeg and ffprobe are bundled, checksum-pinned engines. The main process invoke
 
 Every package contains the engine manifest, provenance, C2PA Tool and Chromaprint license texts, third-party notices, AGPL license, source notice, and trademark policy. C2PA inspection disables remote-manifest and OCSP network fetching. Chromaprint fingerprinting is local and does not upload audio.
 
+Audio-V can read audio from removable storage and operating-system-mounted network shares only after the user selects a file or folder through the native chooser. On macOS this includes mounted locations under `/Volumes`; on Windows it includes mapped drive letters and UNC paths. Audio-V does not mount shares, store network credentials, or expose an SMB/NFS server. Analysis remains local, although reading a file from a network share necessarily transfers that file's bytes across the user's configured network filesystem.
+
 ## Optional external identity lookup
 
 AcoustID lookup is disabled by default and runs only when the user enables it for the next audit and supplies an AcoustID application API key. Audio-V sends the locally calculated Chromaprint fingerprint and rounded duration to `https://api.acoustid.org`; it does not send the audio file. The returned AcoustID and linked MusicBrainz recording identifiers are evidence leads, not proof of ownership, mastering provenance, or byte identity.
