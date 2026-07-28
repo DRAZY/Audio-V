@@ -87,6 +87,8 @@ describe("AuditSessionStore", () => {
         userReview: {
           status: "reviewed" as const,
           reviewedAt: "2026-07-27T12:00:00.000Z",
+          disposition: "confirmed-issue" as const,
+          note: "The discontinuity was independently verified.",
         },
       };
       expect(store.updateSessionFile(sessionId, audioPath, reviewed)).toBe(true);

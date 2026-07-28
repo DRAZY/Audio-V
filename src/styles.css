@@ -1573,6 +1573,94 @@ button:focus-visible {
   gap: 8px;
 }
 
+.review-adjudication {
+  grid-column: 1 / -1;
+  min-width: 0;
+  padding: 14px;
+  display: grid;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(220px, 0.7fr) minmax(280px, 1.4fr);
+  gap: 12px;
+  align-items: start;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.review-adjudication > div:first-child strong,
+.review-adjudication > div:first-child p {
+  display: block;
+}
+
+.review-adjudication > div:first-child strong {
+  margin: 7px 0 5px;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.review-adjudication label {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font: 700 9px/1.2 var(--font-data);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.review-adjudication select,
+.review-adjudication textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  background: var(--soft);
+  color: var(--text);
+  font: 500 12px/1.4 var(--font-ui);
+  text-transform: none;
+}
+
+.review-adjudication textarea {
+  min-height: 68px;
+  resize: vertical;
+}
+
+.review-adjudication-actions {
+  grid-column: 2 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.review-adjudication-actions button {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--soft);
+  color: #d8dae2;
+  font: 700 11px/1 var(--font-data);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.review-adjudication-actions button:first-child {
+  border-color: color-mix(in srgb, var(--accent), transparent 42%);
+  background: var(--accent-soft);
+  color: #d4caff;
+}
+
+.review-adjudication-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.review-adjudication > small {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font: 600 10px/1.45 var(--font-data);
+}
+
 .oracle-card.review {
   border-color: color-mix(in srgb, var(--amber), transparent 55%);
   background: color-mix(in srgb, var(--amber), transparent 93%);
@@ -2561,6 +2649,15 @@ button:focus-visible {
 
   .review-workflow ol,
   .review-actions {
+    grid-column: 1;
+  }
+
+  .review-adjudication {
+    grid-template-columns: 1fr;
+  }
+
+  .review-adjudication-actions,
+  .review-adjudication > small {
     grid-column: 1;
   }
 

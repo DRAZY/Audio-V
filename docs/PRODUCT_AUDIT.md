@@ -52,7 +52,7 @@ Status meanings:
 - **Planned** — specified and prioritized, but not implemented.
 - **Excluded** — intentionally outside the core product.
 
-| Capability | User value | v0.4.23 source status | Disposition |
+| Capability | User value | v0.4.24 source status | Disposition |
 | --- | --- | --- | --- |
 | File and folder ingest | Analyze one track or a full library | Implemented | Current |
 | Recursive bounded discovery | Avoid freezing on large trees | Implemented | Current |
@@ -72,6 +72,7 @@ Status meanings:
 | Adjustable analysis settings | Reproducible visual evidence | Implemented | Current |
 | Effective-bandwidth estimate | Support upsample/transcode review | Implemented as conservative heuristic evidence | Current |
 | Evidence-backed verdict | Explain facts versus heuristics | Implemented with scoped Clear, Review, Failed, and Analysis error outcomes | Current |
+| Human review disposition | Record how a person handled a result without rewriting machine evidence | Implemented with seven explicit outcomes, optional notes, timestamps, and report export | Current |
 | Batch queue, pause, resume, cancel | Library-scale workflow | Implemented with crash-safe checkpoints, immediate cancel acknowledgement, hard worker recycling, and conservative recovery limits | Current |
 | Saved cache and sessions | Resume audits and avoid repeated work | Implemented with SQLite persistence, startup interruption recovery, and suspect-file isolation | Current |
 | PDF/XLSX/DOCX/CSV/JSON reports | Share and automate results | Implemented from a shared evidence model | Current |

@@ -314,9 +314,23 @@ not quietly convert these conditions into file damage.
 | **Analysis error** | Read the failure stage, retry, check the source connection and resource settings, then export diagnostics if it repeats. |
 | **Not analyzed** | Run a Full Oracle Audit when you need a verdict. |
 
-**Review acknowledged** records that a person has seen the Review result. It
-does not change the audio, remove evidence, turn Review into Clear, or claim
-that the issue was repaired.
+### Oracle verdict and human disposition
+
+The Oracle verdict is immutable evidence from the named engine version. Human
+review is a separate layer. A reviewer can record:
+
+- **Acknowledged** — seen, with no human conclusion yet.
+- **Accepted as intentional** — the measured condition appears deliberate.
+- **Confirmed issue** — independent inspection supports the finding.
+- **Possible false positive** — human inspection disagrees with the heuristic.
+- **Remediated copy verified** — a separate corrected copy was checked.
+- **Replacement required** — the source should be reacquired.
+- **Follow-up required** — more evidence is needed.
+
+An optional note records what was checked. Reports retain the Oracle verdict,
+human disposition, note, and timestamp as separate fields. A reviewer cannot
+turn Review or Failed into Clear, suppress evidence, or claim that Audio-V
+scientifically proved a heuristic interpretation.
 
 ## Evidence classes
 

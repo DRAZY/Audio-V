@@ -7,6 +7,7 @@ build/engine-manifest.json
 build/*-latest.json
 build/platform-validation-*.json
 build/format-validation-*.json
+build/layout-*.png
 .DS_Store
 *.log
 tests/.tmp-*/

@@ -14,6 +14,7 @@ import type {
   ReportExportFormat,
   ScanProgressUpdate,
   SpectrogramMeasurements,
+  UserReviewDisposition,
 } from "../shared/contracts";
 import iconUrl from "../build/icon.svg";
 import { audioFormatLabel } from "../shared/audio-format";
@@ -111,6 +112,10 @@ const spectrogramRegion = ref("Drag across the plot to measure a region");
 const spectrogramCursor = ref("Move across the plot for time, frequency, and level");
 let spectrogramInspectionRequest = 0;
 const reviewStatusUpdatingIds = ref<Set<string>>(new Set());
+const reviewDispositionDrafts = ref<
+  Record<string, UserReviewDisposition>
+>({});
+const reviewNoteDrafts = ref<Record<string, string>>({});
 const repairingFileId = ref("");
 const repairBitDepthModes = ref<Record<string, RepairBitDepthMode>>({});
 const tableBody = ref<HTMLElement | null>(null);
@@ -2116,6 +2121,94 @@ function isAcknowledged(file: AudioFileRecord): boolean {
   return file.userReview?.status === "reviewed";
 }
 
+const reviewDispositionOptions: Array<{
+  value: UserReviewDisposition;
+  label: string;
+  explanation: string;
+}> = [
+  {
+    value: "acknowledged",
+    label: "Acknowledged",
+    explanation: "Seen, but no human conclusion has been recorded.",
+  },
+  {
+    value: "accepted-intentional",
+    label: "Accepted as intentional",
+    explanation: "The measured condition appears deliberate and acceptable.",
+  },
+  {
+    value: "confirmed-issue",
+    label: "Confirmed issue",
+    explanation: "Independent inspection supports the Oracle finding.",
+  },
+  {
+    value: "false-positive",
+    label: "Possible false positive",
+    explanation: "Human inspection disagrees; Oracle evidence remains unchanged.",
+  },
+  {
+    value: "remediated",
+    label: "Remediated copy verified",
+    explanation: "A separate corrected copy was created and checked.",
+  },
+  {
+    value: "replacement-required",
+    label: "Replacement required",
+    explanation: "The source should be reacquired from a trusted copy.",
+  },
+  {
+    value: "follow-up-required",
+    label: "Follow-up required",
+    explanation: "The result remains unresolved and needs more evidence.",
+  },
+];
+
+function reviewDisposition(file: AudioFileRecord): UserReviewDisposition {
+  return (
+    reviewDispositionDrafts.value[file.id] ??
+    file.userReview?.disposition ??
+    "acknowledged"
+  );
+}
+
+function reviewDispositionLabel(file: AudioFileRecord): string {
+  return (
+    reviewDispositionOptions.find(
+      (option) => option.value === reviewDisposition(file),
+    )?.label ?? "Acknowledged"
+  );
+}
+
+function reviewDispositionExplanation(file: AudioFileRecord): string {
+  return (
+    reviewDispositionOptions.find(
+      (option) => option.value === reviewDisposition(file),
+    )?.explanation ?? reviewDispositionOptions[0].explanation
+  );
+}
+
+function reviewNote(file: AudioFileRecord): string {
+  return reviewNoteDrafts.value[file.id] ?? file.userReview?.note ?? "";
+}
+
+function updateReviewDisposition(
+  file: AudioFileRecord,
+  event: Event,
+): void {
+  reviewDispositionDrafts.value = {
+    ...reviewDispositionDrafts.value,
+    [file.id]: (event.target as HTMLSelectElement)
+      .value as UserReviewDisposition,
+  };
+}
+
+function updateReviewNote(file: AudioFileRecord, event: Event): void {
+  reviewNoteDrafts.value = {
+    ...reviewNoteDrafts.value,
+    [file.id]: (event.target as HTMLTextAreaElement).value,
+  };
+}
+
 function isReviewStatusUpdating(file: AudioFileRecord): boolean {
   return reviewStatusUpdatingIds.value.has(file.id);
 }
@@ -2124,6 +2217,8 @@ async function setReviewed(
   file: AudioFileRecord,
   reviewed: boolean,
   announce = true,
+  disposition: UserReviewDisposition = "acknowledged",
+  note = "",
 ): Promise<void> {
   if (!window.audioV || !activeSessionId.value) {
     scanMessage.value = "A saved audit session is required to mark a file as reviewed.";
@@ -2138,6 +2233,8 @@ async function setReviewed(
       activeSessionId.value,
       file.path,
       reviewed,
+      disposition,
+      note,
     );
     files.value = files.value.map((candidate) =>
       candidate.id === file.id
@@ -2146,9 +2243,15 @@ async function setReviewed(
     );
     if (announce) {
       scanMessage.value = reviewed
-        ? `Marked as reviewed · verdict unchanged · ${file.name}`
-        : `Review marker removed · verdict unchanged · ${file.name}`;
+        ? `Human disposition saved · Oracle verdict unchanged · ${file.name}`
+        : `Human disposition removed · Oracle verdict unchanged · ${file.name}`;
     }
+    const nextDispositionDrafts = { ...reviewDispositionDrafts.value };
+    const nextNoteDrafts = { ...reviewNoteDrafts.value };
+    delete nextDispositionDrafts[file.id];
+    delete nextNoteDrafts[file.id];
+    reviewDispositionDrafts.value = nextDispositionDrafts;
+    reviewNoteDrafts.value = nextNoteDrafts;
   } catch (error) {
     scanMessage.value =
       error instanceof Error
@@ -2161,8 +2264,18 @@ async function setReviewed(
   }
 }
 
-function toggleReviewed(file: AudioFileRecord): void {
-  void setReviewed(file, !isAcknowledged(file));
+function saveReviewDisposition(file: AudioFileRecord): void {
+  void setReviewed(
+    file,
+    true,
+    true,
+    reviewDisposition(file),
+    reviewNote(file),
+  );
+}
+
+function clearReviewDisposition(file: AudioFileRecord): void {
+  void setReviewed(file, false);
 }
 
 function cycleAuditResultSort(): void {
@@ -2954,21 +3067,60 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
                 <ol>
                   <li><b>1</b><span><strong>Understand</strong>Read the contradictory evidence and the plain-language interpretation.</span></li>
                   <li><b>2</b><span><strong>Verify</strong>Listen or compare with a trusted edition when the finding is heuristic.</span></li>
-                  <li><b>3</b><span><strong>Act</strong>Mark it as reviewed, export evidence, reveal the source, or open safe repair options.</span></li>
+                  <li><b>3</b><span><strong>Decide</strong>Record what human review concluded without changing the Oracle verdict.</span></li>
                 </ol>
+                <div class="review-adjudication">
+                  <div>
+                    <span class="eyebrow">Human disposition</span>
+                    <strong>{{ reviewDispositionLabel(selected) }}</strong>
+                    <p>{{ reviewDispositionExplanation(selected) }}</p>
+                  </div>
+                  <label>
+                    Review outcome
+                    <select
+                      :value="reviewDisposition(selected)"
+                      @change="updateReviewDisposition(selected, $event)"
+                    >
+                      <option
+                        v-for="option in reviewDispositionOptions"
+                        :key="option.value"
+                        :value="option.value"
+                      >
+                        {{ option.label }}
+                      </option>
+                    </select>
+                  </label>
+                  <label>
+                    Review note (optional)
+                    <textarea
+                      :value="reviewNote(selected)"
+                      maxlength="1000"
+                      rows="3"
+                      placeholder="Record what was checked, compared, or decided."
+                      @input="updateReviewNote(selected, $event)"
+                    ></textarea>
+                  </label>
+                  <div class="review-adjudication-actions">
+                    <button
+                      :disabled="isReviewStatusUpdating(selected)"
+                      @click="saveReviewDisposition(selected)"
+                    >
+                      {{ isReviewStatusUpdating(selected) ? "Saving…" : "Save disposition" }}
+                    </button>
+                    <button
+                      v-if="isAcknowledged(selected)"
+                      :disabled="isReviewStatusUpdating(selected)"
+                      @click="clearReviewDisposition(selected)"
+                    >
+                      Clear disposition
+                    </button>
+                  </div>
+                  <small>
+                    Human review is reported separately. It never edits measured
+                    evidence or converts Review or Failed into Clear.
+                  </small>
+                </div>
                 <div class="review-actions">
-                  <button
-                    :disabled="isReviewStatusUpdating(selected)"
-                    @click="toggleReviewed(selected)"
-                  >
-                    {{
-                      isReviewStatusUpdating(selected)
-                        ? "Saving…"
-                        : isAcknowledged(selected)
-                          ? "Undo reviewed"
-                          : "Mark as reviewed"
-                    }}
-                  </button>
                   <button @click="exportFileEvidence(selected)">Export evidence</button>
                   <button @click="revealSource(selected)">Reveal source</button>
                   <button
@@ -2988,7 +3140,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
                   </button>
                 </div>
                 <small v-if="isAcknowledged(selected)" class="reviewed-disclosure">
-                  Reviewed by user
+                  {{ reviewDispositionLabel(selected) }}
                   <template v-if="selected.userReview?.reviewedAt">
                     · {{ new Date(selected.userReview.reviewedAt).toLocaleString() }}
                   </template>
@@ -3449,7 +3601,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
         <div v-if="attentionItems.length" class="repair-list">
           <article v-for="file in attentionItems" :key="file.id">
             <div>
-              <span class="row-verdict" :class="fileStateClass(file)"><i></i>{{ shortVerdict(file) }}<em v-if="isAcknowledged(file)">Reviewed · verdict unchanged</em></span>
+              <span class="row-verdict" :class="fileStateClass(file)"><i></i>{{ shortVerdict(file) }}<em v-if="isAcknowledged(file)">{{ reviewDispositionLabel(file) }} · verdict unchanged</em></span>
               <h2>{{ file.name }}</h2>
               <p>{{ reviewExplanation(file) }}</p>
               <div class="repair-actions">
@@ -3489,16 +3641,9 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
               <button
                 v-else
                 class="acknowledge-action"
-                :disabled="isReviewStatusUpdating(file)"
-                @click="toggleReviewed(file)"
+                @click="openEvidence(file)"
               >
-                {{
-                  isReviewStatusUpdating(file)
-                    ? "Saving…"
-                    : isAcknowledged(file)
-                      ? "Undo reviewed"
-                      : "Mark as reviewed"
-                }}
+                {{ isAcknowledged(file) ? "Update review outcome" : "Record review outcome" }}
               </button>
               <span class="preservation-badge">Original remains untouched</span>
             </aside>

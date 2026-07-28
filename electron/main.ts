@@ -12,6 +12,10 @@ import type {
   ReportExportRequest,
   ScanProgressUpdate,
 } from "../shared/contracts";
+import {
+  createUserReview,
+  isUserReviewDisposition,
+} from "../shared/user-review";
 import { AUDIO_EXTENSIONS } from "../shared/contracts";
 import { createTruePeakSafeCopy } from "./repair-engine";
 import { scanSources } from "./scanner";
@@ -693,15 +697,20 @@ ipcMain.handle(
     requestedSessionId: unknown,
     requestedFilePath: unknown,
     requestedReviewed: unknown,
+    requestedDisposition: unknown,
+    requestedNote: unknown,
   ) => {
     if (
       typeof requestedSessionId !== "string" ||
       !/^[a-f0-9-]{36}$/iu.test(requestedSessionId) ||
       typeof requestedFilePath !== "string" ||
-      typeof requestedReviewed !== "boolean"
+      typeof requestedReviewed !== "boolean" ||
+      (requestedDisposition !== undefined &&
+        !isUserReviewDisposition(requestedDisposition)) ||
+      (requestedNote !== undefined && typeof requestedNote !== "string")
     ) {
       throw new TypeError(
-        "A valid audit session, file path, and reviewed state are required.",
+        "A valid audit session, file path, reviewed state, and review disposition are required.",
       );
     }
     const resolvedPath = path.resolve(requestedFilePath);
@@ -714,10 +723,12 @@ ipcMain.handle(
     }
     const updated: AudioFileRecord = { ...storedFile };
     if (requestedReviewed) {
-      updated.userReview = {
-        status: "reviewed",
-        reviewedAt: new Date().toISOString(),
-      };
+      updated.userReview = createUserReview(
+        isUserReviewDisposition(requestedDisposition)
+          ? requestedDisposition
+          : "acknowledged",
+        typeof requestedNote === "string" ? requestedNote : "",
+      );
     } else {
       delete updated.userReview;
     }

@@ -22,6 +22,12 @@ const file = {
   channelMode: "stereo",
   bitrateMode: "VBR",
   durationSeconds: 60,
+  userReview: {
+    status: "reviewed",
+    reviewedAt: "2026-07-28T00:00:00.000Z",
+    disposition: "accepted-intentional",
+    note: "Compared with the trusted release notes.",
+  },
   oracle: {
     verdict: "verified",
     headline: "Current checks passed",
@@ -110,6 +116,11 @@ describe("report exports", () => {
         expect(bytes.toString("utf8")).toContain("File SHA-256");
         expect(bytes.toString("utf8")).toContain("stereo-content");
         expect(bytes.toString("utf8")).toContain("Origin evidence coverage");
+        expect(bytes.toString("utf8")).toContain("Human disposition");
+        expect(bytes.toString("utf8")).toContain("accepted-intentional");
+        expect(bytes.toString("utf8")).toContain(
+          "Compared with the trusted release notes.",
+        );
       } else if (format === "pdf") {
         expect(bytes.subarray(0, 5).toString()).toBe("%PDF-");
       } else {

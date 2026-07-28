@@ -4,16 +4,16 @@ A release candidate is evidence-backed, not simply a successful packaging comman
 
 ## Current readiness snapshot
 
-As of source version 0.4.23:
+As of source version 0.4.24:
 
 | Area | Current evidence | RC meaning |
 |---|---|---|
-| Source regression | 129 tests passed | Automated source behavior is green |
+| Source regression | 133 tests passed | Automated source behavior is green |
 | Build and UI | Type checks, production build, responsive-layout checks, and 41 accessibility rules passed | Repository-level UI gate is green |
 | Scale storage | 10,000-record persistence completed in 8.19 seconds; restore completed in 448 ms; cumulative 11,100-record database was 435 MB | Synthetic dense-evidence storage budget is green |
 | macOS packages | Apple Silicon and Universal DMGs passed structure/signature checks; native Apple Silicon packaged reference audit passed | Current development Mac evidence is green |
 | Windows packages | Installer and portable package structure and bundled resources passed macOS-side inspection | Native Windows launch and workflow acceptance remain open |
-| Release assets | Four application packages, checksums, block maps, and unsigned policy manifest prepared for v0.4.23 | Preview distribution is reproducible after publication |
+| Release assets | Four application packages, checksums, block maps, and unsigned policy manifest prepared and locally verified for v0.4.24 | Preview distribution is reproducible after publication |
 | Real-world origin calibration | Infrastructure is valid; licensed independent masters are absent | No probability-calibrated origin claim is allowed |
 
 The automated readiness command reports 15/15 repository evidence categories,

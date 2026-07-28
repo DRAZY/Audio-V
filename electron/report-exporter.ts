@@ -107,6 +107,10 @@ export function audioFileReportRow(file: AudioFileRecord): ReportRow {
           .join(" | ") ?? "",
       "Analysis state": analysisState,
       "User review status": file.userReview ? "reviewed" : "not reviewed",
+      "Human disposition": display(
+        file.userReview?.disposition ?? (file.userReview ? "acknowledged" : null),
+      ),
+      "Human review note": display(file.userReview?.note),
       "User reviewed at": display(file.userReview?.reviewedAt),
       "Failure category": display(file.oracle.failure?.category),
       "Failure stage": display(file.oracle.failure?.stage),

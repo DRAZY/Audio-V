@@ -582,8 +582,19 @@ export interface AudioFileRecord {
   userReview?: {
     status: "reviewed";
     reviewedAt: string;
+    disposition?: UserReviewDisposition;
+    note?: string;
   };
 }
+
+export type UserReviewDisposition =
+  | "acknowledged"
+  | "accepted-intentional"
+  | "confirmed-issue"
+  | "false-positive"
+  | "remediated"
+  | "replacement-required"
+  | "follow-up-required";
 
 export interface AudioSourceSelection {
   kind: "files" | "folder";
@@ -857,6 +868,8 @@ export interface AudioVDesktopApi {
     sessionId: string,
     filePath: string,
     reviewed: boolean,
+    disposition?: UserReviewDisposition,
+    note?: string,
   ): Promise<AudioFileRecord>;
   prepareAuditSessionResume(
     sessionId: string,

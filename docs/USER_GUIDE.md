@@ -48,9 +48,12 @@ The results table can be sorted by verdict so Clear, Review, Failed, Not
 analyzed, and Analysis error files can be handled together. Long paths and
 hashes are shortened visually; hover over them to read the complete value.
 
-**Review acknowledged** records that a person has seen a Review result. It
-does not modify the source, erase the finding, repair anything, or convert the
-verdict to Clear.
+In the evidence view, **Human disposition** records what you decided after
+reviewing a result: acknowledged, accepted as intentional, confirmed issue,
+possible false positive, remediated copy verified, replacement required, or
+follow-up required. Add a note when useful. The saved disposition appears in
+exports, but it does not modify the source, erase the finding, repair anything,
+or convert Review or Failed to Clear.
 
 In **Spectrogram**, choose 512, 2,048, 4,096, or 16,384 FFT resolution. Higher settings separate nearby frequencies more precisely but provide coarser time resolution and require an on-demand decode. Choose combined power, left, right, or L−R; every selection is decoded and painted automatically without requiring a Floor or zoom change. All channel modes keep the same absolute dBFS color scale so their levels remain honestly comparable. L−R isolates stereo difference energy and can correctly appear darker when the channels contain similar material. Use zoom and pan to navigate, drag across the plot for exact time/frequency bounds, and export one PNG or a batch using the current inspection settings. Inferno, magma, and viridis change only the display palette.
 
