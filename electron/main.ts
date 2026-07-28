@@ -6,6 +6,7 @@ import type {
   AnalysisResourceLimits,
   AudioFileRecord,
   AudioSourceSelection,
+  AuditResumeStrategy,
   OracleValidationStatus,
   ReportExportRequest,
 } from "../shared/contracts";
@@ -23,9 +24,12 @@ import { inspectSpectrogram } from "./oracle/spectrogram-inspector";
 import { configureEngineResourcePolicy } from "./oracle/ffmpeg-runtime";
 import { normalizeSourcePath, sourcePathKey } from "./source-path";
 import { resolveAnalysisResourcePolicy } from "../shared/analysis-resource-policy";
+import {
+  createAuditRecoveryState,
+  safeRecoveryResourceLimits,
+} from "../shared/audit-recovery";
 
 const approvedSelections = new Map<string, AudioSourceSelection>();
-const recoveryQuarantines = new Map<string, ReadonlyMap<string, string>>();
 const approvedAudioFiles = new Set<string>();
 const authoritativeRecords = new Map<string, AudioFileRecord>();
 const audioDialogFilters = [
@@ -37,6 +41,7 @@ const audioDialogFilters = [
 const developmentUrl = process.env.VITE_DEV_SERVER_URL;
 let activeScanController: AbortController | null = null;
 let activeScanPause: ScanPauseGate | null = null;
+let activeScanSessionId: string | null = null;
 let oracleCache: OracleRecordCache;
 let oracleWorkers: OracleWorkerPool;
 let auditSessions: AuditStorageClient;
@@ -55,6 +60,33 @@ const defaultResourceLimits = resolveAnalysisResourcePolicy(
   availableParallelism(),
 ).limits;
 let currentResourceLimits = defaultResourceLimits;
+
+function sameResourceLimits(
+  left: AnalysisResourceLimits,
+  right: AnalysisResourceLimits,
+): boolean {
+  return (
+    left.concurrency === right.concurrency &&
+    left.workerMemoryMb === right.workerMemoryMb &&
+    left.ffmpegThreads === right.ffmpegThreads &&
+    left.nativeProcessMemoryMb === right.nativeProcessMemoryMb
+  );
+}
+
+async function applyOracleResourceLimits(
+  limits: AnalysisResourceLimits,
+): Promise<void> {
+  if (sameResourceLimits(limits, currentResourceLimits)) return;
+  await oracleWorkers.close();
+  oracleWorkers = new OracleWorkerPool(
+    path.join(__dirname, "oracle", "oracle-worker.js"),
+    limits.concurrency,
+    limits.workerMemoryMb,
+    limits,
+  );
+  configureEngineResourcePolicy(limits);
+  currentResourceLimits = limits;
+}
 
 class ScanPauseGate {
   #paused = false;
@@ -423,10 +455,16 @@ ipcMain.handle(
     ) {
       throw new TypeError("A valid audit session and file path are required.");
     }
-    const file = await auditSessions.getSessionFile(
+    const resolvedPath = path.resolve(requestedFilePath);
+    const storedFile = await auditSessions.getSessionFile(
       requestedSessionId,
-      path.resolve(requestedFilePath),
+      resolvedPath,
     );
+    const file =
+      storedFile ??
+      (requestedSessionId === activeScanSessionId
+        ? authoritativeRecords.get(resolvedPath) ?? null
+        : null);
     if (!file) {
       throw new Error("The requested file is not present in this audit session.");
     }
@@ -438,7 +476,11 @@ ipcMain.handle(
 
 ipcMain.handle(
   "sessions:prepare-resume",
-  async (_event, requestedSessionId: unknown) => {
+  async (
+    _event,
+    requestedSessionId: unknown,
+    requestedStrategy: unknown,
+  ) => {
     if (
       typeof requestedSessionId !== "string" ||
       !/^[a-f0-9-]{36}$/iu.test(requestedSessionId)
@@ -459,33 +501,40 @@ ipcMain.handle(
     }
     const recoveryCandidates =
       await auditSessions.getRecoveryCandidates(requestedSessionId);
+    const strategy: AuditResumeStrategy =
+      requestedStrategy === undefined || requestedStrategy === "adaptive-safe"
+        ? "adaptive-safe"
+        : requestedStrategy === "previous-settings"
+          ? "previous-settings"
+          : (() => {
+              throw new TypeError("A valid audit recovery strategy is required.");
+            })();
+    const recovery = createAuditRecoveryState(
+      session.source,
+      recoveryCandidates,
+      strategy,
+      defaultResourceLimits,
+    );
     const source = approveSelection({
       ...session.source,
-      resourceLimits: {
-        concurrency: 1,
-        workerMemoryMb: 256,
-        ffmpegThreads: 1,
-        nativeProcessMemoryMb: 512,
-      },
+      resourceLimits: recovery.targetResourceLimits,
+      recovery,
     });
-    recoveryQuarantines.set(
-      selectionKey(source),
-      new Map(
-        recoveryCandidates.map((filePath) => [
-          path.resolve(filePath),
-          `${path.basename(filePath)} was actively decoding when the previous Audio-V process ended unexpectedly.`,
-        ]),
-      ),
-    );
     return {
       sessionId: session.id,
       source,
+      strategy,
+      targetResourceLimits: recovery.targetResourceLimits,
+      safeResourceLimits: safeRecoveryResourceLimits,
       completedCount: session.completedCount,
       discoveredCount: session.discoveredCount,
       recoveryCandidateCount: recoveryCandidates.length,
       recoveryCandidateNames: recoveryCandidates.map((filePath) =>
         path.basename(filePath),
       ),
+      safeCandidateCount: recovery.safeCandidatePaths.length,
+      quarantinedCandidateCount:
+        recovery.quarantinedCandidatePaths.length,
     };
   },
 );
@@ -574,28 +623,22 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
     ...approved,
     mode: requestedSource.mode ?? "full-audit",
     resourceLimits: resourcePolicy.limits,
+    recovery: approved.recovery,
     externalLookup: requestedSource.externalLookup,
   };
   const requestedLimits = source.resourceLimits ?? defaultResourceLimits;
-  const recoveryQuarantine =
-    recoveryQuarantines.get(selectionKey(source)) ?? new Map<string, string>();
+  const recoveryQuarantine = new Map(
+    (source.recovery?.quarantinedCandidatePaths ?? []).map((filePath) => [
+      path.resolve(filePath),
+      `${path.basename(filePath)} caused a second interruption during safe validation and was quarantined. Re-run it separately only after reviewing the saved diagnostic evidence.`,
+    ]),
+  );
   activeScanController?.abort();
-  if (
-    requestedLimits.concurrency !== currentResourceLimits.concurrency ||
-    requestedLimits.workerMemoryMb !== currentResourceLimits.workerMemoryMb ||
-    requestedLimits.ffmpegThreads !== currentResourceLimits.ffmpegThreads ||
-    requestedLimits.nativeProcessMemoryMb !== currentResourceLimits.nativeProcessMemoryMb
-  ) {
-    await oracleWorkers.close();
-    oracleWorkers = new OracleWorkerPool(
-      path.join(__dirname, "oracle", "oracle-worker.js"),
-      requestedLimits.concurrency,
-      requestedLimits.workerMemoryMb,
-      requestedLimits,
-    );
-    configureEngineResourcePolicy(requestedLimits);
-    currentResourceLimits = requestedLimits;
-  }
+  await applyOracleResourceLimits(
+    source.recovery?.safeCandidatePaths.length
+      ? safeRecoveryResourceLimits
+      : requestedLimits,
+  );
   const controller = new AbortController();
   const pauseGate = new ScanPauseGate();
   activeScanController = controller;
@@ -609,25 +652,128 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
       : undefined,
   };
   const sessionId = await auditSessions.create(persistedSource);
+  activeScanSessionId = sessionId;
   const persistence = new SessionPersistenceBuffer(auditSessions, sessionId);
   let sessionWarnings: string[] = [];
   try {
+    const emitProgress = (
+      progress: Parameters<NonNullable<Parameters<typeof scanSources>[1]>>[0],
+      effectiveLimits: AnalysisResourceLimits,
+      recovery:
+        | {
+            stage: "safe-validation" | "restored-settings" | "quarantine";
+            explanation: string;
+            targetResourceLimits: AnalysisResourceLimits;
+          }
+        | undefined,
+    ) => {
+      if (progress.file) {
+        const normalizedPath = path.resolve(progress.file.path);
+        approvedAudioFiles.add(normalizedPath);
+      }
+      _event.sender.send("library:scan-progress", {
+        ...progress,
+        sessionId,
+        resourceLimits: effectiveLimits,
+        resourcePolicyExplanation: resourcePolicy.adjusted
+          ? resourcePolicy.explanation
+          : null,
+        recovery,
+      });
+    };
+    const onFileStored = (
+      file: AudioFileRecord,
+      ordinal: number,
+      fromCache: boolean,
+    ) => {
+      const normalizedPath = path.resolve(file.path);
+      approvedAudioFiles.add(normalizedPath);
+      authoritativeRecords.set(normalizedPath, file);
+      return persistence.add(file, ordinal, fromCache);
+    };
+    if (source.recovery?.safeCandidatePaths.length) {
+      const recoverySource: AudioSourceSelection = {
+        kind: "files",
+        paths: source.recovery.safeCandidatePaths,
+        label: `${source.label} · recovery validation`,
+        mode: source.mode,
+        resourceLimits: safeRecoveryResourceLimits,
+        externalLookup: source.externalLookup,
+      };
+      const recoveryExplanation =
+        `Safe validation is processing ${source.recovery.safeCandidatePaths.length} file${source.recovery.safeCandidatePaths.length === 1 ? "" : "s"} that were active during the interruption with one worker. The audit will automatically restore ${requestedLimits.concurrency} concurrent file${requestedLimits.concurrency === 1 ? "" : "s"} afterward.`;
+      await scanSources(
+        recoverySource,
+        (progress) =>
+          emitProgress(progress, safeRecoveryResourceLimits, {
+            stage: "safe-validation",
+            explanation: recoveryExplanation,
+            targetResourceLimits: requestedLimits,
+          }),
+        {
+          signal: controller.signal,
+          cache: oracleCache,
+          analyzeFile: (filePath, signal) =>
+            oracleWorkers.analyze(filePath, signal),
+          onFileStarted: (filePath) =>
+            auditSessions.markFileStarted(sessionId, filePath),
+          onFileStored,
+          waitIfPaused: () => pauseGate.wait(controller.signal),
+          concurrency: 1,
+          bypassCachePaths: new Set(
+            source.recovery.safeCandidatePaths.map((entry) =>
+              path.resolve(entry),
+            ),
+          ),
+          compactResults: true,
+        },
+      );
+      await persistence.flush();
+      await applyOracleResourceLimits(requestedLimits);
+      emitProgress(
+        {
+          phase: "processing",
+          completed: 0,
+          total: 0,
+          currentFile: null,
+          file: null,
+          fromCache: false,
+        },
+        requestedLimits,
+        {
+          stage: "restored-settings",
+          explanation:
+            `Safe validation completed. Audio-V restored the saved ${requestedLimits.concurrency}-worker configuration for the remaining audit.`,
+          targetResourceLimits: requestedLimits,
+        },
+      );
+    }
+    const quarantineExplanation = recoveryQuarantine.size
+      ? `${recoveryQuarantine.size} repeatedly unstable file${recoveryQuarantine.size === 1 ? " was" : "s were"} quarantined; the remaining audit is running with the saved configuration.`
+      : undefined;
     const result = await scanSources(
       source,
-      (progress) => {
-        if (progress.file) {
-          const normalizedPath = path.resolve(progress.file.path);
-          approvedAudioFiles.add(normalizedPath);
-          authoritativeRecords.set(normalizedPath, progress.file);
-        }
-        _event.sender.send("library:scan-progress", {
-          ...progress,
-          resourceLimits: requestedLimits,
-          resourcePolicyExplanation: resourcePolicy.adjusted
-            ? resourcePolicy.explanation
-            : null,
-        });
-      },
+      (progress) =>
+        emitProgress(
+          progress,
+          requestedLimits,
+          quarantineExplanation
+            ? {
+                stage: "quarantine",
+                explanation: quarantineExplanation,
+                targetResourceLimits: requestedLimits,
+              }
+            : source.recovery
+              ? {
+                  stage: "restored-settings",
+                  explanation:
+                    source.recovery.strategy === "previous-settings"
+                      ? "Recovery is using the previously saved resource settings by explicit request."
+                      : `Adaptive recovery is running the remaining audit with the saved ${requestedLimits.concurrency}-worker configuration.`,
+                  targetResourceLimits: requestedLimits,
+                }
+              : undefined,
+        ),
       {
         signal: controller.signal,
         cache: oracleCache,
@@ -643,9 +789,7 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
         },
         onFileStarted: (filePath) =>
           auditSessions.markFileStarted(sessionId, filePath),
-        onFileStored: (file, ordinal, fromCache) => {
-          return persistence.add(file, ordinal, fromCache);
-        },
+        onFileStored,
         waitIfPaused: () => pauseGate.wait(controller.signal),
         concurrency: requestedLimits.concurrency,
         recoveryQuarantine,
@@ -693,10 +837,10 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
     );
     throw error;
   } finally {
-    recoveryQuarantines.delete(selectionKey(source));
     await oracleCache.flush();
     if (activeScanController === controller) activeScanController = null;
     if (activeScanPause === pauseGate) activeScanPause = null;
+    if (activeScanSessionId === sessionId) activeScanSessionId = null;
   }
 });
 

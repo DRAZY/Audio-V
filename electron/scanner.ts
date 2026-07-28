@@ -887,6 +887,7 @@ export async function scanSources(
     waitIfPaused?: () => Promise<void>;
     concurrency?: number;
     recoveryQuarantine?: ReadonlyMap<string, string>;
+    bypassCachePaths?: ReadonlySet<string>;
     compactResults?: boolean;
     classifyStorage?: (filePath: string) => SourceStorageKind;
     stageFile?: (
@@ -988,7 +989,9 @@ export async function scanSources(
       fromCache: false,
     });
     const analyzed = await (async () => {
-        const cached = inventoryOnly
+        const cached =
+          inventoryOnly ||
+          options?.bypassCachePaths?.has(path.resolve(filePath))
           ? null
           : await options?.cache?.get(filePath);
         if (

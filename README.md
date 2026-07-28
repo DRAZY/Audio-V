@@ -5,14 +5,14 @@
   <p>Decode every stream. Measure the signal. Inspect the evidence. Reach a defensible verdict.</p>
 
   <p>
-    <img alt="Locally verified release" src="https://img.shields.io/badge/releases-locally%20verified-51e19b?style=for-the-badge">
-    <a href="https://github.com/DRAZY/Audio-V/releases"><img alt="Development release" src="https://img.shields.io/github/v/release/DRAZY/Audio-V?include_prereleases&style=for-the-badge&color=8b5cf6"></a>
+    <img alt="Locally verified builds" src="https://img.shields.io/badge/builds-locally%20verified-51e19b?style=for-the-badge">
+    <img alt="Release candidate pending" src="https://img.shields.io/badge/release%20candidate-pending-8b5cf6?style=for-the-badge">
     <a href="LICENSE"><img alt="AGPL 3.0 only" src="https://img.shields.io/badge/license-AGPL--3.0--only-8b5cf6?style=for-the-badge"></a>
     <img alt="macOS and Windows" src="https://img.shields.io/badge/platforms-macOS%20%7C%20Windows-252532?style=for-the-badge">
   </p>
 
   <p>
-    <a href="#download">Download</a> ·
+    <a href="#releases">Releases</a> ·
     <a href="#meet-the-oracle-engine">Oracle Engine</a> ·
     <a href="#what-audio-v-can-do">Features</a> ·
     <a href="#understanding-the-verdict">Verdicts</a> ·
@@ -30,20 +30,22 @@ Audio-V is a local, cross-platform workstation for assessing audio-file integrit
 Audio-V is deliberately not a music player, tag editor, or mastering suite. It is an evidence workstation: technical properties, hashes, checksums, loudness, true peak, clipping, continuity, channel behavior, spectrograms, provenance indicators, acoustic identity, comparisons, remediation guidance, and exportable reports are brought together in one auditable workflow.
 
 > [!IMPORTANT]
-> Audio-V is currently a development preview without Apple Developer ID/notarization or Windows Authenticode. macOS app bundles are ad-hoc signed for bundle integrity. Verify every download against the published SHA-256 manifest. A Clear verdict means the file passed Audio-V's current disclosed checks; it does not prove provenance or guarantee that audio has never been transformed.
+> Audio-V is currently a private development preview without a declared release candidate. Local builds have no Apple Developer ID/notarization or Windows Authenticode; macOS app bundles are ad-hoc signed for bundle integrity. A Clear verdict means the file passed Audio-V's current disclosed checks; it does not prove provenance or guarantee that audio has never been transformed.
 
-## Download
+## Releases
 
-The `v0.4.10` development release provides all four requested desktop packages:
+Audio-V is deliberately withholding public binaries and version tags until the first reliable release candidate passes native acceptance testing. Development commits and locally verified packages continue without manufacturing a public release for every iteration.
 
-| Platform | Package | Intended system |
+When that candidate is approved, the repository will identify it by its exact version—not only a generic Releases link—and expose this complete asset set directly:
+
+| Platform | Versioned release asset | Intended system |
 |---|---|---|
-| macOS | [Apple Silicon DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.10/Audio-V-0.4.10-mac-arm64.dmg) | Native Apple Silicon |
-| macOS | [Universal DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.10/Audio-V-0.4.10-mac-universal.dmg) | Apple Silicon and Intel |
-| Windows | [x64 installer](https://github.com/DRAZY/Audio-V/releases/download/v0.4.10/Audio-V-0.4.10-win-x64.exe) | Guided desktop installation |
-| Windows | [x64 portable](https://github.com/DRAZY/Audio-V/releases/download/v0.4.10/Audio-V-Portable-0.4.10-x64.exe) | Run without installing the application |
+| macOS | `Audio-V-<version>-mac-arm64.dmg` | Native Apple Silicon |
+| macOS | `Audio-V-<version>-mac-universal.dmg` | Apple Silicon and Intel |
+| Windows | `Audio-V-<version>-win-x64.exe` | Guided desktop installation |
+| Windows | `Audio-V-Portable-<version>-x64.exe` | Run without installation |
 
-Every release also includes `SHA256SUMS.txt`, block maps, and `UNSIGNED_RELEASE_MANIFEST.json`. Read the [unsigned installation guide](docs/UNSIGNED_INSTALLATION.md) before opening a build.
+Every release must also expose its block maps, `SHA256SUMS.txt`, and `UNSIGNED_RELEASE_MANIFEST.json` on the same version-named GitHub Release. Read the [release workflow](docs/RELEASING.md) and [unsigned installation guide](docs/UNSIGNED_INSTALLATION.md) before opening a future candidate build.
 
 ## Meet the Oracle Engine
 

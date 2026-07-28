@@ -2,8 +2,10 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import type {
   AnalysisMode,
+  AnalysisResourceLimits,
   AudioFileRecord,
   AudioSourceSelection,
+  AuditResumeStrategy,
   AuditSessionSummary,
   DecodedSignalComparison,
   FingerprintLibraryEntry,
@@ -59,6 +61,8 @@ const analysisConcurrency = ref<1 | 2 | 3 | 4>(2);
 const analysisWorkerMemoryMb = ref<128 | 256 | 384 | 512>(256);
 const analysisFfmpegThreads = ref<1 | 2 | 4>(2);
 const analysisNativeMemoryMb = ref<256 | 512 | 1024 | 2048>(1024);
+const effectiveResourceLimits = ref<AnalysisResourceLimits | null>(null);
+const recoveryStatus = ref("");
 const acoustIdEnabled = ref(false);
 const acoustIdApiKey = ref("");
 const filter = ref<
@@ -476,8 +480,13 @@ function spectralColor(
 }
 
 async function loadSpectrogramInspection(): Promise<void> {
-  const file = selected.value;
+  let file = selected.value;
   if (!window.audioV || !file?.oracle.measurements) return;
+  if (file.detailLevel === "summary" && activeSessionId.value) {
+    await hydrateSelectedSessionFile();
+    file = selected.value;
+    if (!file?.oracle.measurements) return;
+  }
   const request = ++spectrogramInspectionRequest;
   const requestedFftSize = spectrogramFftSize.value;
   const requestedChannelMode = spectrogramChannelMode.value;
@@ -952,13 +961,14 @@ onMounted(() => {
     window.audioV?.onScanProgress((progress) => {
       if (!isDiscovering.value) return;
       scanProgress.value = progress;
+      if (progress.sessionId && activeSessionId.value !== progress.sessionId) {
+        activeSessionId.value = progress.sessionId;
+      }
       if (progress.resourceLimits) {
-        analysisConcurrency.value = progress.resourceLimits.concurrency;
-        analysisWorkerMemoryMb.value =
-          progress.resourceLimits.workerMemoryMb;
-        analysisFfmpegThreads.value = progress.resourceLimits.ffmpegThreads;
-        analysisNativeMemoryMb.value =
-          progress.resourceLimits.nativeProcessMemoryMb;
+        effectiveResourceLimits.value = progress.resourceLimits;
+      }
+      if (progress.recovery) {
+        recoveryStatus.value = progress.recovery.explanation;
       }
       if (progress.resourcePolicyExplanation) {
         resourcePolicyNotice.value = progress.resourcePolicyExplanation;
@@ -971,6 +981,15 @@ onMounted(() => {
         if (!selectedId.value) selectedId.value = progress.file.id;
       }
       if (isScanCancelling.value) return;
+      if (progress.recovery?.stage === "safe-validation") {
+        scanMessage.value =
+          `Recovery validation · ${progress.completed.toLocaleString()} of ${progress.total.toLocaleString()} completed · ${progress.currentFile ?? "Preparing isolated file"}`;
+        return;
+      }
+      if (progress.recovery?.stage === "restored-settings" && progress.total === 0) {
+        scanMessage.value = progress.recovery.explanation;
+        return;
+      }
       if (progress.phase === "discovered") {
         scanMessage.value =
           scanMode.value === "metadata-inventory"
@@ -1104,6 +1123,8 @@ async function scanSource(source: AudioSourceSelection): Promise<void> {
   sourceWarnings.value = [];
   resourcePolicyNotice.value = "";
   sourceIoNotice.value = "";
+  effectiveResourceLimits.value = null;
+  recoveryStatus.value = "";
   files.value = [];
   activeSessionId.value = "";
   selectedId.value = "";
@@ -1286,16 +1307,32 @@ async function openAuditSession(sessionId: string): Promise<void> {
   }
 }
 
-async function resumeAuditSession(session: AuditSessionSummary): Promise<void> {
+async function resumeAuditSession(
+  session: AuditSessionSummary,
+  strategy: AuditResumeStrategy = "adaptive-safe",
+): Promise<void> {
   if (!window.audioV || isDiscovering.value) return;
   loadingSessionId.value = session.id;
   try {
-    const plan = await window.audioV.prepareAuditSessionResume(session.id);
+    const plan = await window.audioV.prepareAuditSessionResume(
+      session.id,
+      strategy,
+    );
+    analysisConcurrency.value = plan.targetResourceLimits.concurrency;
+    analysisWorkerMemoryMb.value = plan.targetResourceLimits.workerMemoryMb;
+    analysisFfmpegThreads.value = plan.targetResourceLimits.ffmpegThreads;
+    analysisNativeMemoryMb.value =
+      plan.targetResourceLimits.nativeProcessMemoryMb;
     sourceRoot.value = plan.source.label;
     historyOpen.value = false;
-    scanMessage.value = plan.recoveryCandidateCount
-      ? `Safe recovery will reuse ${plan.completedCount.toLocaleString()} checkpointed files and quarantine ${plan.recoveryCandidateCount.toLocaleString()} file${plan.recoveryCandidateCount === 1 ? "" : "s"} that were active during the interruption`
-      : `Resuming ${plan.completedCount.toLocaleString()} of ${plan.discoveredCount.toLocaleString()} checkpointed files with conservative resource limits`;
+    scanMessage.value =
+      strategy === "previous-settings"
+        ? `Resuming with the saved ${plan.targetResourceLimits.concurrency}-worker configuration by explicit request`
+        : plan.quarantinedCandidateCount
+          ? `${plan.quarantinedCandidateCount} repeatedly unstable file${plan.quarantinedCandidateCount === 1 ? " is" : "s are"} quarantined; remaining work will resume with the saved settings`
+          : plan.safeCandidateCount
+            ? `Validating ${plan.safeCandidateCount} previously active file${plan.safeCandidateCount === 1 ? "" : "s"} safely, then automatically restoring ${plan.targetResourceLimits.concurrency} workers`
+            : `Resuming ${plan.completedCount.toLocaleString()} of ${plan.discoveredCount.toLocaleString()} checkpointed files with the saved settings`;
     await scanSource(plan.source);
   } catch (error) {
     scanMessage.value =
@@ -1305,6 +1342,39 @@ async function resumeAuditSession(session: AuditSessionSummary): Promise<void> {
   } finally {
     loadingSessionId.value = "";
   }
+}
+
+function applyResourcePreset(
+  preset: "recovery-safe" | "balanced" | "performance",
+): void {
+  const presets: Record<
+    typeof preset,
+    AnalysisResourceLimits
+  > = {
+    "recovery-safe": {
+      concurrency: 1,
+      workerMemoryMb: 256,
+      ffmpegThreads: 1,
+      nativeProcessMemoryMb: 512,
+    },
+    balanced: {
+      concurrency: 2,
+      workerMemoryMb: 256,
+      ffmpegThreads: 2,
+      nativeProcessMemoryMb: 512,
+    },
+    performance: {
+      concurrency: 4,
+      workerMemoryMb: 256,
+      ffmpegThreads: 2,
+      nativeProcessMemoryMb: 512,
+    },
+  };
+  const limits = presets[preset];
+  analysisConcurrency.value = limits.concurrency;
+  analysisWorkerMemoryMb.value = limits.workerMemoryMb;
+  analysisFfmpegThreads.value = limits.ffmpegThreads;
+  analysisNativeMemoryMb.value = limits.nativeProcessMemoryMb;
 }
 
 async function toggleScanPause(): Promise<void> {
@@ -2073,7 +2143,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
                 {{ new Date(session.updatedAt).toLocaleString() }}
               </span>
               <span v-if="session.interrupted" class="session-recovery-note">
-                {{ session.recoveryCandidateCount.toLocaleString() }} in-flight file{{ session.recoveryCandidateCount === 1 ? "" : "s" }} will be isolated during safe recovery
+                {{ session.recoveryCandidateCount.toLocaleString() }} in-flight file{{ session.recoveryCandidateCount === 1 ? "" : "s" }} will be validated safely before saved performance settings are restored
               </span>
             </div>
             <b :class="`session-${session.interrupted ? 'interrupted' : session.status}`">
@@ -2089,9 +2159,17 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
               v-if="session.status !== 'completed'"
               class="primary-action"
               :disabled="isDiscovering || loadingSessionId === session.id"
-              @click="resumeAuditSession(session)"
+              @click="resumeAuditSession(session, 'adaptive-safe')"
             >
-              Resume safely
+              Resume adaptively
+            </button>
+            <button
+              v-if="session.status !== 'completed'"
+              :disabled="isDiscovering || loadingSessionId === session.id"
+              title="Bypasses isolated validation and may repeat the previous crash."
+              @click="resumeAuditSession(session, 'previous-settings')"
+            >
+              Use prior limits
             </button>
           </article>
         </div>
@@ -2366,6 +2444,14 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
                   <label>Pan <input v-model.number="spectrogramPan" type="range" min="0" max="1" step="0.01" :disabled="spectrogramZoom === 1"></label>
                   <b>{{ spectrogramRegion }}</b>
                 </div>
+              </div>
+              <div
+                v-else-if="hydratingFileId === selected.id"
+                class="analysis-pending"
+              >
+                <span>STFT</span>
+                <strong>Loading stored spectrum…</strong>
+                <p>The completed audit evidence is being restored without decoding the file again.</p>
               </div>
               <div v-else-if="spectrogramInspecting" class="analysis-pending">
                 <span>FFT</span>
@@ -3199,6 +3285,11 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
             <span>Analysis resources</span>
             <strong>Bounded worker controls</strong>
             <p>Changes apply to the next audit. These are per-file ceilings, not speed levels; Audio-V enforces an additional system-wide memory and CPU budget before creating workers.</p>
+            <div class="resource-presets" aria-label="Analysis resource presets">
+              <button :disabled="isDiscovering" @click="applyResourcePreset('recovery-safe')">Recovery safe</button>
+              <button :disabled="isDiscovering" @click="applyResourcePreset('balanced')">Balanced</button>
+              <button :disabled="isDiscovering" @click="applyResourcePreset('performance')">Performance</button>
+            </div>
             <label>Concurrent files
               <select v-model.number="analysisConcurrency" :disabled="isDiscovering">
                 <option :value="1">1</option><option :value="2">2</option><option :value="3">3</option><option :value="4">4</option>
@@ -3224,6 +3315,15 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
               :class="{ warning: requestedAggregateMemoryMb > 4096 || requestedAggregateThreads > 8 }"
             >
               {{ resourceControlWarning }}
+            </small>
+            <small v-if="effectiveResourceLimits" class="resource-budget-note effective">
+              Effective audit limits: {{ effectiveResourceLimits.concurrency }} concurrent file{{ effectiveResourceLimits.concurrency === 1 ? "" : "s" }},
+              {{ effectiveResourceLimits.workerMemoryMb }} MB worker heap,
+              {{ effectiveResourceLimits.ffmpegThreads }} FFmpeg thread{{ effectiveResourceLimits.ffmpegThreads === 1 ? "" : "s" }} per file,
+              and {{ effectiveResourceLimits.nativeProcessMemoryMb }} MB native memory.
+            </small>
+            <small v-if="recoveryStatus" class="resource-budget-note recovery">
+              {{ recoveryStatus }}
             </small>
           </article>
           <article>

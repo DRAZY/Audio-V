@@ -527,6 +527,7 @@ export interface AudioSourceSelection {
   label: string;
   mode?: AnalysisMode;
   resourceLimits?: AnalysisResourceLimits;
+  recovery?: AuditRecoveryState;
   externalLookup?: {
     acoustIdEnabled: boolean;
     acoustIdApiKey?: string;
@@ -538,6 +539,17 @@ export interface AnalysisResourceLimits {
   workerMemoryMb: 128 | 256 | 384 | 512;
   ffmpegThreads: 1 | 2 | 4;
   nativeProcessMemoryMb: 256 | 512 | 1024 | 2048;
+}
+
+export type AuditResumeStrategy = "adaptive-safe" | "previous-settings";
+
+export interface AuditRecoveryState {
+  strategy: AuditResumeStrategy;
+  attempt: number;
+  candidatePaths: string[];
+  safeCandidatePaths: string[];
+  quarantinedCandidatePaths: string[];
+  targetResourceLimits: AnalysisResourceLimits;
 }
 
 export type AuditSessionStatus =
@@ -569,10 +581,15 @@ export interface StoredAuditSession extends AuditSessionSummary {
 export interface AuditResumePlan {
   sessionId: string;
   source: AudioSourceSelection;
+  strategy: AuditResumeStrategy;
+  targetResourceLimits: AnalysisResourceLimits;
+  safeResourceLimits: AnalysisResourceLimits;
   completedCount: number;
   discoveredCount: number;
   recoveryCandidateCount: number;
   recoveryCandidateNames: string[];
+  safeCandidateCount: number;
+  quarantinedCandidateCount: number;
 }
 
 export interface DecodedSignalComparison {
@@ -636,8 +653,14 @@ export interface ScanProgressUpdate {
   currentFile: string | null;
   file: AudioFileRecord | null;
   fromCache: boolean;
+  sessionId?: string;
   resourceLimits?: AnalysisResourceLimits;
   resourcePolicyExplanation?: string | null;
+  recovery?: {
+    stage: "safe-validation" | "restored-settings" | "quarantine";
+    explanation: string;
+    targetResourceLimits: AnalysisResourceLimits;
+  };
   sourceIo?: {
     storageKind: "local" | "network" | "removable-or-mounted";
     staged: boolean;
@@ -730,7 +753,10 @@ export interface AudioVDesktopApi {
     sessionId: string,
     filePath: string,
   ): Promise<AudioFileRecord>;
-  prepareAuditSessionResume(sessionId: string): Promise<AuditResumePlan>;
+  prepareAuditSessionResume(
+    sessionId: string,
+    strategy?: AuditResumeStrategy,
+  ): Promise<AuditResumePlan>;
   compareSignals(
     leftPath: string,
     rightPath: string,

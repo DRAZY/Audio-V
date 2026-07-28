@@ -1,6 +1,8 @@
 # Audio-V release workflow
 
-Audio-V follows the Deemix Remastered distribution model: installers are built and verified on maintainer-controlled machines, written to the ignored `release/` directory, and uploaded directly to GitHub Releases. GitHub does not build or publish Audio-V binaries.
+Audio-V follows the Deemix Remastered distribution model: installers are built and verified on maintainer-controlled machines, written to the ignored `release/` directory, and uploaded directly to a release named for the exact version. GitHub does not build or publish Audio-V binaries.
+
+Development iterations do not receive tags or GitHub Releases. The first published tag is created only after the repository meets the release-candidate checklist and the maintainer explicitly promotes that source revision. Its README entry must name the exact version and link each of the four primary assets directly; a generic Releases link alone is insufficient.
 
 `.github/workflows/verify.yml` is an optional, manual-only cross-platform verification workflow. It runs only when a maintainer explicitly dispatches it and is not triggered by pushes, pull requests, or tags. This prevents the private repository from consuming GitHub-hosted runner allowance during normal development and publication.
 
@@ -71,13 +73,13 @@ Build and launch-test Windows packages on a maintainer-controlled Windows instal
    git push origin main "v${VERSION}"
    ```
 
-6. Create the prerelease and upload the exact locally verified assets:
+6. Create the version-named release and upload the exact locally verified assets:
 
    ```bash
    gh release create "v${VERSION}" \
      --repo DRAZY/Audio-V \
      --prerelease \
-     --title "Audio-V v${VERSION} — Development Preview" \
+     --title "Audio-V v${VERSION}" \
      --generate-notes \
      "release/Audio-V-${VERSION}-mac-arm64.dmg" \
      "release/Audio-V-${VERSION}-mac-arm64.dmg.blockmap" \
@@ -92,9 +94,9 @@ Build and launch-test Windows packages on a maintainer-controlled Windows instal
 
 ## Maintainer synchronization policy
 
-For maintainer-directed feature work, a verified implementation is not considered synchronized until its source commit is pushed to `main` and its matching locally built packages are uploaded to the versioned GitHub Release. The tag must match `package.json`; applicable native correctness, packaged-runtime verification, and release-candidate checks must pass before upload.
+For maintainer-directed feature work before the first release candidate, a verified implementation is synchronized when its source commit is pushed to `main` and its four matching packages are retained in the ignored local `release/` workspace. No development tag or GitHub Release is created. Once the maintainer promotes a release candidate, the tag must match `package.json`; applicable native correctness, packaged-runtime verification, and release-candidate checks must pass before upload.
 
-GitHub Releases preserve prior versions as the project’s historical distribution record. The local ignored `release/` directory is a current-build workspace, not an archive. After a release succeeds:
+After the first release candidate, GitHub Releases preserve meaningful published versions as the project’s historical distribution record. Superseded private-development previews are not part of that public history. The local ignored `release/` directory is a current-build workspace, not an archive. After a release succeeds:
 
 1. Download the exact published assets for the current version.
 2. Verify `SHA256SUMS.txt` against all four application packages.

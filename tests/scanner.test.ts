@@ -490,6 +490,42 @@ describe("scanSources", () => {
     );
   });
 
+  it("bypasses cached evidence for adaptive recovery validation", async () => {
+    const directory = await makeTemporaryDirectory();
+    const audioPath = path.join(directory, "recovery.wav");
+    await fs.writeFile(audioPath, pcmWave({ seconds: 0.2 }));
+    const initial = await scanSources({
+      kind: "files",
+      label: "initial",
+      paths: [audioPath],
+    });
+    let analyses = 0;
+
+    const recovered = await scanSources(
+      {
+        kind: "files",
+        label: "recovery",
+        paths: [audioPath],
+      },
+      undefined,
+      {
+        cache: {
+          get: async () => initial.files[0],
+          set: async () => undefined,
+          flush: async () => undefined,
+        },
+        bypassCachePaths: new Set([path.resolve(audioPath)]),
+        analyzeFile: async (filePath, signal) => {
+          analyses += 1;
+          return analyzeAudioFile(filePath, signal);
+        },
+      },
+    );
+
+    expect(analyses).toBe(1);
+    expect(recovered.files[0].oracle.analysisState).toBe("completed");
+  });
+
   it("links copied recordings by their local Chromaprint identity", async () => {
     const directory = await makeTemporaryDirectory();
     const fixture = path.join(

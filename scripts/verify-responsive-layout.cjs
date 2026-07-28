@@ -222,6 +222,73 @@ app.whenReady().then(async () => {
 
   window.setContentSize(scenarios[0].width, scenarios[0].height);
   await new Promise((resolve) => setTimeout(resolve, 80));
+  const resourceControlsLayout = await window.webContents.executeJavaScript(`
+    (async () => {
+      [...document.querySelectorAll(".rail-item")].find(
+        (button) => button.textContent.toLowerCase().includes("settings")
+      )?.click();
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const card = document.querySelector(".capability-grid .resource-controls");
+      const rect = card.getBoundingClientRect();
+      const presets = [...card.querySelectorAll(".resource-presets button")].map(
+        (button) => ({
+          clientWidth: button.clientWidth,
+          scrollWidth: button.scrollWidth,
+          height: button.getBoundingClientRect().height,
+        }),
+      );
+      const notes = [...card.querySelectorAll(".resource-budget-note")].map(
+        (note) => ({
+          clientWidth: note.clientWidth,
+          scrollWidth: note.scrollWidth,
+          clientHeight: note.clientHeight,
+          scrollHeight: note.scrollHeight,
+        }),
+      );
+      return {
+        card: {
+          width: rect.width,
+          height: rect.height,
+          clientHeight: card.clientHeight,
+          scrollHeight: card.scrollHeight,
+        },
+        presets,
+        notes,
+      };
+    })()
+  `);
+  const resourceControlsPassed =
+    resourceControlsLayout.card.scrollHeight <=
+      resourceControlsLayout.card.clientHeight &&
+    resourceControlsLayout.presets.length === 3 &&
+    resourceControlsLayout.presets.every(
+      (button) =>
+        button.scrollWidth <= button.clientWidth && button.height >= 34,
+    ) &&
+    resourceControlsLayout.notes.every(
+      (note) =>
+        note.scrollWidth <= note.clientWidth &&
+        note.scrollHeight <= note.clientHeight,
+    );
+  results.push({
+    name: "adaptive-resource-controls",
+    measurement: resourceControlsLayout,
+    checks: { resourceControlsPassed },
+    passed: resourceControlsPassed,
+  });
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  const settingsScreenshot = await window.webContents.capturePage();
+  await writeFile(
+    path.join(process.cwd(), "build", "layout-settings.png"),
+    settingsScreenshot.toPNG(),
+  );
+  await window.webContents.executeJavaScript(`
+    [...document.querySelectorAll(".rail-item")].find(
+      (button) => button.textContent.toLowerCase().includes("audit")
+    )?.click()
+  `);
+  await new Promise((resolve) => setTimeout(resolve, 80));
+
   const loudnessGrid = await window.webContents.executeJavaScript(`
     (() => {
       const grid = document.createElement("div");
@@ -423,7 +490,7 @@ app.whenReady().then(async () => {
     );
   } else {
     console.log(
-      "Responsive layout passed at default and minimum desktop sizes, including open source warnings, table gutters, active assessment separation, dense inspector text, selected paths, scan progress, and the loudness diagnostics grid.",
+      "Responsive layout passed at default and minimum desktop sizes, including open source warnings, table gutters, active assessment separation, adaptive resource controls, dense inspector text, selected paths, scan progress, and the loudness diagnostics grid.",
     );
   }
   window.destroy();

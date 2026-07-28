@@ -15,7 +15,8 @@ shasum -a 256 -c SHA256SUMS.txt
 On Windows PowerShell:
 
 ```powershell
-Get-FileHash .\Audio-V-0.4.10-win-x64.exe -Algorithm SHA256
+$Version = "replace-with-release-version"
+Get-FileHash ".\Audio-V-$Version-win-x64.exe" -Algorithm SHA256
 Get-Content .\SHA256SUMS.txt
 ```
 
