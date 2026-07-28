@@ -23,8 +23,26 @@ describe("resolveAnalysisResourcePolicy", () => {
       concurrency: 4,
       workerMemoryMb: 512,
       ffmpegThreads: 2,
-      nativeProcessMemoryMb: 256,
+      nativeProcessMemoryMb: 1024,
     });
+  });
+
+  it("permits eight bounded workers on a high-memory workstation", () => {
+    const resolved = resolveAnalysisResourcePolicy(
+      {
+        concurrency: 8,
+        workerMemoryMb: 256,
+        ffmpegThreads: 2,
+        nativeProcessMemoryMb: 512,
+      },
+      64 * 1024 * 1024 * 1024,
+      32,
+    );
+
+    expect(resolved.limits.concurrency).toBe(8);
+    expect(resolved.aggregateMemoryCeilingMb).toBeLessThanOrEqual(
+      resolved.systemBudgetMb,
+    );
   });
 
   it("reduces concurrency when a low-memory system cannot support the minimum per-file budget", () => {

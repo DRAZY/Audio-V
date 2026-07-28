@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { gzipSync, gunzipSync } from "node:zlib";
 import type {
   AudioFileRecord,
   AudioSourceSelection,
@@ -34,9 +35,10 @@ interface SessionRow {
 interface FileRow {
   record_json: string;
   evidence_key?: string | null;
+  record_blob?: Uint8Array | null;
 }
 
-const schemaVersion = 6;
+const schemaVersion = 7;
 const crashRecoveryWarning =
   "Audio-V recovered this audit after the previous application process ended before the scan finished.";
 
@@ -90,6 +92,7 @@ export class AuditSessionStore {
         modified_milliseconds REAL NOT NULL,
         engine_version TEXT NOT NULL,
         record_json TEXT NOT NULL,
+        evidence_key TEXT,
         cached_at TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS oracle_cache_cached_at
@@ -97,6 +100,7 @@ export class AuditSessionStore {
       CREATE TABLE IF NOT EXISTS oracle_evidence (
         evidence_key TEXT PRIMARY KEY,
         record_json TEXT NOT NULL,
+        record_blob BLOB,
         created_at TEXT NOT NULL
       );
       CREATE TABLE IF NOT EXISTS fingerprint_index (
@@ -137,6 +141,22 @@ export class AuditSessionStore {
     if (!fileColumns.some((column) => column.name === "evidence_key")) {
       this.#database.exec(
         "ALTER TABLE audit_files ADD COLUMN evidence_key TEXT",
+      );
+    }
+    const cacheColumns = this.#database
+      .prepare("PRAGMA table_info(oracle_cache)")
+      .all() as unknown as Array<{ name: string }>;
+    if (!cacheColumns.some((column) => column.name === "evidence_key")) {
+      this.#database.exec(
+        "ALTER TABLE oracle_cache ADD COLUMN evidence_key TEXT",
+      );
+    }
+    const evidenceColumns = this.#database
+      .prepare("PRAGMA table_info(oracle_evidence)")
+      .all() as unknown as Array<{ name: string }>;
+    if (!evidenceColumns.some((column) => column.name === "record_blob")) {
+      this.#database.exec(
+        "ALTER TABLE oracle_evidence ADD COLUMN record_blob BLOB",
       );
     }
   }
@@ -507,7 +527,8 @@ export class AuditSessionStore {
     const normalized = path.resolve(filePath);
     const row = this.#database
       .prepare(`
-        SELECT size_bytes, modified_milliseconds, engine_version, record_json
+        SELECT size_bytes, modified_milliseconds, engine_version, record_json,
+          evidence_key
         FROM oracle_cache
         WHERE file_path = ?
       `)
@@ -517,12 +538,19 @@ export class AuditSessionStore {
           modified_milliseconds: number;
           engine_version: string;
           record_json: string;
+          evidence_key: string | null;
         }
       | undefined;
     if (!row) return null;
     try {
       const stat = await fs.stat(normalized);
-      const record = JSON.parse(row.record_json) as AudioFileRecord;
+      const summary = JSON.parse(row.record_json) as AudioFileRecord;
+      const record = row.evidence_key
+        ? restoreAudioFileDetails(
+            summary,
+            this.#getEvidence(row.evidence_key),
+          )
+        : summary;
       if (
         stat.size !== row.size_bytes ||
         stat.mtimeMs !== row.modified_milliseconds ||
@@ -530,6 +558,23 @@ export class AuditSessionStore {
       ) {
         this.deleteCached(normalized);
         return null;
+      }
+      if (!row.evidence_key && record.detailLevel !== "summary") {
+        const evidenceKey = this.#storeEvidence(
+          record,
+          new Date().toISOString(),
+        );
+        this.#database
+          .prepare(`
+            UPDATE oracle_cache
+            SET record_json = ?, evidence_key = ?
+            WHERE file_path = ?
+          `)
+          .run(
+            JSON.stringify(compactAudioFileRecord(record)),
+            evidenceKey,
+            normalized,
+          );
       }
       return record;
     } catch {
@@ -543,28 +588,37 @@ export class AuditSessionStore {
     const stat = await fs.stat(normalized);
     const existing = this.#database
       .prepare(`
-        SELECT record_json
+        SELECT record_json, evidence_key
         FROM oracle_cache
         WHERE file_path = ?
       `)
       .get(normalized) as unknown as FileRow | undefined;
+    const existingRecord = existing
+      ? (JSON.parse(existing.record_json) as AudioFileRecord)
+      : null;
     const cachedRecord = restoreAudioFileDetails(
       record,
-      existing
-        ? (JSON.parse(existing.record_json) as AudioFileRecord)
-        : null,
+      existing?.evidence_key
+        ? this.#getEvidence(existing.evidence_key)
+        : existingRecord,
     );
+    const evidenceKey = this.#storeEvidence(
+      cachedRecord,
+      new Date().toISOString(),
+    );
+    const compactRecord = compactAudioFileRecord(cachedRecord);
     this.#database
       .prepare(`
         INSERT INTO oracle_cache (
           file_path, size_bytes, modified_milliseconds, engine_version,
-          record_json, cached_at
-        ) VALUES (?, ?, ?, ?, ?, ?)
+          record_json, evidence_key, cached_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(file_path) DO UPDATE SET
           size_bytes = excluded.size_bytes,
           modified_milliseconds = excluded.modified_milliseconds,
           engine_version = excluded.engine_version,
           record_json = excluded.record_json,
+          evidence_key = excluded.evidence_key,
           cached_at = excluded.cached_at
       `)
       .run(
@@ -572,7 +626,8 @@ export class AuditSessionStore {
         stat.size,
         stat.mtimeMs,
         cachedRecord.oracle.engineVersion,
-        JSON.stringify(cachedRecord),
+        JSON.stringify(compactRecord),
+        evidenceKey,
         new Date().toISOString(),
       );
     this.#indexFingerprint(cachedRecord, new Date().toISOString());
@@ -834,19 +889,10 @@ export class AuditSessionStore {
     if (existingRecord?.detailLevel !== "summary") {
       return restoreAudioFileDetails(record, existingRecord);
     }
-    const evidence = existing?.evidence_key
-      ? (this.#database
-          .prepare(`
-            SELECT record_json
-            FROM oracle_evidence
-            WHERE evidence_key = ?
-          `)
-          .get(existing.evidence_key) as unknown as FileRow | undefined)
-      : undefined;
     return restoreAudioFileDetails(
       record,
-      evidence
-        ? (JSON.parse(evidence.record_json) as AudioFileRecord)
+      existing?.evidence_key
+        ? this.#getEvidence(existing.evidence_key)
         : null,
     );
   }
@@ -859,15 +905,47 @@ export class AuditSessionStore {
     const evidenceKey = createHash("sha256")
       .update(`${record.oracle.engineVersion}\0${identity}`)
       .digest("hex");
+    const existing = this.#database
+      .prepare(`
+        SELECT 1
+        FROM oracle_evidence
+        WHERE evidence_key = ?
+      `)
+      .get(evidenceKey);
+    if (existing) return evidenceKey;
+    const serialized = JSON.stringify(record);
     this.#database
       .prepare(`
-        INSERT INTO oracle_evidence (evidence_key, record_json, created_at)
-        VALUES (?, ?, ?)
-        ON CONFLICT(evidence_key) DO UPDATE SET
-          record_json = excluded.record_json
+        INSERT INTO oracle_evidence (
+          evidence_key, record_json, record_blob, created_at
+        )
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(evidence_key) DO NOTHING
       `)
-      .run(evidenceKey, JSON.stringify(record), now);
+      .run(
+        evidenceKey,
+        JSON.stringify(compactAudioFileRecord(record)),
+        gzipSync(serialized, { level: 1 }),
+        now,
+      );
     return evidenceKey;
+  }
+
+  #getEvidence(evidenceKey: string): AudioFileRecord | null {
+    const evidence = this.#database
+      .prepare(`
+        SELECT record_json, record_blob
+        FROM oracle_evidence
+        WHERE evidence_key = ?
+      `)
+      .get(evidenceKey) as unknown as FileRow | undefined;
+    if (!evidence) return null;
+    if (evidence.record_blob) {
+      return JSON.parse(
+        gunzipSync(Buffer.from(evidence.record_blob)).toString("utf8"),
+      ) as AudioFileRecord;
+    }
+    return JSON.parse(evidence.record_json) as AudioFileRecord;
   }
 
   #summary(row: SessionRow): AuditSessionSummary {

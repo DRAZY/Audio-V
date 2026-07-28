@@ -227,7 +227,7 @@ describe("AuditSessionStore", () => {
           .prepare(`
             SELECT
               length(audit_files.record_json) AS session_bytes,
-              length(oracle_evidence.record_json) AS evidence_bytes
+              length(oracle_evidence.record_blob) AS evidence_bytes
             FROM audit_files
             JOIN oracle_evidence USING (evidence_key)
             WHERE audit_files.session_id = ?

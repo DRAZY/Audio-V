@@ -33,6 +33,20 @@ import {
 const approvedSelections = new Map<string, AudioSourceSelection>();
 const approvedAudioFiles = new Set<string>();
 const authoritativeRecords = new Map<string, AudioFileRecord>();
+const maximumResidentAuthoritativeRecords = 16;
+
+function rememberAuthoritativeRecord(file: AudioFileRecord): void {
+  const normalizedPath = path.resolve(file.path);
+  authoritativeRecords.delete(normalizedPath);
+  authoritativeRecords.set(normalizedPath, file);
+  while (authoritativeRecords.size > maximumResidentAuthoritativeRecords) {
+    const oldestPath = authoritativeRecords.keys().next().value as
+      | string
+      | undefined;
+    if (!oldestPath) break;
+    authoritativeRecords.delete(oldestPath);
+  }
+}
 const audioDialogFilters = [
   {
     name: "Audio files",
@@ -244,7 +258,7 @@ function isSourceSelection(value: unknown): value is AudioSourceSelection {
     source.paths.length > 0 &&
     source.paths.every((entry) => typeof entry === "string") &&
     (source.resourceLimits === undefined ||
-      ([1, 2, 3, 4].includes(source.resourceLimits.concurrency) &&
+      ([1, 2, 3, 4, 5, 6, 7, 8].includes(source.resourceLimits.concurrency) &&
         [128, 256, 384, 512].includes(source.resourceLimits.workerMemoryMb) &&
         [1, 2, 4].includes(source.resourceLimits.ffmpegThreads) &&
         [256, 512, 1024, 2048].includes(source.resourceLimits.nativeProcessMemoryMb))) &&
@@ -477,7 +491,6 @@ ipcMain.handle("sessions:open", async (_event, requestedSessionId: unknown) => {
   for (const file of session.files) {
     const normalizedPath = path.resolve(file.path);
     approvedAudioFiles.add(normalizedPath);
-    authoritativeRecords.set(normalizedPath, file);
   }
   return session;
 });
@@ -510,7 +523,7 @@ ipcMain.handle(
       throw new Error("The requested file is not present in this audit session.");
     }
     approvedAudioFiles.add(path.resolve(file.path));
-    authoritativeRecords.set(path.resolve(file.path), file);
+    rememberAuthoritativeRecord(file);
     return file;
   },
 );
@@ -555,7 +568,7 @@ ipcMain.handle(
       resolvedPath,
       updated,
     );
-    authoritativeRecords.set(resolvedPath, updated);
+    rememberAuthoritativeRecord(updated);
     return updated;
   },
 );
@@ -799,7 +812,7 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
     ) => {
       const normalizedPath = path.resolve(file.path);
       approvedAudioFiles.add(normalizedPath);
-      authoritativeRecords.set(normalizedPath, file);
+      rememberAuthoritativeRecord(file);
       return persistence.add(file, ordinal, fromCache);
     };
     if (source.recovery?.safeCandidatePaths.length) {
@@ -913,7 +926,6 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
     for (const file of result.files) {
       const normalizedPath = path.resolve(file.path);
       approvedAudioFiles.add(normalizedPath);
-      authoritativeRecords.set(normalizedPath, file);
     }
     if (
       process.env.AUDIO_V_ENABLE_QA === "1" &&
@@ -985,10 +997,18 @@ ipcMain.handle("oracle:analyze-file", async (
     throw new Error("Select this audio file through Audio-V before analyzing it.");
   }
   const oracle = await oracleWorkers.analyze(filePath);
-  const prior = authoritativeRecords.get(filePath);
+  let prior: AudioFileRecord | null | undefined =
+    authoritativeRecords.get(filePath);
+  if (
+    !prior &&
+    typeof requestedSessionId === "string" &&
+    /^[a-f0-9-]{36}$/iu.test(requestedSessionId)
+  ) {
+    prior = await auditSessions.getSessionFile(requestedSessionId, filePath);
+  }
   if (prior) {
     const updated = { ...prior, oracle };
-    authoritativeRecords.set(filePath, updated);
+    rememberAuthoritativeRecord(updated);
     await auditSessions.setCached(updated);
     if (
       typeof requestedSessionId === "string" &&
@@ -1123,7 +1143,7 @@ ipcMain.handle(
       );
     }
     approvedAudioFiles.add(outputPath);
-    authoritativeRecords.set(outputPath, repairedFile);
+    rememberAuthoritativeRecord(repairedFile);
     return { canceled: false, filePath: outputPath, file: repairedFile };
   },
 );

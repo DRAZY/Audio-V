@@ -61,7 +61,7 @@ const loadingSessionId = ref("");
 const hydratingFileId = ref("");
 const isAnalyzing = ref(false);
 const scanMode = ref<AnalysisMode>("full-audit");
-const analysisConcurrency = ref<1 | 2 | 3 | 4>(2);
+const analysisConcurrency = ref<1 | 2 | 3 | 4 | 5 | 6 | 7 | 8>(2);
 const analysisWorkerMemoryMb = ref<128 | 256 | 384 | 512>(256);
 const analysisFfmpegThreads = ref<1 | 2 | 4>(2);
 const analysisNativeMemoryMb = ref<256 | 512 | 1024 | 2048>(1024);
@@ -893,6 +893,23 @@ watch(() => visibleFiles.value.length, () => {
 let removeScanProgressListener: (() => void) | null = null;
 let progressFrame: number | null = null;
 let queuedProgressFiles: AudioFileRecord[] = [];
+let progressFileIndexById = new Map<string, number>();
+
+function mergeQueuedProgressFiles(): void {
+  if (queuedProgressFiles.length === 0) return;
+  const next = files.value.slice();
+  for (const entry of queuedProgressFiles) {
+    const existingIndex = progressFileIndexById.get(entry.id);
+    if (existingIndex === undefined) {
+      progressFileIndexById.set(entry.id, next.length);
+      next.push(entry);
+    } else {
+      next[existingIndex] = entry;
+    }
+  }
+  queuedProgressFiles = [];
+  files.value = next;
+}
 
 function flushQueuedProgressFiles(): void {
   if (progressFrame !== null) {
@@ -900,10 +917,7 @@ function flushQueuedProgressFiles(): void {
     progressFrame = null;
   }
   if (queuedProgressFiles.length === 0) return;
-  const merged = new Map(files.value.map((entry) => [entry.id, entry]));
-  for (const entry of queuedProgressFiles) merged.set(entry.id, entry);
-  queuedProgressFiles = [];
-  files.value = [...merged.values()];
+  mergeQueuedProgressFiles();
   scheduleTableViewportMeasurement();
 }
 
@@ -911,10 +925,7 @@ function queueProgressFile(file: AudioFileRecord): void {
   queuedProgressFiles.push(file);
   if (progressFrame !== null) return;
   progressFrame = requestAnimationFrame(() => {
-    const merged = new Map(files.value.map((entry) => [entry.id, entry]));
-    for (const entry of queuedProgressFiles) merged.set(entry.id, entry);
-    queuedProgressFiles = [];
-    files.value = [...merged.values()];
+    mergeQueuedProgressFiles();
     progressFrame = null;
     scheduleTableViewportMeasurement();
   });
@@ -1147,6 +1158,7 @@ async function scanSource(source: AudioSourceSelection): Promise<void> {
   effectiveResourceLimits.value = null;
   recoveryStatus.value = "";
   files.value = [];
+  progressFileIndexById = new Map();
   activeSessionId.value = "";
   selectedId.value = "";
   scanMessage.value =
@@ -1164,6 +1176,9 @@ async function scanSource(source: AudioSourceSelection): Promise<void> {
     queuedProgressFiles = [];
     activeSessionId.value = result.sessionId ?? "";
     files.value = result.files;
+    progressFileIndexById = new Map(
+      result.files.map((file, index) => [file.id, index]),
+    );
     sourceWarnings.value = result.warnings.filter(
       (warning) => warning !== resourcePolicyNotice.value,
     );
@@ -1385,7 +1400,7 @@ function applyResourcePreset(
       nativeProcessMemoryMb: 512,
     },
     performance: {
-      concurrency: 4,
+      concurrency: 8,
       workerMemoryMb: 256,
       ffmpegThreads: 2,
       nativeProcessMemoryMb: 512,
@@ -3446,6 +3461,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
             <label>Concurrent files
               <select v-model.number="analysisConcurrency" :disabled="isDiscovering">
                 <option :value="1">1</option><option :value="2">2</option><option :value="3">3</option><option :value="4">4</option>
+                <option :value="5">5</option><option :value="6">6</option><option :value="7">7</option><option :value="8">8</option>
               </select>
             </label>
             <label>Memory per worker

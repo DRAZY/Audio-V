@@ -34,7 +34,7 @@ Usage:
 Options:
   --output <path>          Write JSON evidence to a file (default: stdout)
   --metadata-only         Inventory metadata without decoding
-  --concurrency <1-4>     Parallel Oracle jobs (default: 2)
+  --concurrency <1-8>     Parallel Oracle jobs (default: 2)
   --memory-mb <value>     Per-worker heap cap: 128, 256, 384, or 512
   --ffmpeg-threads <n>    FFmpeg threads per file: 1, 2, or 4
   --native-memory-mb <n>  Native-process cap: 256, 512, 1024, or 2048
@@ -67,8 +67,8 @@ function parseArguments(args: string[]): CliOptions {
       options.output = args[++index] ?? null;
     } else if (value === "--concurrency") {
       const parsed = Number(args[++index]);
-      if (![1, 2, 3, 4].includes(parsed)) {
-        throw new Error("--concurrency must be 1, 2, 3, or 4.");
+      if (![1, 2, 3, 4, 5, 6, 7, 8].includes(parsed)) {
+        throw new Error("--concurrency must be an integer from 1 through 8.");
       }
       options.concurrency = parsed as CliOptions["concurrency"];
     } else if (value === "--memory-mb") {

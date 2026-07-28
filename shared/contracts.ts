@@ -539,7 +539,7 @@ export interface AudioSourceSelection {
 }
 
 export interface AnalysisResourceLimits {
-  concurrency: 1 | 2 | 3 | 4;
+  concurrency: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
   workerMemoryMb: 128 | 256 | 384 | 512;
   ffmpegThreads: 1 | 2 | 4;
   nativeProcessMemoryMb: 256 | 512 | 1024 | 2048;

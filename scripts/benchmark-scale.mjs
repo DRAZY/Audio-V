@@ -9,10 +9,24 @@ const databasePath = path.resolve(
   `tests/.tmp-scale-benchmark-${process.pid}.sqlite3`,
 );
 const budgets = {
-  100: { persistMs: 1_000, restoreMs: 500 },
-  1000: { persistMs: 3_000, restoreMs: 1_000 },
-  10000: { persistMs: 15_000, restoreMs: 4_000 },
+  100: { persistMs: 1_500, restoreMs: 500 },
+  1000: { persistMs: 12_000, restoreMs: 1_000 },
+  10000: { persistMs: 120_000, restoreMs: 4_000 },
 };
+let pseudoRandomState = 0x5a17;
+const denseSlices = Array.from({ length: 64 }, (_, sliceIndex) => ({
+  timeSeconds: sliceIndex * 0.25,
+  magnitudes: Array.from({ length: 128 }, () => {
+    pseudoRandomState =
+      (Math.imul(pseudoRandomState, 1_664_525) + 1_013_904_223) >>> 0;
+    return Number((-120 + (pseudoRandomState / 0xffffffff) * 120).toFixed(4));
+  }),
+}));
+const denseWaveform = Array.from({ length: 2_048 }, (_, index) => ({
+  timeSeconds: index / 8,
+  minimum: -((index % 97) / 97),
+  maximum: (index % 89) / 89,
+}));
 
 function syntheticRecord(index) {
   const id = index.toString().padStart(6, "0");
@@ -45,8 +59,20 @@ function syntheticRecord(index) {
       headline: "Current checks passed",
       interpretation: "Synthetic scale benchmark record.",
       evidence: [],
-      measurements: null,
-      technical: null,
+      measurements: {
+        durationSeconds: 240,
+        waveform: { points: denseWaveform },
+        spectrogram: { fftSize: 2_048, slices: denseSlices },
+        spectrogramPyramid: [
+          { fftSize: 512, slices: denseSlices },
+          { fftSize: 2_048, slices: denseSlices },
+          { fftSize: 4_096, slices: denseSlices },
+          { fftSize: 16_384, slices: denseSlices },
+        ],
+      },
+      technical: {
+        fileSha256: id.padStart(64, "0"),
+      },
       fidelity: null,
       measuredAt: "2026-07-26T00:00:00.000Z",
     },
@@ -82,7 +108,7 @@ try {
     const persistMs = performance.now() - persistStart;
 
     const restoreStart = performance.now();
-    const restored = store.getSession(sessionId);
+    const restored = store.getSession(sessionId, true);
     const restoreMs = performance.now() - restoreStart;
     if (restored?.files.length !== count) {
       throw new Error(`Scale benchmark restored ${restored?.files.length ?? 0}/${count} files.`);

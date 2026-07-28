@@ -29,7 +29,7 @@ export function resolveAnalysisResourcePolicy(
 ): ResolvedAnalysisResourcePolicy {
   const totalMemoryMb = Math.max(2_048, totalMemoryBytes / 1024 / 1024);
   const systemBudgetMb = Math.floor(
-    Math.min(4_096, Math.max(1_536, totalMemoryMb * 0.2)),
+    Math.min(8_192, Math.max(1_536, totalMemoryMb * 0.2)),
   );
   const applicationReserveMb = 768;
   let concurrency = requested.concurrency;

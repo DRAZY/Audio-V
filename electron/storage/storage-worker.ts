@@ -142,7 +142,7 @@ port.on("message", (request: StorageWorkerRequest) => {
             request.outputPath,
           );
         }
-        const session = store.getSession(request.sessionId);
+        const session = store.getSession(request.sessionId, true);
         if (!session) throw new Error("The requested audit session was not found.");
         return writeAuditReport(
           {
