@@ -46,6 +46,24 @@ export function classifyOracleFailure(error: unknown): OracleFailure {
   const { stage, cause } = underlyingError(error);
   const summary =
     cause instanceof Error ? cause.message : "The analysis operation failed.";
+  const infrastructureCode =
+    cause &&
+    typeof cause === "object" &&
+    "code" in cause &&
+    typeof cause.code === "string" &&
+    cause.code.startsWith("ORACLE_WORKER_")
+      ? cause.code
+      : null;
+  if (infrastructureCode) {
+    return {
+      category: "analysis-error",
+      stage: "oracle-engine",
+      code: infrastructureCode,
+      summary:
+        "The isolated Oracle worker could not complete this file after bounded retry. The remaining audit continued.",
+      evidence: summary,
+    };
+  }
   const processError =
     cause instanceof EngineProcessError ? cause : null;
   const exactEvidence = processError?.stderr || summary;

@@ -18,6 +18,11 @@ import type { OracleRecordCache } from "./scanner";
 import { compactReportFile, writeAuditReport } from "./report-exporter";
 import type { ReportExportFormat } from "../shared/contracts";
 import { OracleWorkerPool } from "./oracle/oracle-worker-pool";
+import {
+  OracleWorkerFailure,
+  type OracleWorkerEvent,
+} from "./oracle/oracle-worker-pool";
+import { oracleFailureResult } from "./oracle/oracle-engine";
 import { runComparisonWorker } from "./oracle/comparison-worker-client";
 import { AuditStorageClient } from "./storage/audit-storage-client";
 import { createPrivacySafeDiagnostics } from "./diagnostics";
@@ -29,6 +34,7 @@ import {
   createAuditRecoveryState,
   safeRecoveryResourceLimits,
 } from "../shared/audit-recovery";
+import { ApplicationLogger } from "./application-logger";
 
 const approvedSelections = new Map<string, AudioSourceSelection>();
 const approvedAudioFiles = new Set<string>();
@@ -75,6 +81,49 @@ const defaultResourceLimits = resolveAnalysisResourcePolicy(
   availableParallelism(),
 ).limits;
 let currentResourceLimits = defaultResourceLimits;
+let applicationLogger: ApplicationLogger | null = null;
+
+function logApplication(
+  level: "debug" | "info" | "warn" | "error",
+  event: string,
+  data?: Record<string, unknown>,
+): void {
+  applicationLogger?.log(level, event, data);
+}
+
+function logOracleWorkerEvent(event: OracleWorkerEvent): void {
+  logApplication(
+    event.type === "failed"
+      ? "error"
+      : event.type === "retrying"
+        ? "warn"
+        : event.type === "completed"
+          ? "debug"
+          : "info",
+    `oracle-worker.${event.type}`,
+    { ...event },
+  );
+}
+
+async function analyzeWithWorkerIsolation(
+  filePath: string,
+  signal?: AbortSignal,
+): Promise<ReturnType<typeof oracleFailureResult>> {
+  try {
+    return await oracleWorkers.analyze(filePath, signal);
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    if (!(error instanceof OracleWorkerFailure)) throw error;
+    logApplication("error", "scan.file-infrastructure-error", {
+      filePath,
+      code: error.code,
+      incident: error.incident,
+      attempts: error.attempts,
+      error,
+    });
+    return oracleFailureResult(error);
+  }
+}
 
 function sameResourceLimits(
   left: AnalysisResourceLimits,
@@ -98,6 +147,8 @@ async function applyOracleResourceLimits(
     limits.concurrency,
     limits.workerMemoryMb,
     limits,
+    undefined,
+    logOracleWorkerEvent,
   );
   configureEngineResourcePolicy(limits);
   currentResourceLimits = limits;
@@ -323,6 +374,12 @@ function createWindow(): void {
 }
 
 ipcMain.handle("app:platform", () => process.platform);
+ipcMain.handle("app:open-logs", () => {
+  if (!applicationLogger) return false;
+  void shell.openPath(applicationLogger.directory);
+  logApplication("info", "application.logs-opened");
+  return true;
+});
 
 ipcMain.handle("oracle:validation-status", async (): Promise<OracleValidationStatus> => {
   const statusPath = app.isPackaged
@@ -752,11 +809,25 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
   };
   const sessionId = await auditSessions.create(persistedSource);
   activeScanSessionId = sessionId;
+  logApplication("info", "scan.started", {
+    sessionId,
+    source: persistedSource,
+    requestedResourceLimits,
+    effectiveResourceLimits: source.resourceLimits,
+    recovery: source.recovery,
+  });
   let latestScanProgress: ScanProgressUpdate | null = null;
   const persistence = new SessionPersistenceBuffer(
     auditSessions,
     sessionId,
     (state, pendingFiles) => {
+      if (state === "writing" || state === "stalled") {
+        logApplication(
+          state === "stalled" ? "error" : "debug",
+          `scan.checkpoint-${state}`,
+          { sessionId, pendingFiles },
+        );
+      }
       if (!latestScanProgress) return;
       const explanations = {
         queued: `${pendingFiles} completed result${pendingFiles === 1 ? " is" : "s are"} queued for the next durable checkpoint.`,
@@ -813,7 +884,27 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
       const normalizedPath = path.resolve(file.path);
       approvedAudioFiles.add(normalizedPath);
       rememberAuthoritativeRecord(file);
+      logApplication(
+        file.oracle.analysisState === "error" ? "warn" : "debug",
+        "scan.file-completed",
+        {
+          sessionId,
+          filePath: normalizedPath,
+          ordinal,
+          fromCache,
+          analysisState: file.oracle.analysisState,
+          verdict: file.oracle.verdict,
+          failure: file.oracle.failure,
+        },
+      );
       return persistence.add(file, ordinal, fromCache);
+    };
+    const onFileStarted = async (filePath: string) => {
+      logApplication("debug", "scan.file-started", {
+        sessionId,
+        filePath,
+      });
+      await auditSessions.markFileStarted(sessionId, filePath);
     };
     if (source.recovery?.safeCandidatePaths.length) {
       const recoverySource: AudioSourceSelection = {
@@ -838,9 +929,8 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
           signal: controller.signal,
           cache: oracleCache,
           analyzeFile: (filePath, signal) =>
-            oracleWorkers.analyze(filePath, signal),
-          onFileStarted: (filePath) =>
-            auditSessions.markFileStarted(sessionId, filePath),
+            analyzeWithWorkerIsolation(filePath, signal),
+          onFileStarted,
           onFileStored,
           waitIfPaused: () => pauseGate.wait(controller.signal),
           concurrency: 1,
@@ -902,17 +992,22 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
         signal: controller.signal,
         cache: oracleCache,
         analyzeFile: (filePath, signal) =>
-          oracleWorkers.analyze(filePath, signal),
+          analyzeWithWorkerIsolation(filePath, signal),
         onDiscovered: async (filePaths, warnings) => {
           sessionWarnings = [...warnings];
+          logApplication("info", "scan.discovery-completed", {
+            sessionId,
+            discoveredCount: filePaths.length,
+            warningCount: warnings.length,
+            warnings,
+          });
           await auditSessions.markDiscovered(
             sessionId,
             filePaths.length,
             sessionWarnings,
           );
         },
-        onFileStarted: (filePath) =>
-          auditSessions.markFileStarted(sessionId, filePath),
+        onFileStarted,
         onFileStored,
         waitIfPaused: () => pauseGate.wait(controller.signal),
         concurrency: requestedLimits.concurrency,
@@ -923,6 +1018,14 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
     await persistence.flush();
     sessionWarnings = result.warnings;
     await auditSessions.finish(sessionId, "completed", sessionWarnings);
+    logApplication("info", "scan.completed", {
+      sessionId,
+      discoveredCount: result.files.length,
+      warningCount: sessionWarnings.length,
+      analysisErrorCount: result.files.filter(
+        (file) => file.oracle.analysisState === "error",
+      ).length,
+    });
     for (const file of result.files) {
       const normalizedPath = path.resolve(file.path);
       approvedAudioFiles.add(normalizedPath);
@@ -952,6 +1055,11 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
       sessionId,
     };
   } catch (error) {
+    logApplication(
+      controller.signal.aborted ? "warn" : "error",
+      controller.signal.aborted ? "scan.canceled" : "scan.failed",
+      { sessionId, error, warnings: sessionWarnings },
+    );
     if (controller.signal.aborted) {
       await persistence.flushWithin(2_000).catch(() => false);
       await Promise.race([
@@ -979,6 +1087,9 @@ ipcMain.handle("library:resume-scan", () => activeScanPause?.resume() ?? false);
 
 ipcMain.handle("library:cancel-scan", () => {
   if (!activeScanController) return false;
+  logApplication("info", "scan.cancel-requested", {
+    sessionId: activeScanSessionId,
+  });
   activeScanPause?.resume();
   activeScanController.abort();
   return true;
@@ -996,7 +1107,7 @@ ipcMain.handle("oracle:analyze-file", async (
   if (!approvedAudioFiles.has(filePath)) {
     throw new Error("Select this audio file through Audio-V before analyzing it.");
   }
-  const oracle = await oracleWorkers.analyze(filePath);
+  const oracle = await analyzeWithWorkerIsolation(filePath);
   let prior: AudioFileRecord | null | undefined =
     authoritativeRecords.get(filePath);
   if (
@@ -1130,7 +1241,7 @@ ipcMain.handle(
       undefined,
       {
         analyzeFile: (candidatePath, signal) =>
-          oracleWorkers.analyze(candidatePath, signal),
+          analyzeWithWorkerIsolation(candidatePath, signal),
       },
     );
     const repairedFile = repairResult.files[0] ?? null;
@@ -1312,9 +1423,30 @@ ipcMain.handle(
 
 app.whenReady().then(async () => {
   const userDataPath = app.getPath("userData");
+  applicationLogger = new ApplicationLogger(
+    path.join(userDataPath, "logs"),
+  );
+  logApplication("info", "application.started", {
+    version: app.getVersion(),
+    packaged: app.isPackaged,
+    platform: process.platform,
+    architecture: process.arch,
+    runtime: process.versions,
+    totalMemoryBytes: totalmem(),
+    logicalCpuCount: availableParallelism(),
+  });
   auditSessions = new AuditStorageClient(
     path.join(__dirname, "storage", "storage-worker.js"),
     path.join(userDataPath, "audit-sessions-v1.sqlite3"),
+    30_000,
+    (event) =>
+      logApplication(
+        event.type === "request-timeout" || event.type === "worker-error"
+          ? "error"
+          : "info",
+        `storage.${event.type}`,
+        { ...event },
+      ),
   );
   await auditSessions.recoverInterruptedSessions();
   await auditSessions.importLegacyCache(
@@ -1336,6 +1468,8 @@ app.whenReady().then(async () => {
     defaultResourceLimits.concurrency,
     defaultResourceLimits.workerMemoryMb,
     defaultResourceLimits,
+    undefined,
+    logOracleWorkerEvent,
   );
   configureEngineResourcePolicy(defaultResourceLimits);
   createWindow();
@@ -1345,9 +1479,40 @@ app.whenReady().then(async () => {
 });
 
 app.on("before-quit", () => {
+  logApplication("info", "application.before-quit", {
+    activeSessionId: activeScanSessionId,
+  });
   activeScanController?.abort();
   activeComparisonController?.abort();
   void oracleWorkers?.close();
+  applicationLogger?.close();
+});
+
+app.on("render-process-gone", (_event, webContents, details) => {
+  logApplication("error", "application.renderer-gone", {
+    webContentsId: webContents.id,
+    reason: details.reason,
+    exitCode: details.exitCode,
+  });
+});
+
+app.on("child-process-gone", (_event, details) => {
+  logApplication("error", "application.child-process-gone", {
+    type: details.type,
+    reason: details.reason,
+    exitCode: details.exitCode,
+    serviceName: details.serviceName,
+    name: details.name,
+  });
+});
+
+process.once("uncaughtException", (error) => {
+  logApplication("error", "application.uncaught-exception", { error });
+  setImmediate(() => app.exit(1));
+});
+
+process.on("unhandledRejection", (reason) => {
+  logApplication("error", "application.unhandled-rejection", { reason });
 });
 
 app.on("window-all-closed", () => {

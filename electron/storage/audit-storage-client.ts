@@ -22,10 +22,19 @@ interface PendingRequest {
   timer: NodeJS.Timeout;
 }
 
+export type AuditStorageEvent =
+  | { type: "worker-started" | "worker-restarted" }
+  | {
+      type: "request-timeout" | "worker-error";
+      operation?: StorageWorkerCommand["operation"];
+      message: string;
+    };
+
 export class AuditStorageClient {
   readonly #workerPath: string;
   readonly #databasePath: string;
   readonly #requestTimeoutMs: number;
+  readonly #onEvent?: (event: AuditStorageEvent) => void;
   readonly #pending = new Map<string, PendingRequest>();
   #worker: Worker;
   #restarting: Promise<void> | null = null;
@@ -35,11 +44,14 @@ export class AuditStorageClient {
     workerPath: string,
     databasePath: string,
     requestTimeoutMs = 30_000,
+    onEvent?: (event: AuditStorageEvent) => void,
   ) {
     this.#workerPath = workerPath;
     this.#databasePath = databasePath;
     this.#requestTimeoutMs = Math.max(100, Math.trunc(requestTimeoutMs));
+    this.#onEvent = onEvent;
     this.#worker = this.#createWorker();
+    this.#emit({ type: "worker-started" });
   }
 
   #createWorker(): Worker {
@@ -237,6 +249,11 @@ export class AuditStorageClient {
             `Audit storage did not complete ${request.operation} within ${Math.ceil(timeoutMs / 1_000)} seconds.`,
           ),
         );
+        this.#emit({
+          type: "request-timeout",
+          operation: request.operation,
+          message: `Audit storage stalled during ${request.operation}.`,
+        });
         void this.#restartWorker(
           worker,
           new Error(`Audit storage stalled during ${request.operation}.`),
@@ -273,6 +290,7 @@ export class AuditStorageClient {
   #restartWorker(worker: Worker, error: Error): Promise<void> {
     if (this.#closed || worker !== this.#worker) return Promise.resolve();
     if (this.#restarting) return this.#restarting;
+    this.#emit({ type: "worker-error", message: error.message });
     this.#failAll(error);
     this.#restarting = worker
       .terminate()
@@ -280,11 +298,20 @@ export class AuditStorageClient {
       .then(() => {
         if (!this.#closed && worker === this.#worker) {
           this.#worker = this.#createWorker();
+          this.#emit({ type: "worker-restarted" });
         }
       })
       .finally(() => {
         this.#restarting = null;
       });
     return this.#restarting;
+  }
+
+  #emit(event: AuditStorageEvent): void {
+    try {
+      this.#onEvent?.(event);
+    } catch {
+      // Observability must never affect durable storage.
+    }
   }
 }

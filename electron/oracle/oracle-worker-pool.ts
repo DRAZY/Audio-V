@@ -13,6 +13,7 @@ interface QueuedJob {
   signal?: AbortSignal;
   attempts: number;
   watchdog: NodeJS.Timeout | null;
+  startedAt: number | null;
   resolve: (result: OracleResult) => void;
   reject: (error: Error) => void;
   abort: () => void;
@@ -28,11 +29,51 @@ const cancellationGraceMs = 500;
 const defaultJobTimeoutMs = 12 * 60 * 1000;
 const maximumJobAttempts = 2;
 
+export type OracleWorkerEvent =
+  | {
+      type: "queued" | "started" | "completed" | "canceled";
+      jobId: string;
+      filePath: string;
+      attempt: number;
+      elapsedMs?: number;
+    }
+  | {
+      type: "retrying" | "failed";
+      jobId: string;
+      filePath: string;
+      attempt: number;
+      incident: OracleWorkerFailure["incident"];
+      message: string;
+    };
+
+export class OracleWorkerFailure extends Error {
+  readonly code: "ORACLE_WORKER_TIMEOUT" | "ORACLE_WORKER_EXIT" | "ORACLE_WORKER_ERROR";
+
+  constructor(
+    readonly filePath: string,
+    readonly attempts: number,
+    readonly incident: "timeout" | "worker-exit" | "worker-error",
+    detail: string,
+  ) {
+    super(
+      `Oracle worker ${incident === "timeout" ? "timed out" : "failed"} after ${attempts} attempt${attempts === 1 ? "" : "s"}: ${detail}`,
+    );
+    this.name = "OracleWorkerFailure";
+    this.code =
+      incident === "timeout"
+        ? "ORACLE_WORKER_TIMEOUT"
+        : incident === "worker-exit"
+          ? "ORACLE_WORKER_EXIT"
+          : "ORACLE_WORKER_ERROR";
+  }
+}
+
 export class OracleWorkerPool {
   readonly #workerPath: string;
   readonly #workerMemoryMb: number;
   readonly #enginePolicy: Pick<AnalysisResourceLimits, "ffmpegThreads" | "nativeProcessMemoryMb">;
   readonly #jobTimeoutMs: number;
+  readonly #onEvent?: (event: OracleWorkerEvent) => void;
   readonly #slots: WorkerSlot[] = [];
   readonly #queue: QueuedJob[] = [];
   #closed = false;
@@ -46,6 +87,7 @@ export class OracleWorkerPool {
       "ffmpegThreads" | "nativeProcessMemoryMb"
     > = { ffmpegThreads: 2, nativeProcessMemoryMb: 1024 },
     jobTimeoutMs = defaultJobTimeoutMs,
+    onEvent?: (event: OracleWorkerEvent) => void,
   ) {
     if (!Number.isInteger(workerCount) || workerCount < 1) {
       throw new RangeError("Oracle worker count must be at least one.");
@@ -54,6 +96,7 @@ export class OracleWorkerPool {
     this.#workerMemoryMb = Math.max(128, Math.min(512, workerMemoryMb));
     this.#enginePolicy = enginePolicy;
     this.#jobTimeoutMs = Math.max(100, Math.trunc(jobTimeoutMs));
+    this.#onEvent = onEvent;
     for (let index = 0; index < workerCount; index += 1) {
       this.#slots.push(this.#createSlot());
     }
@@ -74,6 +117,7 @@ export class OracleWorkerPool {
         signal,
         attempts: 0,
         watchdog: null,
+        startedAt: null,
         resolve,
         reject,
         abort: () => {
@@ -83,6 +127,12 @@ export class OracleWorkerPool {
             this.#clearWatchdog(job);
             signal?.removeEventListener("abort", job.abort);
             reject(new Error("Audio analysis canceled."));
+            this.#emit({
+              type: "canceled",
+              jobId: job.id,
+              filePath: job.filePath,
+              attempt: job.attempts,
+            });
             return;
           }
           const slot = this.#slots.find(
@@ -94,6 +144,12 @@ export class OracleWorkerPool {
             this.#clearWatchdog(job);
             signal?.removeEventListener("abort", job.abort);
             reject(new Error("Audio analysis canceled."));
+            this.#emit({
+              type: "canceled",
+              jobId: job.id,
+              filePath: job.filePath,
+              attempt: job.attempts,
+            });
             const request: OracleWorkerRequest = {
               type: "cancel",
               jobId: job.id,
@@ -105,6 +161,12 @@ export class OracleWorkerPool {
       };
       signal?.addEventListener("abort", job.abort, { once: true });
       this.#queue.push(job);
+      this.#emit({
+        type: "queued",
+        jobId: job.id,
+        filePath: job.filePath,
+        attempt: 0,
+      });
       this.#dispatch();
     });
   }
@@ -154,6 +216,14 @@ export class OracleWorkerPool {
       job.signal?.removeEventListener("abort", job.abort);
       if (response.type === "result") {
         job.resolve(response.result);
+        this.#emit({
+          type: "completed",
+          jobId: job.id,
+          filePath: job.filePath,
+          attempt: job.attempts,
+          elapsedMs:
+            job.startedAt === null ? undefined : Date.now() - job.startedAt,
+        });
       } else {
         const error = new Error(response.message);
         if (response.stack) error.stack = response.stack;
@@ -162,12 +232,13 @@ export class OracleWorkerPool {
       this.#dispatch();
     });
     slot.worker.on("error", (error) => {
-      this.#replaceFailedWorker(slot, error);
+      this.#replaceFailedWorker(slot, "worker-error", error);
     });
     slot.worker.on("exit", (code) => {
       if (!this.#closed && this.#slots.includes(slot)) {
         this.#replaceFailedWorker(
           slot,
+          "worker-exit",
           new Error(
             code === 0
               ? "Oracle worker exited before returning its active result."
@@ -179,7 +250,11 @@ export class OracleWorkerPool {
     return slot;
   }
 
-  #replaceFailedWorker(slot: WorkerSlot, error: Error): void {
+  #replaceFailedWorker(
+    slot: WorkerSlot,
+    incident: OracleWorkerFailure["incident"],
+    error: Error,
+  ): void {
     const slotIndex = this.#slots.indexOf(slot);
     if (slotIndex < 0) return;
     const job = slot.activeJob;
@@ -194,8 +269,30 @@ export class OracleWorkerPool {
       ) {
         job.signal?.addEventListener("abort", job.abort, { once: true });
         this.#queue.unshift(job);
+        this.#emit({
+          type: "retrying",
+          jobId: job.id,
+          filePath: job.filePath,
+          attempt: job.attempts,
+          incident,
+          message: error.message,
+        });
       } else {
-        job.reject(new Error(`Oracle worker failed: ${error.message}`));
+        const failure = new OracleWorkerFailure(
+          job.filePath,
+          job.attempts,
+          incident,
+          error.message,
+        );
+        job.reject(failure);
+        this.#emit({
+          type: "failed",
+          jobId: job.id,
+          filePath: job.filePath,
+          attempt: job.attempts,
+          incident,
+          message: failure.message,
+        });
       }
     }
     void slot.worker.terminate();
@@ -231,10 +328,18 @@ export class OracleWorkerPool {
         }
         slot.activeJob = job;
         job.attempts += 1;
+        job.startedAt = Date.now();
+        this.#emit({
+          type: "started",
+          jobId: job.id,
+          filePath: job.filePath,
+          attempt: job.attempts,
+        });
         job.watchdog = setTimeout(() => {
           if (slot.activeJob !== job || this.#closed) return;
           this.#replaceFailedWorker(
             slot,
+            "timeout",
             new Error(
               `Oracle analysis did not return within ${Math.ceil(this.#jobTimeoutMs / 1_000)} seconds.`,
             ),
@@ -255,5 +360,13 @@ export class OracleWorkerPool {
     if (!job.watchdog) return;
     clearTimeout(job.watchdog);
     job.watchdog = null;
+  }
+
+  #emit(event: OracleWorkerEvent): void {
+    try {
+      this.#onEvent?.(event);
+    } catch {
+      // Observability must never affect worker scheduling.
+    }
   }
 }

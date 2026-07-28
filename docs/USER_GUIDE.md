@@ -77,6 +77,20 @@ If the same file interrupts the application again during safe validation, the ne
 
 Settings can export a privacy-safe diagnostic JSON file containing application/runtime versions, worker count, aggregate session statuses, and the engine manifest. It excludes filenames, source paths, checksums, tags, and report evidence.
 
+Audio-V also maintains rotating structured application logs for lifecycle
+events, scan coordination, per-file starts and outcomes, Oracle worker
+attempts, timeouts and recycling, storage recovery, checkpoints, and native
+process termination. Open **Settings → Support diagnostics → Open log folder**
+to inspect them.
+
+- macOS: `~/Library/Application Support/audio-v/logs`
+- Windows: `%APPDATA%\audio-v\logs`
+
+The active `audio-v.jsonl` file is limited to 8 MB and four rotated files are
+retained. These local logs include filenames and paths so a timed-out artifact
+can be identified. They remain on the computer unless the user chooses to
+share them. The privacy-safe diagnostics export remains path-free.
+
 Settings also displays the packaged Oracle validation basis: public independent source-master count, contributor groups, controlled cases, corpus version, current claim level, and the first material limitation. “Infrastructure ready · masters pending” means the validation machinery exists but no licensed real-world master has been counted; it is not a hidden calibration score.
 
 **Audit resource policy** applies to the next audit. Choose Recovery safe, Balanced, or Performance, or set 1–4 concurrent Oracle workers, a 128–512 MB JavaScript heap cap, 1/2/4 FFmpeg threads per file, and a 256 MB–2 GB native-process RSS limit individually. These selectors are per-file ceilings, so maximizing every selector is not a valid performance preset. Before creating workers, Audio-V caps their aggregate at the smaller of 20% of physical memory or 4 GB, reserves memory for the desktop process, and limits aggregate FFmpeg threads to 75% of logical CPUs. The Settings card keeps the requested configuration intact and separately reports effective audit limits and adaptive-recovery transitions. Crossing an enforced native limit terminates that file as a resource error rather than calling it damaged.

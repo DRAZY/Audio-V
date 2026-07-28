@@ -1024,7 +1024,10 @@ export async function scanSources(
         if (
           cached &&
           cached.oracle.engineVersion === currentOracleEngineVersion &&
-          cached.oracle.analysisState !== "not-analyzed"
+          (cached.oracle.analysisState === "completed" ||
+            cached.oracle.analysisState === "failed" ||
+            (cached.oracle.analysisState === undefined &&
+              cached.oracle.measurements !== null))
         ) {
           let restored = attachMetadataProvenance(
             normalizeAudioRecordFormat(cached),

@@ -42,6 +42,7 @@ const activeSessionId = ref("");
 const scanMessage = ref("Ready for files or a folder");
 const scanProgress = ref<ScanProgressUpdate | null>(null);
 const sourceWarnings = ref<string[]>([]);
+const scanFailureMessage = ref("");
 const resourcePolicyNotice = ref("");
 const sourceIoNotice = ref("");
 const diagnosticsMessage = ref(
@@ -1111,6 +1112,14 @@ async function exportDiagnostics(): Promise<void> {
   }
 }
 
+async function openApplicationLogs(): Promise<void> {
+  if (!window.audioV) return;
+  const opened = await window.audioV.openApplicationLogs();
+  diagnosticsMessage.value = opened
+    ? "Opened Audio-V's local rotating JSONL log folder."
+    : "Application logs are not available yet.";
+}
+
 async function scanSource(source: AudioSourceSelection): Promise<void> {
   if (acoustIdEnabled.value && !acoustIdApiKey.value.trim()) {
     activeWorkspace.value = "settings";
@@ -1153,6 +1162,7 @@ async function scanSource(source: AudioSourceSelection): Promise<void> {
   isScanPaused.value = false;
   isScanCancelling.value = false;
   sourceWarnings.value = [];
+  scanFailureMessage.value = "";
   resourcePolicyNotice.value = "";
   sourceIoNotice.value = "";
   effectiveResourceLimits.value = null;
@@ -1217,10 +1227,11 @@ async function scanSource(source: AudioSourceSelection): Promise<void> {
       error instanceof Error ? error.message : "The selected source could not be scanned.";
     if (isScanCancelling.value && /cancel(?:ed|led)/i.test(message)) {
       sourceWarnings.value = [];
+      scanFailureMessage.value = "";
       scanMessage.value =
         `Audit canceled cleanly · ${files.value.length.toLocaleString()} completed result${files.value.length === 1 ? "" : "s"} preserved in History`;
     } else {
-      sourceWarnings.value = [message];
+      scanFailureMessage.value = message;
       scanMessage.value = message;
     }
   } finally {
@@ -2372,6 +2383,15 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
           </button>
           <span class="scan-state">{{ scanMessage }}</span>
         </div>
+        <details
+          v-if="scanFailureMessage"
+          class="source-warnings"
+          open
+        >
+          <summary>Audit workflow error</summary>
+          <ul><li>{{ scanFailureMessage }}</li></ul>
+          <p>This is an application or processing failure, not evidence that the source is damaged or inaccessible.</p>
+        </details>
         <details
           v-if="sourceWarnings.length"
           class="source-warnings"
@@ -3525,7 +3545,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
             <small>Corpus {{ validationStatus?.corpusVersion ?? "—" }} · Synthetic fixtures and derivatives never increase the independent-master count.</small>
           </article>
           <article><span>Open-source license</span><strong>AGPL-3.0-only</strong><p>Code remains available under strong copyleft. Audio-V and Oracle Engine names and artwork remain governed by the trademark policy.</p></article>
-          <article><span>Support diagnostics</span><strong>Privacy-safe export</strong><p>{{ diagnosticsMessage }}</p><button class="secondary-action" @click="exportDiagnostics">Export diagnostics</button></article>
+          <article><span>Support diagnostics</span><strong>Privacy-safe export and local application logs</strong><p>{{ diagnosticsMessage }}</p><div class="resource-presets"><button class="secondary-action" @click="exportDiagnostics">Export diagnostics</button><button class="secondary-action" @click="openApplicationLogs">Open log folder</button></div></article>
           <article><span>Keyboard workflow</span><strong>Fast navigation</strong><p>Use {{ primaryModifier }}+O for files, {{ primaryModifier }}+Shift+O for a folder, and {{ primaryModifier }}+1–6 for workspaces.</p></article>
         </div>
       </section>

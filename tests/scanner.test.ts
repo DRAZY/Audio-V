@@ -4,6 +4,11 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { inspectAudioFile, scanSources } from "../electron/scanner";
 import { analyzeAudioFile } from "../electron/oracle/oracle-engine";
+import { oracleFailureResult } from "../electron/oracle/oracle-engine";
+import {
+  OracleWorkerFailure,
+  OracleWorkerPool,
+} from "../electron/oracle/oracle-worker-pool";
 import { runEngine } from "../electron/oracle/ffmpeg-runtime";
 import type { AudioFileRecord } from "../shared/contracts";
 import { pcmWave } from "./helpers/wave-fixture";
@@ -101,6 +106,63 @@ describe("scanSources", () => {
 
     await expect(scan).rejects.toThrow(/canceled/i);
     expect(Date.now() - startedAt).toBeLessThan(500);
+  });
+
+  it("persists exhausted worker timeouts per file and continues the audit", async () => {
+    const directory = await makeTemporaryDirectory();
+    const filePaths = [
+      path.join(directory, "timeout-one.wav"),
+      path.join(directory, "timeout-two.wav"),
+    ];
+    await Promise.all(
+      filePaths.map((filePath) => fs.writeFile(filePath, pcmWave())),
+    );
+    const pool = new OracleWorkerPool(
+      path.join(process.cwd(), "tests/fixtures/blocking-oracle-worker.cjs"),
+      1,
+      128,
+      { ffmpegThreads: 1, nativeProcessMemoryMb: 256 },
+      100,
+    );
+    const stored: AudioFileRecord[] = [];
+    try {
+      const result = await scanSources(
+        {
+          kind: "folder",
+          label: "Worker timeout isolation",
+          paths: [directory],
+        },
+        undefined,
+        {
+          concurrency: 1,
+          analyzeFile: async (filePath, signal) => {
+            try {
+              return await pool.analyze(filePath, signal);
+            } catch (error) {
+              if (!(error instanceof OracleWorkerFailure)) throw error;
+              return oracleFailureResult(error);
+            }
+          },
+          onFileStored: (file) => stored.push(file),
+        },
+      );
+
+      expect(result.files).toHaveLength(2);
+      expect(stored).toHaveLength(2);
+      expect(result.files.map((file) => file.oracle.analysisState)).toEqual([
+        "error",
+        "error",
+      ]);
+      expect(
+        result.files.every(
+          (file) =>
+            file.oracle.failure?.code === "ORACLE_WORKER_TIMEOUT" &&
+            file.oracle.verdict === "inconclusive",
+        ),
+      ).toBe(true);
+    } finally {
+      await pool.close();
+    }
   });
 
   it("records why album ReplayGain is or is not available", async () => {

@@ -809,6 +809,7 @@ export interface AudioVDesktopApi {
   ): Promise<BatchSpectrogramExportResult>;
   validationStatus(): Promise<OracleValidationStatus>;
   exportDiagnostics(): Promise<ReportExportResult>;
+  openApplicationLogs(): Promise<boolean>;
   revealFile(filePath: string): Promise<boolean>;
   createTruePeakSafeCopy(
     filePath: string,

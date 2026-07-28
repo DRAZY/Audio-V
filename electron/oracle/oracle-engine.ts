@@ -5,6 +5,41 @@ import { classifyOracleFailure } from "./analysis-failure";
 
 export const engineVersion = "0.8.0-oracle-v10";
 
+export function oracleFailureResult(error: unknown): OracleResult {
+  const failure = classifyOracleFailure(error);
+  const integrityFailure = failure.category === "file-integrity";
+  return {
+    schemaVersion: 1,
+    engineVersion,
+    scope: "oracle-integrity-forensics-v10",
+    verdict: integrityFailure ? "damaged" : "inconclusive",
+    analysisState: integrityFailure ? "failed" : "error",
+    failure,
+    confidence: integrityFailure ? 100 : null,
+    headline: integrityFailure
+      ? "Audio stream integrity failed"
+      : "Analysis could not be completed",
+    interpretation: integrityFailure
+      ? "The selected audio stream could not be decoded completely, and the decoder supplied deterministic corruption evidence against the file itself."
+      : "Audio-V encountered a tool, resource, or internal processing error. The file has not been classified as damaged; retry the analysis and review the failure stage and diagnostic evidence.",
+    evidence: [
+      {
+        id: integrityFailure ? "full-decode" : "analysis-diagnostic",
+        label: integrityFailure
+          ? "Complete stream decode"
+          : "Analysis diagnostic",
+        summary: failure.evidence,
+        kind: integrityFailure ? "deterministic" : "measured",
+        disposition: integrityFailure ? "contradicts" : "neutral",
+      },
+    ],
+    measurements: null,
+    technical: null,
+    fidelity: null,
+    measuredAt: new Date().toISOString(),
+  };
+}
+
 export async function analyzeAudioFile(
   filePath: string,
   signal?: AbortSignal,
@@ -344,37 +379,6 @@ export async function analyzeAudioFile(
     };
   } catch (error) {
     if (signal?.aborted) throw error;
-    const failure = classifyOracleFailure(error);
-    const integrityFailure = failure.category === "file-integrity";
-    return {
-      schemaVersion: 1,
-      engineVersion,
-      scope: "oracle-integrity-forensics-v10",
-      verdict: integrityFailure ? "damaged" : "inconclusive",
-      analysisState: integrityFailure ? "failed" : "error",
-      failure,
-      confidence: integrityFailure ? 100 : null,
-      headline: integrityFailure
-        ? "Audio stream integrity failed"
-        : "Analysis could not be completed",
-      interpretation: integrityFailure
-        ? "The selected audio stream could not be decoded completely, and the decoder supplied deterministic corruption evidence against the file itself."
-        : "Audio-V encountered a tool, resource, or internal processing error. The file has not been classified as damaged; retry the analysis and review the failure stage and diagnostic evidence.",
-      evidence: [
-        {
-          id: integrityFailure ? "full-decode" : "analysis-diagnostic",
-          label: integrityFailure
-            ? "Complete stream decode"
-            : "Analysis diagnostic",
-          summary: failure.evidence,
-          kind: integrityFailure ? "deterministic" : "measured",
-          disposition: integrityFailure ? "contradicts" : "neutral",
-        },
-      ],
-      measurements: null,
-      technical: null,
-      fidelity: null,
-      measuredAt: new Date().toISOString(),
-    };
+    return oracleFailureResult(error);
   }
 }

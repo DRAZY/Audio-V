@@ -52,7 +52,7 @@ Status meanings:
 - **Planned** — specified and prioritized, but not implemented.
 - **Excluded** — intentionally outside the core product.
 
-| Capability | User value | v0.4.16 source status | Disposition |
+| Capability | User value | v0.4.17 source status | Disposition |
 | --- | --- | --- | --- |
 | File and folder ingest | Analyze one track or a full library | Implemented | Current |
 | Recursive bounded discovery | Avoid freezing on large trees | Implemented | Current |
@@ -145,9 +145,11 @@ Gate 1 is complete at the repository level. Compare uses bounded alignment estim
 - Mounted and removable libraries use eight-way bounded directory discovery. Full audits stage each active macOS `/Volumes`, Windows UNC, mapped-drive, or non-system-drive file through one 4 MB sequential transfer, run repeated forensic passes locally, and delete the copy afterward. Staging follows the resolved 1–8 file concurrency and an aggregate temporary-space reservation, rather than adding an independent unbounded “network sessions” control.
 - Authoritative JSON and CSV session reports stream from paged SQLite records without a fixed payload limit. PDF, DOCX, and XLSX generation also runs outside the Electron main process and consumes compact session evidence instead of hydrating every full spectrogram.
 - Compiled-worker verification now exercises Oracle analysis, comparison, durable storage, and streamed report export.
+- Rotating JSONL application logs record lifecycle, scan/session identity, resource limits, per-file starts and outcomes, Oracle attempt/retry/timeout events, storage-worker recovery, checkpoint state, and renderer/child-process termination. Logs remain local, are size bounded, and are separate from the privacy-safe diagnostics export.
+- Exhausted Oracle worker timeouts persist as per-file `Analysis error` records with the exact filename, `oracle-engine` failure stage, worker code, attempt count, and evidence. The failed worker is replaced and the remaining library continues; infrastructure-error cache entries are retried on later audits.
 - `npm run benchmark:scale` enforces repeatable persistence and restoration budgets for dense-evidence 100-, 1,000-, and 10,000-record sessions. The v0.4.16 run persisted 10,000 records in 36.3 seconds, restored compact history in 310 ms, and occupied 2.05 GB across all three benchmark tiers.
 
-The latest local benchmark completed 10,000 batch inserts in 55.79 ms and restored the session in 18.83 ms. These figures validate the storage and state-retrieval architecture on the development Mac; they do not represent full audio decode throughput.
+These dense-evidence figures validate storage and compact state retrieval on the development Mac; they do not represent full audio decode throughput.
 
 Gate 2 is complete for the repository-level scale foundation. Market-readiness still requires hardware and clean-VM profiling on Apple Silicon macOS and supported Windows versions with real 100/1,000/10,000-file libraries, 1/10 GbE shares, removable/network volumes, long-duration files, constrained memory, cancellation under load, and thermal throttling. Discovery still retains a sorted path list, renderer filters remain linear in session size, and rich document exports remain whole-session operations inside the storage worker. Those are measured optimization candidates rather than hidden claims of unlimited scale.
 
@@ -290,6 +292,6 @@ No build may be called a beta until:
 - Compare renders bounded full-track waveform envelopes, paired measured spectrograms, and a normalized B-minus-A spectral heatmap alongside identity, format, loudness, clipping, bandwidth, stereo, and checksum values; no playback surface was introduced.
 - Audit and per-file evidence export to PDF, XLSX, DOCX, CSV, or JSON from a shared 40+ column evidence model. Production dependencies remain free of known audit advisories.
 - The desktop typography floor is 11px for utility labels and 12–14px for working text, with larger rows, controls, and analysis panels.
-- The 126-test regression suite covers discovery, mounted-source staging and identity preservation, malformed metadata, PCM math, internal WAVE decoding, spectral-bin detection, multi-codec full decoding, FLAC audio-MD5 mismatch, loudness/true peak, continuity, packet-rate behavior, fidelity controls, persistent fingerprint management, cue programme/pregap segments, calculated ReplayGain eligibility, explicit comparison channel mapping, resource enforcement, adaptive crash recovery with cache bypass, cache invalidation, prompt cancellation of blocked workers, virtualized large-session viewport recovery, process cancellation, source-preserving repair output, attached-artwork retention, source preservation, truncation, and verdict truthfulness.
+- The 128-test regression suite covers discovery, mounted-source staging and identity preservation, malformed metadata, PCM math, internal WAVE decoding, spectral-bin detection, multi-codec full decoding, FLAC audio-MD5 mismatch, loudness/true peak, continuity, packet-rate behavior, fidelity controls, persistent fingerprint management, cue programme/pregap segments, calculated ReplayGain eligibility, explicit comparison channel mapping, resource enforcement, adaptive crash recovery with cache bypass, structured log rotation, cache invalidation, prompt cancellation of blocked workers, virtualized large-session viewport recovery, process cancellation, source-preserving repair output, attached-artwork retention, source preservation, truncation, and verdict truthfulness.
 - Production dependencies pass `npm audit --omit=dev`; remaining advisories are confined to the upstream packaging toolchain.
 - Release packages contain third-party notices and a machine-readable engine capability manifest.
