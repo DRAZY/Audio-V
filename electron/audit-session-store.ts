@@ -32,6 +32,7 @@ interface SessionRow {
   started_at: string;
   updated_at: string;
   finished_at: string | null;
+  history_hidden: number;
 }
 
 interface FileRow {
@@ -40,7 +41,7 @@ interface FileRow {
   record_blob?: Uint8Array | null;
 }
 
-const schemaVersion = 7;
+const schemaVersion = 8;
 const crashRecoveryWarning =
   "Audio-V recovered this audit after the previous application process ended before the scan finished.";
 
@@ -63,7 +64,8 @@ export class AuditSessionStore {
         warnings_json TEXT NOT NULL DEFAULT '[]',
         started_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
-        finished_at TEXT
+        finished_at TEXT,
+        history_hidden INTEGER NOT NULL DEFAULT 0
       );
       CREATE TABLE IF NOT EXISTS audit_files (
         session_id TEXT NOT NULL REFERENCES audit_sessions(id) ON DELETE CASCADE,
@@ -130,6 +132,11 @@ export class AuditSessionStore {
     if (!sessionColumns.some((column) => column.name === "interrupted")) {
       this.#database.exec(
         "ALTER TABLE audit_sessions ADD COLUMN interrupted INTEGER NOT NULL DEFAULT 0",
+      );
+    }
+    if (!sessionColumns.some((column) => column.name === "history_hidden")) {
+      this.#database.exec(
+        "ALTER TABLE audit_sessions ADD COLUMN history_hidden INTEGER NOT NULL DEFAULT 0",
       );
     }
     const fileColumns = this.#database
@@ -370,6 +377,11 @@ export class AuditSessionStore {
         SET record_json = ?, summary_json = ?,
           evidence_key = COALESCE(?, evidence_key), updated_at = ?
         WHERE session_id = ? AND file_path = ?
+        AND EXISTS (
+          SELECT 1 FROM audit_sessions
+          WHERE audit_sessions.id = audit_files.session_id
+            AND audit_sessions.history_hidden = 0
+        )
       `)
       .run(
         JSON.stringify(compactRecord),
@@ -387,6 +399,7 @@ export class AuditSessionStore {
     const rows = this.#database
       .prepare(`
         SELECT * FROM audit_sessions
+        WHERE history_hidden = 0
         ORDER BY updated_at DESC
         LIMIT ?
       `)
@@ -399,32 +412,23 @@ export class AuditSessionStore {
       .prepare(`
         SELECT COUNT(*) AS count
         FROM audit_sessions
-        WHERE status <> 'running'
+        WHERE status <> 'running' AND history_hidden = 0
       `)
       .get() as unknown as { count: number };
     const runningSessions = this.#database
       .prepare(`
         SELECT COUNT(*) AS count
         FROM audit_sessions
-        WHERE status = 'running'
+        WHERE status = 'running' AND history_hidden = 0
       `)
       .get() as unknown as { count: number };
 
     this.#database.exec("BEGIN IMMEDIATE");
     try {
       this.#database.exec(`
-        DELETE FROM audit_sessions
-        WHERE status <> 'running';
-
-        DELETE FROM oracle_evidence
-        WHERE NOT EXISTS (
-          SELECT 1 FROM audit_files
-          WHERE audit_files.evidence_key = oracle_evidence.evidence_key
-        )
-        AND NOT EXISTS (
-          SELECT 1 FROM oracle_cache
-          WHERE oracle_cache.evidence_key = oracle_evidence.evidence_key
-        );
+        UPDATE audit_sessions
+        SET history_hidden = 1
+        WHERE status <> 'running' AND history_hidden = 0;
       `);
       this.#database.exec("COMMIT");
     } catch (error) {
@@ -435,7 +439,64 @@ export class AuditSessionStore {
     return {
       affected: terminalSessions.count,
       retainedRunning: runningSessions.count,
+      cleanupPending: terminalSessions.count > 0,
     };
+  }
+
+  purgeHiddenHistoryBatch(limit = 100): {
+    deletedFiles: number;
+    deletedSessions: number;
+    remainingSessions: number;
+  } {
+    const safeLimit = Math.max(1, Math.min(250, Math.trunc(limit)));
+    this.#database.exec("BEGIN IMMEDIATE");
+    try {
+      this.#database.exec(`
+        DELETE FROM audit_active_files
+        WHERE session_id IN (
+          SELECT id FROM audit_sessions WHERE history_hidden = 1
+        );
+      `);
+      const deletedFiles = this.#database
+        .prepare(`
+          DELETE FROM audit_files
+          WHERE rowid IN (
+            SELECT audit_files.rowid
+            FROM audit_files
+            INNER JOIN audit_sessions
+              ON audit_sessions.id = audit_files.session_id
+            WHERE audit_sessions.history_hidden = 1
+            LIMIT ?
+          )
+        `)
+        .run(safeLimit).changes;
+      const deletedSessions = this.#database
+        .prepare(`
+          DELETE FROM audit_sessions
+          WHERE history_hidden = 1
+          AND NOT EXISTS (
+            SELECT 1 FROM audit_files
+            WHERE audit_files.session_id = audit_sessions.id
+          )
+        `)
+        .run().changes;
+      const remaining = this.#database
+        .prepare(`
+          SELECT COUNT(*) AS count
+          FROM audit_sessions
+          WHERE history_hidden = 1
+        `)
+        .get() as unknown as { count: number };
+      this.#database.exec("COMMIT");
+      return {
+        deletedFiles: Number(deletedFiles),
+        deletedSessions: Number(deletedSessions),
+        remainingSessions: remaining.count,
+      };
+    } catch (error) {
+      this.#database.exec("ROLLBACK");
+      throw error;
+    }
   }
 
   getSession(
@@ -443,7 +504,9 @@ export class AuditSessionStore {
     compact = false,
   ): StoredAuditSession | null {
     const session = this.#database
-      .prepare("SELECT * FROM audit_sessions WHERE id = ?")
+      .prepare(
+        "SELECT * FROM audit_sessions WHERE id = ? AND history_hidden = 0",
+      )
       .get(sessionId) as unknown as SessionRow | undefined;
     if (!session) return null;
     const restoredFiles: AudioFileRecord[] = [];
@@ -489,9 +552,13 @@ export class AuditSessionStore {
   ): AudioFileRecord | null {
     const row = this.#database
       .prepare(`
-        SELECT record_json
+        SELECT audit_files.record_json
         FROM audit_files
-        WHERE session_id = ? AND file_path = ?
+        INNER JOIN audit_sessions
+          ON audit_sessions.id = audit_files.session_id
+        WHERE audit_files.session_id = ?
+          AND audit_files.file_path = ?
+          AND audit_sessions.history_hidden = 0
       `)
       .get(sessionId, path.resolve(filePath)) as unknown as
       | FileRow
@@ -506,7 +573,9 @@ export class AuditSessionStore {
 
   getSessionSummary(sessionId: string): AuditSessionSummary | null {
     const session = this.#database
-      .prepare("SELECT * FROM audit_sessions WHERE id = ?")
+      .prepare(
+        "SELECT * FROM audit_sessions WHERE id = ? AND history_hidden = 0",
+      )
       .get(sessionId) as unknown as SessionRow | undefined;
     return session ? this.#summary(session) : null;
   }

@@ -640,6 +640,15 @@ export interface AuditSessionSummary {
 export interface AuditHistoryClearResult {
   affected: number;
   retainedRunning: number;
+  cleanupPending: boolean;
+}
+
+export interface AuditHistoryCleanupProgress {
+  state: "cleaning" | "complete" | "failed";
+  deletedFiles: number;
+  deletedSessions: number;
+  remainingSessions: number;
+  explanation: string;
 }
 
 export interface StoredAuditSession extends AuditSessionSummary {
@@ -836,6 +845,9 @@ export interface AudioVDesktopApi {
   scanSelection(source: AudioSourceSelection): Promise<ScanSelectionResult>;
   listAuditSessions(): Promise<AuditSessionSummary[]>;
   clearAuditHistory(): Promise<AuditHistoryClearResult>;
+  onAuditHistoryCleanup(
+    listener: (progress: AuditHistoryCleanupProgress) => void,
+  ): () => void;
   openAuditSession(sessionId: string): Promise<StoredAuditSession>;
   openAuditSessionFile(
     sessionId: string,

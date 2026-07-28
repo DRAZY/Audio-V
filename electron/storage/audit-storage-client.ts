@@ -132,6 +132,14 @@ export class AuditStorageClient {
     return this.#request({ operation: "clear-history" });
   }
 
+  purgeHiddenHistoryBatch(limit?: number): Promise<{
+    deletedFiles: number;
+    deletedSessions: number;
+    remainingSessions: number;
+  }> {
+    return this.#request({ operation: "purge-hidden-history", limit });
+  }
+
   getSession(
     sessionId: string,
     compact = false,

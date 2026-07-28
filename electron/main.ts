@@ -4,6 +4,7 @@ import { availableParallelism, totalmem } from "node:os";
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import type {
   AnalysisResourceLimits,
+  AuditHistoryCleanupProgress,
   AudioFileRecord,
   AudioSourceSelection,
   AuditResumeStrategy,
@@ -67,6 +68,10 @@ let oracleCache: OracleRecordCache;
 let oracleWorkers: OracleWorkerPool;
 let auditSessions: AuditStorageClient;
 let activeComparisonController: AbortController | null = null;
+let historyCleanupTimer: NodeJS.Timeout | null = null;
+let historyCleanupRunning = false;
+let historyCleanupDeletedFiles = 0;
+let historyCleanupDeletedSessions = 0;
 const defaultResourceLimits = resolveAnalysisResourcePolicy(
   {
     concurrency: Math.max(
@@ -103,6 +108,80 @@ function logOracleWorkerEvent(event: OracleWorkerEvent): void {
     `oracle-worker.${event.type}`,
     { ...event },
   );
+}
+
+function sendHistoryCleanupProgress(
+  progress: AuditHistoryCleanupProgress,
+): void {
+  for (const window of BrowserWindow.getAllWindows()) {
+    if (!window.isDestroyed()) {
+      window.webContents.send("sessions:cleanup-progress", progress);
+    }
+  }
+}
+
+function scheduleHistoryCleanup(delayMs = 50): void {
+  if (historyCleanupRunning || historyCleanupTimer) return;
+  historyCleanupTimer = setTimeout(() => {
+    historyCleanupTimer = null;
+    void runHistoryCleanupBatch();
+  }, delayMs);
+  historyCleanupTimer.unref();
+}
+
+async function runHistoryCleanupBatch(): Promise<void> {
+  if (historyCleanupRunning) return;
+  historyCleanupRunning = true;
+  let shouldContinue = false;
+  try {
+    const result = await auditSessions.purgeHiddenHistoryBatch(50);
+    historyCleanupDeletedFiles += result.deletedFiles;
+    historyCleanupDeletedSessions += result.deletedSessions;
+    if (
+      result.remainingSessions > 0 ||
+      result.deletedFiles > 0 ||
+      result.deletedSessions > 0
+    ) {
+      const progress: AuditHistoryCleanupProgress = {
+        state: result.remainingSessions > 0 ? "cleaning" : "complete",
+        deletedFiles: historyCleanupDeletedFiles,
+        deletedSessions: historyCleanupDeletedSessions,
+        remainingSessions: result.remainingSessions,
+        explanation:
+          result.remainingSessions > 0
+            ? "History is already clear. Audio-V is reclaiming its saved session records in small background batches."
+            : "History cleanup finished. Source audio, reusable Oracle cache, and Identity fingerprints were not changed.",
+      };
+      sendHistoryCleanupProgress(progress);
+      logApplication(
+        progress.state === "complete" ? "info" : "debug",
+        `audit-history.cleanup-${progress.state}`,
+        { ...progress },
+      );
+    }
+    shouldContinue = result.remainingSessions > 0;
+    if (!shouldContinue) {
+      historyCleanupDeletedFiles = 0;
+      historyCleanupDeletedSessions = 0;
+    }
+  } catch (error) {
+    const progress: AuditHistoryCleanupProgress = {
+      state: "failed",
+      deletedFiles: historyCleanupDeletedFiles,
+      deletedSessions: historyCleanupDeletedSessions,
+      remainingSessions: -1,
+      explanation:
+        "The history list is clear, but background storage cleanup paused. Restarting Audio-V will resume it safely.",
+    };
+    sendHistoryCleanupProgress(progress);
+    logApplication("error", "audit-history.cleanup-failed", {
+      ...progress,
+      error,
+    });
+  } finally {
+    historyCleanupRunning = false;
+    if (shouldContinue) scheduleHistoryCleanup(25);
+  }
 }
 
 async function analyzeWithWorkerIsolation(
@@ -527,6 +606,17 @@ ipcMain.handle("sessions:clear-history", async () => {
   }
   const result = await auditSessions.clearHistory();
   logApplication("info", "audit-history.cleared", { ...result });
+  if (result.cleanupPending) {
+    sendHistoryCleanupProgress({
+      state: "cleaning",
+      deletedFiles: 0,
+      deletedSessions: 0,
+      remainingSessions: result.affected,
+      explanation:
+        "History is clear. Audio-V is reclaiming its saved session records in small background batches.",
+    });
+    scheduleHistoryCleanup();
+  }
   return result;
 });
 
@@ -1506,6 +1596,7 @@ app.whenReady().then(async () => {
   await auditSessions.importLegacyCache(
     path.join(userDataPath, "oracle-cache-v4.json"),
   );
+  scheduleHistoryCleanup(250);
   oracleCache = {
     get: (filePath) => auditSessions.getCached(filePath),
     set: (record) => auditSessions.setCached(record),
@@ -1538,6 +1629,10 @@ app.on("before-quit", () => {
   });
   activeScanController?.abort();
   activeComparisonController?.abort();
+  if (historyCleanupTimer) {
+    clearTimeout(historyCleanupTimer);
+    historyCleanupTimer = null;
+  }
   void oracleWorkers?.close();
   applicationLogger?.close();
 });

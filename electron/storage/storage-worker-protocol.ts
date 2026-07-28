@@ -15,6 +15,7 @@ export type StorageWorkerRequest =
   | { id: string; operation: "finish"; sessionId: string; status: Exclude<AuditSessionStatus, "running">; warnings: string[] }
   | { id: string; operation: "list-sessions"; limit?: number }
   | { id: string; operation: "clear-history" }
+  | { id: string; operation: "purge-hidden-history"; limit?: number }
   | { id: string; operation: "get-session"; sessionId: string; compact?: boolean }
   | { id: string; operation: "get-session-file"; sessionId: string; filePath: string }
   | { id: string; operation: "get-session-summary"; sessionId: string }

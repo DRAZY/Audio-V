@@ -23,6 +23,15 @@ const api: AudioVDesktopApi = {
   },
   listAuditSessions: () => ipcRenderer.invoke("sessions:list"),
   clearAuditHistory: () => ipcRenderer.invoke("sessions:clear-history"),
+  onAuditHistoryCleanup: (listener) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      progress: Parameters<typeof listener>[0],
+    ) => listener(progress);
+    ipcRenderer.on("sessions:cleanup-progress", handler);
+    return () =>
+      ipcRenderer.removeListener("sessions:cleanup-progress", handler);
+  },
   openAuditSession: (sessionId) =>
     ipcRenderer.invoke("sessions:open", sessionId),
   openAuditSessionFile: (sessionId, filePath) =>

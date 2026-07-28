@@ -918,6 +918,7 @@ watch(() => visibleFiles.value.length, () => {
   scheduleTableViewportMeasurement();
 });
 let removeScanProgressListener: (() => void) | null = null;
+let removeHistoryCleanupListener: (() => void) | null = null;
 let progressFrame: number | null = null;
 let queuedProgressFiles: AudioFileRecord[] = [];
 let progressFileIndexById = new Map<string, number>();
@@ -1077,6 +1078,13 @@ onMounted(() => {
         scanMessage.value = `${progress.completed.toLocaleString()} of ${progress.total.toLocaleString()} ${progress.fromCache ? "restored from verified cache" : "fully analyzed"} · ${progress.currentFile}`;
       }
     }) ?? null;
+  removeHistoryCleanupListener =
+    window.audioV?.onAuditHistoryCleanup((progress) => {
+      historyMessage.value =
+        progress.state === "cleaning"
+          ? `${progress.explanation} · ${progress.deletedFiles.toLocaleString()} file record${progress.deletedFiles === 1 ? "" : "s"} reclaimed`
+          : progress.explanation;
+    }) ?? null;
   void window.audioV?.qaLoadConfiguredSource?.().then((source) => {
     if (source) void scanSource(source);
   });
@@ -1086,6 +1094,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   removeScanProgressListener?.();
+  removeHistoryCleanupListener?.();
   if (progressFrame !== null) cancelAnimationFrame(progressFrame);
   if (tableViewportFrame !== null) cancelAnimationFrame(tableViewportFrame);
   tableResizeObserver?.disconnect();
@@ -1304,7 +1313,7 @@ async function clearAuditHistory(): Promise<void> {
   const wasViewingHistoricalSession = activeSessionId.value.length > 0;
   try {
     const result = await window.audioV.clearAuditHistory();
-    recentSessions.value = await window.audioV.listAuditSessions();
+    recentSessions.value = [];
     if (wasViewingHistoricalSession) {
       files.value = [];
       activeSessionId.value = "";
@@ -1322,7 +1331,9 @@ async function clearAuditHistory(): Promise<void> {
       `Cleared ${result.affected.toLocaleString()} saved audit session${result.affected === 1 ? "" : "s"}` +
       (result.retainedRunning
         ? ` · retained ${result.retainedRunning.toLocaleString()} running session${result.retainedRunning === 1 ? "" : "s"}`
-        : " · source audio, Oracle cache, and Identity index were not changed");
+        : result.cleanupPending
+          ? " · reclaiming saved session records in the background"
+          : " · source audio, Oracle cache, and Identity index were not changed");
   } catch (error) {
     historyMessage.value =
       error instanceof Error ? error.message : "Saved audit history could not be cleared.";

@@ -156,14 +156,73 @@ describe("AuditSessionStore", () => {
       expect(store.clearHistory()).toEqual({
         affected: 1,
         retainedRunning: 1,
+        cleanupPending: true,
       });
+      expect(store.listSessions()).toHaveLength(1);
       expect(store.getSession(completedId)).toBeNull();
       expect(store.getSession(runningId)).toMatchObject({
         status: "running",
         label: "Audit still running",
       });
+      const cleanup = store.purgeHiddenHistoryBatch(1);
+      expect(cleanup).toEqual({
+        deletedFiles: 1,
+        deletedSessions: 1,
+        remainingSessions: 0,
+      });
       expect((await store.getCached(audioPath))?.path).toBe(audioPath);
       expect(await store.listFingerprintLibrary()).toHaveLength(1);
+    } finally {
+      store.close();
+    }
+  });
+
+  it("hides large history immediately and reclaims it only in bounded batches", async () => {
+    const directory = await fs.mkdtemp(
+      path.join(process.cwd(), "tests/.tmp-session-bounded-clear-"),
+    );
+    temporaryDirectories.push(directory);
+    const databasePath = path.join(directory, "sessions.sqlite3");
+    const store = new AuditSessionStore(databasePath);
+
+    try {
+      const sessionId = store.create({
+        kind: "folder",
+        label: "Large saved library",
+        paths: [directory],
+      });
+      store.finish(sessionId, "completed", []);
+      const database = new DatabaseSync(databasePath);
+      database.exec("BEGIN IMMEDIATE");
+      const insert = database.prepare(`
+        INSERT INTO audit_files (
+          session_id, file_path, ordinal, from_cache, record_json,
+          summary_json, evidence_key, updated_at
+        ) VALUES (?, ?, ?, 0, '{}', '{}', NULL, ?)
+      `);
+      const now = new Date().toISOString();
+      for (let ordinal = 0; ordinal < 1_000; ordinal += 1) {
+        insert.run(
+          sessionId,
+          path.join(directory, `${ordinal}.flac`),
+          ordinal,
+          now,
+        );
+      }
+      database.exec("COMMIT");
+      database.close();
+
+      expect(store.clearHistory()).toEqual({
+        affected: 1,
+        retainedRunning: 0,
+        cleanupPending: true,
+      });
+      expect(store.listSessions()).toEqual([]);
+      expect(store.purgeHiddenHistoryBatch(50)).toEqual({
+        deletedFiles: 50,
+        deletedSessions: 0,
+        remainingSessions: 1,
+      });
     } finally {
       store.close();
     }
