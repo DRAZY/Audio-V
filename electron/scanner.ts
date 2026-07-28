@@ -45,6 +45,9 @@ import {
 } from "./source-read-optimizer";
 
 const supportedExtensions = new Set<string>(AUDIO_EXTENSIONS);
+const DEFAULT_AUTOMATIC_ALBUM_REPLAYGAIN_FILE_LIMIT = 1_000;
+const DEFAULT_NEAR_FINGERPRINT_RELATIONSHIP_FILE_LIMIT = 2_000;
+const MAX_CURRENT_FINGERPRINT_CANDIDATES = 500;
 
 function throwIfCanceled(signal?: AbortSignal): void {
   if (signal?.aborted) throw new Error("Audio analysis canceled.");
@@ -591,11 +594,47 @@ function fingerprintSimilarity(left: number[], right: number[]): number {
   return Number((overlap * (1 - differingBits / (length * 32))).toFixed(6));
 }
 
+function discloseDeferredAlbumReplayGain(
+  file: AudioFileRecord,
+  auditedFileCount: number,
+  automaticFileLimit: number,
+): AudioFileRecord {
+  const measurements = file.oracle.measurements;
+  if (
+    auditedFileCount <= automaticFileLimit ||
+    !measurements ||
+    measurements.replayGain.albumStatus === "calculated"
+  ) {
+    return file;
+  }
+  return {
+    ...file,
+    oracle: {
+      ...file.oracle,
+      measurements: {
+        ...measurements,
+        replayGain: {
+          ...measurements.replayGain,
+          albumGainDb: null,
+          albumPeak: null,
+          albumGroup: null,
+          albumTrackCount: 0,
+          albumStatus: "unavailable",
+          albumReason:
+            `Album ReplayGain was deferred because this audit contains ${auditedFileCount.toLocaleString()} files. Track ReplayGain is complete; audit a specific album or a source with ${automaticFileLimit.toLocaleString()} files or fewer for exact album gain.`,
+        },
+      },
+    },
+  };
+}
+
 async function attachAlbumReplayGain(
   files: AudioFileRecord[],
   signal?: AbortSignal,
   warnings?: string[],
+  automaticFileLimit = DEFAULT_AUTOMATIC_ALBUM_REPLAYGAIN_FILE_LIMIT,
 ): Promise<AudioFileRecord[]> {
+  if (files.length > automaticFileLimit) return files;
   const identityGroups = new Map<string, AudioFileRecord[]>();
   const replacements = new Map<string, AudioFileRecord>();
   const setUnavailable = (file: AudioFileRecord, reason: string) => {
@@ -723,6 +762,8 @@ async function attachFingerprintRelationships(
   files: AudioFileRecord[],
   cache?: OracleRecordCache,
   signal?: AbortSignal,
+  nearRelationshipFileLimit =
+    DEFAULT_NEAR_FINGERPRINT_RELATIONSHIP_FILE_LIMIT,
 ): Promise<AudioFileRecord[]> {
   const exactGroups = new Map<string, number[]>();
   const durationBuckets = new Map<number, number[]>();
@@ -735,7 +776,10 @@ async function attachFingerprintRelationships(
       group.push(index);
       exactGroups.set(fingerprint.fingerprintSha256, group);
     }
-    if (fingerprint.durationSeconds !== null) {
+    if (
+      files.length <= nearRelationshipFileLimit &&
+      fingerprint.durationSeconds !== null
+    ) {
       const bucket = Math.round(fingerprint.durationSeconds);
       const group = durationBuckets.get(bucket) ?? [];
       group.push(index);
@@ -754,13 +798,23 @@ async function attachFingerprintRelationships(
         exactGroups.get(technical.fingerprint.fingerprintSha256) ?? []
       ) {
         candidateIndexes.add(candidateIndex);
+        if (candidateIndexes.size >= 101) break;
       }
     }
-    if (technical.fingerprint.durationSeconds !== null) {
+    if (
+      files.length <= nearRelationshipFileLimit &&
+      technical.fingerprint.durationSeconds !== null
+    ) {
       const duration = Math.round(technical.fingerprint.durationSeconds);
+      candidateSearch:
       for (let bucket = duration - 3; bucket <= duration + 3; bucket += 1) {
         for (const candidateIndex of durationBuckets.get(bucket) ?? []) {
           candidateIndexes.add(candidateIndex);
+          if (
+            candidateIndexes.size >= MAX_CURRENT_FINGERPRINT_CANDIDATES
+          ) {
+            break candidateSearch;
+          }
         }
       }
     }
@@ -990,6 +1044,8 @@ export async function scanSources(
         totalBytes: number,
       ) => void,
     ) => Promise<StagedSourceFile>;
+    automaticAlbumReplayGainFileLimit?: number;
+    nearFingerprintRelationshipFileLimit?: number;
   },
 ): Promise<ScanSelectionResult> {
   throwIfCanceled(options?.signal);
@@ -997,6 +1053,20 @@ export async function scanSources(
   const discovered: string[] = [];
   const checksumManifests = new Set<string>();
   const inventoryOnly = source.mode === "metadata-inventory";
+  const automaticAlbumReplayGainFileLimit = Math.max(
+    0,
+    Math.trunc(
+      options?.automaticAlbumReplayGainFileLimit ??
+        DEFAULT_AUTOMATIC_ALBUM_REPLAYGAIN_FILE_LIMIT,
+    ),
+  );
+  const nearFingerprintRelationshipFileLimit = Math.max(
+    0,
+    Math.trunc(
+      options?.nearFingerprintRelationshipFileLimit ??
+        DEFAULT_NEAR_FINGERPRINT_RELATIONSHIP_FILE_LIMIT,
+    ),
+  );
 
   for (const selectedPath of source.paths) {
     throwIfCanceled(options?.signal);
@@ -1133,6 +1203,11 @@ export async function scanSources(
                 restored.path,
               );
           }
+          restored = discloseDeferredAlbumReplayGain(
+            restored,
+            filePaths.length,
+            automaticAlbumReplayGainFileLimit,
+          );
           return {
             file: await attachExternalChecksumEvidence(
               restored,
@@ -1259,6 +1334,11 @@ export async function scanSources(
             oracle,
           });
           file = attachMetadataProvenance(file);
+          file = discloseDeferredAlbumReplayGain(
+            file,
+            filePaths.length,
+            automaticAlbumReplayGainFileLimit,
+          );
           if (
             source.externalLookup?.acoustIdEnabled &&
             source.externalLookup.acoustIdApiKey &&
@@ -1334,8 +1414,31 @@ export async function scanSources(
     (file): file is AudioFileRecord => file !== undefined,
   );
   if (!inventoryOnly) {
+    const albumReplayGainDeferred =
+      files.length > automaticAlbumReplayGainFileLimit;
+    onProgress?.({
+      phase: "finalizing",
+      completed: files.length,
+      total: filePaths.length,
+      currentFile: null,
+      file: null,
+      fromCache: false,
+      finalization: {
+        stage: "album-replaygain",
+        completed: albumReplayGainDeferred ? 1 : 0,
+        total: 1,
+        explanation: albumReplayGainDeferred
+          ? `Album ReplayGain was deferred because this audit contains ${files.length.toLocaleString()} files. Track ReplayGain remains available; audit a specific album or a source with ${automaticAlbumReplayGainFileLimit.toLocaleString()} files or fewer for exact album gain.`
+          : "Calculating exact album ReplayGain across eligible album groups.",
+      },
+    });
     const beforeAlbumGain = files;
-    files = await attachAlbumReplayGain(files, options?.signal, warnings);
+    files = await attachAlbumReplayGain(
+      files,
+      options?.signal,
+      warnings,
+      automaticAlbumReplayGainFileLimit,
+    );
     await Promise.all(
       files.flatMap((file, index) =>
         file === beforeAlbumGain[index]
@@ -1353,11 +1456,30 @@ export async function scanSources(
       ),
     );
   }
+  const nearRelationshipsDeferred =
+    files.length > nearFingerprintRelationshipFileLimit;
+  onProgress?.({
+    phase: "finalizing",
+    completed: files.length,
+    total: filePaths.length,
+    currentFile: null,
+    file: null,
+    fromCache: false,
+    finalization: {
+      stage: "fingerprint-relationships",
+      completed: 0,
+      total: 1,
+      explanation: nearRelationshipsDeferred
+        ? `Linking exact Chromaprint duplicates. Near-match expansion is deferred above ${nearFingerprintRelationshipFileLimit.toLocaleString()} files to keep finalization bounded.`
+        : "Linking exact and near-match Chromaprint relationships.",
+    },
+  });
   const filesBeforeRelationships = files;
   files = await attachFingerprintRelationships(
     filesBeforeRelationships,
     options?.cache,
     options?.signal,
+    nearFingerprintRelationshipFileLimit,
   );
   await Promise.all(
     files.flatMap((file, index) =>

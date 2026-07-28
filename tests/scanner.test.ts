@@ -199,6 +199,32 @@ describe("scanSources", () => {
       grouped.files[0].oracle.measurements?.replayGain.albumReason,
     ).toContain("matching album identity");
 
+    const finalization: string[] = [];
+    const deferred = await scanSources(
+      {
+        kind: "files",
+        label: "Large-library ReplayGain policy",
+        paths: files,
+      },
+      (progress) => {
+        if (progress.finalization) {
+          finalization.push(progress.finalization.explanation);
+        }
+      },
+      { automaticAlbumReplayGainFileLimit: 1 },
+    );
+    expect(
+      deferred.files.every(
+        (file) =>
+          file.oracle.measurements?.replayGain.albumStatus === "unavailable" &&
+          file.oracle.measurements.replayGain.albumReason.includes(
+            "deferred because this audit contains 2 files",
+          ),
+      ),
+    ).toBe(true);
+    expect(finalization.some((entry) => entry.includes("Track ReplayGain remains available")))
+      .toBe(true);
+
     const untaggedPath = path.join(directory, "untagged.wav");
     await fs.writeFile(untaggedPath, pcmWave());
     const untagged = await scanSources({
@@ -674,7 +700,7 @@ describe("scanSources", () => {
       kind: "folder",
       label: "fingerprint relationship",
       paths: [directory],
-    });
+    }, undefined, { nearFingerprintRelationshipFileLimit: 0 });
 
     expect(result.files).toHaveLength(2);
     expect(

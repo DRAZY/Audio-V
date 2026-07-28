@@ -860,8 +860,19 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
             targetResourceLimits: AnalysisResourceLimits;
           }
         | undefined,
+      publishCompletion = false,
     ) => {
       latestScanProgress = progress;
+      if (progress.phase === "complete" && !publishCompletion) return;
+      if (progress.phase === "finalizing" && progress.finalization) {
+        logApplication("info", "scan.finalization-stage", {
+          sessionId,
+          stage: progress.finalization.stage,
+          completed: progress.finalization.completed,
+          total: progress.finalization.total,
+          explanation: progress.finalization.explanation,
+        });
+      }
       if (progress.file) {
         const normalizedPath = path.resolve(progress.file.path);
         approvedAudioFiles.add(normalizedPath);
@@ -1015,9 +1026,41 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
         compactResults: true,
       },
     );
+    emitProgress(
+      {
+        phase: "finalizing",
+        completed: result.files.length,
+        total: result.files.length,
+        currentFile: null,
+        file: null,
+        fromCache: false,
+        finalization: {
+          stage: "history-commit",
+          completed: 0,
+          total: 1,
+          explanation:
+            "Committing the final evidence index and session state to resumable audit history.",
+        },
+      },
+      requestedLimits,
+      undefined,
+    );
     await persistence.flush();
     sessionWarnings = result.warnings;
     await auditSessions.finish(sessionId, "completed", sessionWarnings);
+    emitProgress(
+      {
+        phase: "complete",
+        completed: result.files.length,
+        total: result.files.length,
+        currentFile: null,
+        file: null,
+        fromCache: false,
+      },
+      requestedLimits,
+      undefined,
+      true,
+    );
     logApplication("info", "scan.completed", {
       sessionId,
       discoveredCount: result.files.length,

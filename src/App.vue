@@ -142,7 +142,16 @@ const validationProgress = computed(() => {
 const scanProgressPercent = computed(() => {
   const progress = scanProgress.value;
   if (!progress?.total) return 0;
-  return Math.min(100, Math.round((progress.completed / progress.total) * 100));
+  if (progress.phase === "complete") return 100;
+  if (progress.phase === "finalizing") {
+    if (progress.finalization?.stage === "album-replaygain") return 96;
+    if (progress.finalization?.stage === "fingerprint-relationships") return 98;
+    return 99;
+  }
+  return Math.min(
+    99,
+    Math.round((progress.completed / progress.total) * 100),
+  );
 });
 const scanProgressSweep = computed(
   () => `${scanProgressPercent.value * 3.6}deg`,
@@ -157,6 +166,15 @@ const scanProgressTitle = computed(() => {
       ? "Checkpoint stalled · ending safely"
       : `Checkpointing · ${progress.completed.toLocaleString()} analyzed`;
   }
+  if (progress?.phase === "finalizing" && progress.finalization) {
+    const labels = {
+      "album-replaygain": "Finalizing · album ReplayGain",
+      "fingerprint-relationships": "Finalizing · fingerprint relationships",
+      "history-commit": "Finalizing · durable history",
+    } as const;
+    return labels[progress.finalization.stage];
+  }
+  if (progress?.phase === "complete") return "Audit complete";
   if (!progress?.total) return "Discovering audio files";
   const action =
     scanMode.value === "metadata-inventory" ? "Inventorying" : "Analyzing";
@@ -1032,6 +1050,8 @@ onMounted(() => {
           `${scanProgressTitle.value} · ${progress.currentFile ?? "Preparing file"}`;
       } else if (progress.phase === "checkpointing" && progress.checkpoint) {
         scanMessage.value = progress.checkpoint.explanation;
+      } else if (progress.phase === "finalizing" && progress.finalization) {
+        scanMessage.value = progress.finalization.explanation;
       } else if (progress.phase === "staging") {
         const transferred = progress.sourceIo?.transferredBytes;
         const totalBytes = progress.sourceIo?.sizeBytes;
@@ -2243,7 +2263,16 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
           <button
             v-if="isDiscovering"
             class="secondary-action pause-action"
-            :disabled="isScanCancelling"
+            :disabled="
+              isScanCancelling ||
+              scanProgress?.phase === 'finalizing' ||
+              scanProgress?.phase === 'complete'
+            "
+            :title="
+              scanProgress?.phase === 'finalizing'
+                ? 'File workers are complete; finalization cannot be paused. Cancellation remains available.'
+                : undefined
+            "
             @click="toggleScanPause"
           >
             {{ isScanCancelling ? "Stopping…" : isScanPaused ? "Resume" : "Pause" }}
@@ -2360,6 +2389,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
                 isScanCancelling
                   ? "Stopping active work and checkpointing completed files…"
                   : scanProgress?.activity?.explanation
+                    ?? scanProgress?.finalization?.explanation
                     ?? scanProgress?.checkpoint?.explanation
                     ?? scanProgress?.currentFile
                     ?? "Reading the selected source…"

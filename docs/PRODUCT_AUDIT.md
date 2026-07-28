@@ -52,7 +52,7 @@ Status meanings:
 - **Planned** — specified and prioritized, but not implemented.
 - **Excluded** — intentionally outside the core product.
 
-| Capability | User value | v0.4.19 source status | Disposition |
+| Capability | User value | v0.4.20 source status | Disposition |
 | --- | --- | --- | --- |
 | File and folder ingest | Analyze one track or a full library | Implemented | Current |
 | Recursive bounded discovery | Avoid freezing on large trees | Implemented | Current |
@@ -220,7 +220,7 @@ This milestone deliberately stops before a statistical AI classifier or automati
 
 - A three-case native decoded defect corpus gates the clean, single-impulse click/pop, and non-zero stuck-sample behaviors. It is labeled synthetic regression evidence and does not claim real-world calibration.
 - Compare accepts explicit one-to-one channel maps for differing decoded layouts. Without a map, mismatched layouts remain a bounded preview rather than receiving a misleading null.
-- ReplayGain reports why album gain is unavailable, including missing album identity, insufficient matching tracks, incompatible channel counts, and measurement failure.
+- ReplayGain reports why album gain is unavailable, including missing album identity, insufficient matching tracks, incompatible channel counts, measurement failure, and large-library deferral. Audits above 1,000 files retain calculated track gain but skip the otherwise unbounded second full-library decode; selecting an album or a smaller source calculates exact grouped album gain.
 - Cue programme segments stop at the next INDEX 00/01 boundary; declared INDEX 00 pregaps are decoded and reported separately.
 
 ### Oracle v11 evidence-model status
@@ -301,6 +301,6 @@ No build may be called a beta until:
 - Compare renders bounded full-track waveform envelopes, paired measured spectrograms, and a normalized B-minus-A spectral heatmap alongside identity, format, loudness, clipping, bandwidth, stereo, and checksum values; no playback surface was introduced.
 - Audit and per-file evidence export to PDF, XLSX, DOCX, CSV, or JSON from a shared 40+ column evidence model. Production dependencies remain free of known audit advisories.
 - The desktop typography floor is 11px for utility labels and 12–14px for working text, with larger rows, controls, and analysis panels.
-- The 128-test regression suite covers discovery, mounted-source staging and identity preservation, malformed metadata, PCM math, internal WAVE decoding, spectral-bin detection, multi-codec full decoding, FLAC audio-MD5 mismatch, loudness/true peak, continuity, packet-rate behavior, fidelity controls, persistent fingerprint management, cue programme/pregap segments, calculated ReplayGain eligibility, explicit comparison channel mapping, resource enforcement, adaptive crash recovery with cache bypass, structured log rotation, cache invalidation, prompt cancellation of blocked workers, virtualized large-session viewport recovery, process cancellation, source-preserving repair output, attached-artwork retention, source preservation, truncation, and verdict truthfulness.
+- The 129-test regression suite covers discovery, mounted-source staging and identity preservation, malformed metadata, PCM math, internal WAVE decoding, spectral-bin detection, multi-codec full decoding, FLAC audio-MD5 mismatch, loudness/true peak, continuity, packet-rate behavior, fidelity controls, persistent fingerprint management, cue programme/pregap segments, calculated and large-library-deferred ReplayGain eligibility, explicit comparison channel mapping, resource enforcement, adaptive crash recovery with cache bypass, structured log rotation, cache invalidation, prompt cancellation of blocked workers, virtualized large-session viewport recovery, process cancellation, source-preserving repair output, attached-artwork retention, source preservation, truncation, and verdict truthfulness.
 - Production dependencies pass `npm audit --omit=dev`; remaining advisories are confined to the upstream packaging toolchain.
 - Release packages contain third-party notices and a machine-readable engine capability manifest.

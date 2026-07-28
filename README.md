@@ -6,7 +6,7 @@
 
   <p>
     <img alt="Locally verified builds" src="https://img.shields.io/badge/builds-locally%20verified-51e19b?style=for-the-badge">
-    <a href="https://github.com/DRAZY/Audio-V/releases/tag/v0.4.19"><img alt="Latest development release 0.4.19" src="https://img.shields.io/badge/latest-0.4.19-8b5cf6?style=for-the-badge"></a>
+    <a href="https://github.com/DRAZY/Audio-V/releases/tag/v0.4.20"><img alt="Latest development release 0.4.20" src="https://img.shields.io/badge/latest-0.4.20-8b5cf6?style=for-the-badge"></a>
     <a href="LICENSE"><img alt="AGPL 3.0 only" src="https://img.shields.io/badge/license-AGPL--3.0--only-8b5cf6?style=for-the-badge"></a>
     <img alt="macOS and Windows" src="https://img.shields.io/badge/platforms-macOS%20%7C%20Windows-252532?style=for-the-badge">
   </p>
@@ -34,16 +34,16 @@ Audio-V is deliberately not a music player, tag editor, or mastering suite. It i
 
 ## Releases
 
-The latest development release is **[Audio-V 0.4.19](https://github.com/DRAZY/Audio-V/releases/tag/v0.4.19)**. It contains the complete locally built asset set:
+The latest development release is **[Audio-V 0.4.20](https://github.com/DRAZY/Audio-V/releases/tag/v0.4.20)**. It contains the complete locally built asset set:
 
 | Platform | Download | Intended system |
 |---|---|---|
-| macOS | [Apple Silicon DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.19/Audio-V-0.4.19-mac-arm64.dmg) | Native Apple Silicon |
-| macOS | [Universal DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.19/Audio-V-0.4.19-mac-universal.dmg) | Apple Silicon and Intel |
-| Windows | [Windows installer](https://github.com/DRAZY/Audio-V/releases/download/v0.4.19/Audio-V-0.4.19-win-x64.exe) | Guided desktop installation |
-| Windows | [Portable executable](https://github.com/DRAZY/Audio-V/releases/download/v0.4.19/Audio-V-Portable-0.4.19-x64.exe) | Run without installation |
+| macOS | [Apple Silicon DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.20/Audio-V-0.4.20-mac-arm64.dmg) | Native Apple Silicon |
+| macOS | [Universal DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.20/Audio-V-0.4.20-mac-universal.dmg) | Apple Silicon and Intel |
+| Windows | [Windows installer](https://github.com/DRAZY/Audio-V/releases/download/v0.4.20/Audio-V-0.4.20-win-x64.exe) | Guided desktop installation |
+| Windows | [Portable executable](https://github.com/DRAZY/Audio-V/releases/download/v0.4.20/Audio-V-Portable-0.4.20-x64.exe) | Run without installation |
 
-The same version-named GitHub Release exposes block maps, [`SHA256SUMS.txt`](https://github.com/DRAZY/Audio-V/releases/download/v0.4.19/SHA256SUMS.txt), and [`UNSIGNED_RELEASE_MANIFEST.json`](https://github.com/DRAZY/Audio-V/releases/download/v0.4.19/UNSIGNED_RELEASE_MANIFEST.json). Read the [release workflow](docs/RELEASING.md) and [unsigned installation guide](docs/UNSIGNED_INSTALLATION.md) before opening an unsigned build.
+The same version-named GitHub Release exposes block maps, [`SHA256SUMS.txt`](https://github.com/DRAZY/Audio-V/releases/download/v0.4.20/SHA256SUMS.txt), and [`UNSIGNED_RELEASE_MANIFEST.json`](https://github.com/DRAZY/Audio-V/releases/download/v0.4.20/UNSIGNED_RELEASE_MANIFEST.json). Read the [release workflow](docs/RELEASING.md) and [unsigned installation guide](docs/UNSIGNED_INSTALLATION.md) before opening an unsigned build.
 
 ## Meet the Oracle Engine
 

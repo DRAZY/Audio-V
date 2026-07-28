@@ -710,6 +710,7 @@ export interface ScanProgressUpdate {
     | "processing"
     | "staging"
     | "checkpointing"
+    | "finalizing"
     | "inventorying"
     | "analyzing"
     | "complete";
@@ -721,6 +722,12 @@ export interface ScanProgressUpdate {
   checkpoint?: {
     state: "queued" | "writing" | "saved" | "stalled";
     pendingFiles: number;
+    explanation: string;
+  };
+  finalization?: {
+    stage: "album-replaygain" | "fingerprint-relationships" | "history-commit";
+    completed: number;
+    total: number;
     explanation: string;
   };
   activity?: {
