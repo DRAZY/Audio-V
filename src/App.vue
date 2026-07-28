@@ -150,6 +150,11 @@ const scanProgressTitle = computed(() => {
   if (isScanCancelling.value) {
     return `Cancelling · ${progress?.completed.toLocaleString() ?? 0} completed results preserved`;
   }
+  if (progress?.phase === "checkpointing" && progress.checkpoint) {
+    return progress.checkpoint.state === "stalled"
+      ? "Checkpoint stalled · ending safely"
+      : `Checkpointing · ${progress.completed.toLocaleString()} analyzed`;
+  }
   if (!progress?.total) return "Discovering audio files";
   const action =
     scanMode.value === "metadata-inventory" ? "Inventorying" : "Analyzing";
@@ -991,6 +996,10 @@ onMounted(() => {
         if (!selectedId.value) selectedId.value = progress.file.id;
       }
       if (isScanCancelling.value) return;
+      if (progress.activity?.state === "delayed") {
+        scanMessage.value = progress.activity.explanation;
+        return;
+      }
       if (progress.recovery?.stage === "safe-validation") {
         scanMessage.value =
           `Recovery validation · ${progress.completed.toLocaleString()} of ${progress.total.toLocaleString()} completed · ${progress.currentFile ?? "Preparing isolated file"}`;
@@ -1008,6 +1017,8 @@ onMounted(() => {
       } else if (progress.phase === "processing") {
         scanMessage.value =
           `${scanProgressTitle.value} · ${progress.currentFile ?? "Preparing file"}`;
+      } else if (progress.phase === "checkpointing" && progress.checkpoint) {
+        scanMessage.value = progress.checkpoint.explanation;
       } else if (progress.phase === "staging") {
         const transferred = progress.sourceIo?.transferredBytes;
         const totalBytes = progress.sourceIo?.sizeBytes;
@@ -2290,7 +2301,10 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
               {{
                 isScanCancelling
                   ? "Stopping active work and checkpointing completed files…"
-                  : scanProgress?.currentFile ?? "Reading the selected source…"
+                  : scanProgress?.activity?.explanation
+                    ?? scanProgress?.checkpoint?.explanation
+                    ?? scanProgress?.currentFile
+                    ?? "Reading the selected source…"
               }}
             </small>
           </div>

@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -33,9 +33,10 @@ interface SessionRow {
 
 interface FileRow {
   record_json: string;
+  evidence_key?: string | null;
 }
 
-const schemaVersion = 5;
+const schemaVersion = 6;
 const crashRecoveryWarning =
   "Audio-V recovered this audit after the previous application process ended before the scan finished.";
 
@@ -67,6 +68,7 @@ export class AuditSessionStore {
         from_cache INTEGER NOT NULL DEFAULT 0,
         record_json TEXT NOT NULL,
         summary_json TEXT,
+        evidence_key TEXT,
         updated_at TEXT NOT NULL,
         PRIMARY KEY (session_id, file_path)
       );
@@ -92,6 +94,11 @@ export class AuditSessionStore {
       );
       CREATE INDEX IF NOT EXISTS oracle_cache_cached_at
         ON oracle_cache(cached_at DESC);
+      CREATE TABLE IF NOT EXISTS oracle_evidence (
+        evidence_key TEXT PRIMARY KEY,
+        record_json TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
       CREATE TABLE IF NOT EXISTS fingerprint_index (
         file_path TEXT PRIMARY KEY,
         file_name TEXT NOT NULL,
@@ -125,6 +132,11 @@ export class AuditSessionStore {
     if (!fileColumns.some((column) => column.name === "summary_json")) {
       this.#database.exec(
         "ALTER TABLE audit_files ADD COLUMN summary_json TEXT",
+      );
+    }
+    if (!fileColumns.some((column) => column.name === "evidence_key")) {
+      this.#database.exec(
+        "ALTER TABLE audit_files ADD COLUMN evidence_key TEXT",
       );
     }
   }
@@ -187,13 +199,14 @@ export class AuditSessionStore {
       const insert = this.#database.prepare(`
           INSERT INTO audit_files (
             session_id, file_path, ordinal, from_cache, record_json,
-            summary_json, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            summary_json, evidence_key, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT(session_id, file_path) DO UPDATE SET
             ordinal = excluded.ordinal,
             from_cache = excluded.from_cache,
             record_json = excluded.record_json,
             summary_json = excluded.summary_json,
+            evidence_key = COALESCE(excluded.evidence_key, audit_files.evidence_key),
             updated_at = excluded.updated_at
       `);
       for (const entry of entries) {
@@ -201,13 +214,16 @@ export class AuditSessionStore {
           sessionId,
           entry.file,
         );
+        const compactFile = compactAudioFileRecord(storedFile);
+        const evidenceKey = this.#storeEvidence(storedFile, now);
         insert.run(
           sessionId,
           storedFile.path,
           entry.ordinal,
           entry.fromCache ? 1 : 0,
-          JSON.stringify(storedFile),
-          JSON.stringify(compactAudioFileRecord(storedFile)),
+          JSON.stringify(compactFile),
+          JSON.stringify(compactFile),
+          evidenceKey,
           now,
         );
         this.#indexFingerprint(storedFile, now);
@@ -322,16 +338,22 @@ export class AuditSessionStore {
     filePath: string,
     record: AudioFileRecord,
   ): boolean {
+    const now = new Date().toISOString();
+    const storedRecord = this.#restoreSessionFileDetails(sessionId, record);
+    const compactRecord = compactAudioFileRecord(storedRecord);
+    const evidenceKey = this.#storeEvidence(storedRecord, now);
     const result = this.#database
       .prepare(`
         UPDATE audit_files
-        SET record_json = ?, summary_json = ?, updated_at = ?
+        SET record_json = ?, summary_json = ?,
+          evidence_key = COALESCE(?, evidence_key), updated_at = ?
         WHERE session_id = ? AND file_path = ?
       `)
       .run(
-        JSON.stringify(record),
-        JSON.stringify(compactAudioFileRecord(record)),
-        new Date().toISOString(),
+        JSON.stringify(compactRecord),
+        JSON.stringify(compactRecord),
+        evidenceKey,
+        now,
         sessionId,
         path.resolve(filePath),
       );
@@ -380,8 +402,11 @@ export class AuditSessionStore {
         `)
         .all(sessionId) as unknown as FileRow[];
       restoredFiles.push(
-        ...files.map(
-          (row) => JSON.parse(row.record_json) as AudioFileRecord,
+        ...files.map((row) =>
+          this.#restoreSessionFileDetails(
+            sessionId,
+            JSON.parse(row.record_json) as AudioFileRecord,
+          ),
         ),
       );
     }
@@ -406,7 +431,10 @@ export class AuditSessionStore {
       | FileRow
       | undefined;
     return row
-      ? (JSON.parse(row.record_json) as AudioFileRecord)
+      ? this.#restoreSessionFileDetails(
+          sessionId,
+          JSON.parse(row.record_json) as AudioFileRecord,
+        )
       : null;
   }
 
@@ -432,8 +460,11 @@ export class AuditSessionStore {
         LIMIT ? OFFSET ?
       `)
       .all(sessionId, safeLimit, safeOffset) as unknown as FileRow[];
-    return rows.map(
-      (row) => JSON.parse(row.record_json) as AudioFileRecord,
+    return rows.map((row) =>
+      this.#restoreSessionFileDetails(
+        sessionId,
+        JSON.parse(row.record_json) as AudioFileRecord,
+      ),
     );
   }
 
@@ -790,19 +821,53 @@ export class AuditSessionStore {
     if (record.detailLevel !== "summary") return record;
     const existing = this.#database
       .prepare(`
-        SELECT record_json
+        SELECT record_json, evidence_key
         FROM audit_files
         WHERE session_id = ? AND file_path = ?
       `)
       .get(sessionId, path.resolve(record.path)) as unknown as
       | FileRow
       | undefined;
+    const existingRecord = existing
+      ? (JSON.parse(existing.record_json) as AudioFileRecord)
+      : null;
+    if (existingRecord?.detailLevel !== "summary") {
+      return restoreAudioFileDetails(record, existingRecord);
+    }
+    const evidence = existing?.evidence_key
+      ? (this.#database
+          .prepare(`
+            SELECT record_json
+            FROM oracle_evidence
+            WHERE evidence_key = ?
+          `)
+          .get(existing.evidence_key) as unknown as FileRow | undefined)
+      : undefined;
     return restoreAudioFileDetails(
       record,
-      existing
-        ? (JSON.parse(existing.record_json) as AudioFileRecord)
+      evidence
+        ? (JSON.parse(evidence.record_json) as AudioFileRecord)
         : null,
     );
+  }
+
+  #storeEvidence(record: AudioFileRecord, now: string): string | null {
+    if (record.detailLevel === "summary") return null;
+    const identity =
+      record.oracle.technical?.fileSha256 ??
+      `${record.id}:${record.sizeBytes}:${record.oracle.measuredAt}`;
+    const evidenceKey = createHash("sha256")
+      .update(`${record.oracle.engineVersion}\0${identity}`)
+      .digest("hex");
+    this.#database
+      .prepare(`
+        INSERT INTO oracle_evidence (evidence_key, record_json, created_at)
+        VALUES (?, ?, ?)
+        ON CONFLICT(evidence_key) DO UPDATE SET
+          record_json = excluded.record_json
+      `)
+      .run(evidenceKey, JSON.stringify(record), now);
+    return evidenceKey;
   }
 
   #summary(row: SessionRow): AuditSessionSummary {

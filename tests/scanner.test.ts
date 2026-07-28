@@ -79,6 +79,30 @@ describe("scanSources", () => {
     ).rejects.toThrow(/canceled/i);
   });
 
+  it("cancels promptly while a cache or storage request is unresponsive", async () => {
+    const directory = await makeTemporaryDirectory();
+    const filePath = path.join(directory, "blocked-cache.wav");
+    await fs.writeFile(filePath, pcmWave());
+    const controller = new AbortController();
+    const startedAt = Date.now();
+    const scan = scanSources(
+      { kind: "files", label: "Blocked cache", paths: [filePath] },
+      undefined,
+      {
+        signal: controller.signal,
+        cache: {
+          get: () => new Promise<AudioFileRecord | null>(() => undefined),
+          set: async () => undefined,
+          flush: async () => undefined,
+        },
+      },
+    );
+    setTimeout(() => controller.abort(), 50);
+
+    await expect(scan).rejects.toThrow(/canceled/i);
+    expect(Date.now() - startedAt).toBeLessThan(500);
+  });
+
   it("records why album ReplayGain is or is not available", async () => {
     const directory = await makeTemporaryDirectory();
     const files = [

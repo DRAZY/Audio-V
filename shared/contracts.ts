@@ -649,6 +649,7 @@ export interface ScanProgressUpdate {
     | "discovered"
     | "processing"
     | "staging"
+    | "checkpointing"
     | "inventorying"
     | "analyzing"
     | "complete";
@@ -657,6 +658,16 @@ export interface ScanProgressUpdate {
   currentFile: string | null;
   file: AudioFileRecord | null;
   fromCache: boolean;
+  checkpoint?: {
+    state: "queued" | "writing" | "saved" | "stalled";
+    pendingFiles: number;
+    explanation: string;
+  };
+  activity?: {
+    state: "delayed";
+    elapsedSeconds: number;
+    explanation: string;
+  };
   sessionId?: string;
   resourceLimits?: AnalysisResourceLimits;
   resourcePolicyExplanation?: string | null;

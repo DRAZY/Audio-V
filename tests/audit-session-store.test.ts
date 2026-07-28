@@ -1,5 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { afterEach, describe, expect, it } from "vitest";
 import { AuditSessionStore } from "../electron/audit-session-store";
 import { scanSources } from "../electron/scanner";
@@ -29,7 +30,8 @@ describe("AuditSessionStore", () => {
       label: "Persistent audit",
       paths: [audioPath],
     };
-    const store = new AuditSessionStore(path.join(directory, "sessions.sqlite3"));
+    const databasePath = path.join(directory, "sessions.sqlite3");
+    const store = new AuditSessionStore(databasePath);
 
     try {
       const sessionId = store.create(source);
@@ -71,7 +73,8 @@ describe("AuditSessionStore", () => {
       label: "Review workflow",
       paths: [audioPath],
     });
-    const store = new AuditSessionStore(path.join(directory, "sessions.sqlite3"));
+    const databasePath = path.join(directory, "sessions.sqlite3");
+    const store = new AuditSessionStore(databasePath);
     try {
       const sessionId = store.create({
         kind: "files",
@@ -185,7 +188,8 @@ describe("AuditSessionStore", () => {
       label: "Detail payload",
       paths: [audioPath],
     });
-    const store = new AuditSessionStore(path.join(directory, "sessions.sqlite3"));
+    const databasePath = path.join(directory, "sessions.sqlite3");
+    const store = new AuditSessionStore(databasePath);
     try {
       const sessionId = store.create({
         kind: "files",
@@ -217,6 +221,25 @@ describe("AuditSessionStore", () => {
       expect(JSON.stringify(restoredSummary).length).toBeLessThan(
         JSON.stringify(restoredFull).length / 10,
       );
+      const database = new DatabaseSync(databasePath, { readOnly: true });
+      try {
+        const sizes = database
+          .prepare(`
+            SELECT
+              length(audit_files.record_json) AS session_bytes,
+              length(oracle_evidence.record_json) AS evidence_bytes
+            FROM audit_files
+            JOIN oracle_evidence USING (evidence_key)
+            WHERE audit_files.session_id = ?
+          `)
+          .get(sessionId) as unknown as {
+            session_bytes: number;
+            evidence_bytes: number;
+          };
+        expect(sizes.session_bytes).toBeLessThan(sizes.evidence_bytes / 10);
+      } finally {
+        database.close();
+      }
     } finally {
       store.close();
     }

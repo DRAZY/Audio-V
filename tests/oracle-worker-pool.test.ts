@@ -20,4 +20,21 @@ describe("OracleWorkerPool cancellation", () => {
     expect(performance.now() - startedAt).toBeLessThan(300);
     await pool.close();
   });
+
+  it("recycles a silent worker once and rejects instead of hanging forever", async () => {
+    const pool = new OracleWorkerPool(
+      path.join(process.cwd(), "tests/fixtures/blocking-oracle-worker.cjs"),
+      1,
+      128,
+      { ffmpegThreads: 1, nativeProcessMemoryMb: 256 },
+      100,
+    );
+    const startedAt = performance.now();
+
+    await expect(
+      pool.analyze("/tmp/permanently-stalled.wav"),
+    ).rejects.toThrow(/did not return within/i);
+    expect(performance.now() - startedAt).toBeLessThan(1_000);
+    await pool.close();
+  });
 });

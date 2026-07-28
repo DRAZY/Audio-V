@@ -9,6 +9,7 @@ import type {
   AuditResumeStrategy,
   OracleValidationStatus,
   ReportExportRequest,
+  ScanProgressUpdate,
 } from "../shared/contracts";
 import { AUDIO_EXTENSIONS } from "../shared/contracts";
 import { createTruePeakSafeCopy } from "./repair-engine";
@@ -136,10 +137,23 @@ class SessionPersistenceBuffer {
   }> = [];
   #timer: NodeJS.Timeout | null = null;
   #inFlight: Promise<void> = Promise.resolve();
+  #failure: Error | null = null;
+  readonly #onStatus?: (
+    state: "queued" | "writing" | "saved" | "stalled",
+    pendingFiles: number,
+  ) => void;
 
-  constructor(storage: AuditStorageClient, sessionId: string) {
+  constructor(
+    storage: AuditStorageClient,
+    sessionId: string,
+    onStatus?: (
+      state: "queued" | "writing" | "saved" | "stalled",
+      pendingFiles: number,
+    ) => void,
+  ) {
     this.#storage = storage;
     this.#sessionId = sessionId;
+    this.#onStatus = onStatus;
   }
 
   add(
@@ -147,14 +161,16 @@ class SessionPersistenceBuffer {
     ordinal: number,
     fromCache: boolean,
   ): void | Promise<void> {
+    if (this.#failure) return Promise.reject(this.#failure);
     this.#entries.push({ file, ordinal, fromCache });
+    this.#onStatus?.("queued", this.#entries.length);
     if (this.#entries.length >= 25) {
       return this.flush();
     }
     if (!this.#timer) {
       this.#timer = setTimeout(() => {
         this.#timer = null;
-        void this.flush();
+        void this.flush().catch(() => undefined);
       }, 250);
     }
   }
@@ -166,11 +182,36 @@ class SessionPersistenceBuffer {
     }
     const entries = this.#entries.splice(0);
     if (entries.length > 0) {
-      this.#inFlight = this.#inFlight.then(() =>
-        this.#storage.storeFiles(this.#sessionId, entries),
-      );
+      this.#onStatus?.("writing", entries.length);
+      this.#inFlight = this.#inFlight
+        .then(() => this.#storage.storeFiles(this.#sessionId, entries))
+        .then(() => {
+          this.#onStatus?.("saved", 0);
+        })
+        .catch((error: unknown) => {
+          this.#failure =
+            error instanceof Error
+              ? error
+              : new Error("Audit checkpoint persistence failed.");
+          this.#onStatus?.("stalled", entries.length);
+          throw this.#failure;
+        });
     }
     return this.#inFlight;
+  }
+
+  async flushWithin(timeoutMs: number): Promise<boolean> {
+    let timer: NodeJS.Timeout | null = null;
+    try {
+      return await Promise.race([
+        this.flush().then(() => true),
+        new Promise<false>((resolve) => {
+          timer = setTimeout(() => resolve(false), timeoutMs);
+        }),
+      ]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
   }
 }
 
@@ -698,7 +739,31 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
   };
   const sessionId = await auditSessions.create(persistedSource);
   activeScanSessionId = sessionId;
-  const persistence = new SessionPersistenceBuffer(auditSessions, sessionId);
+  let latestScanProgress: ScanProgressUpdate | null = null;
+  const persistence = new SessionPersistenceBuffer(
+    auditSessions,
+    sessionId,
+    (state, pendingFiles) => {
+      if (!latestScanProgress) return;
+      const explanations = {
+        queued: `${pendingFiles} completed result${pendingFiles === 1 ? " is" : "s are"} queued for the next durable checkpoint.`,
+        writing: `Writing ${pendingFiles} completed result${pendingFiles === 1 ? "" : "s"} to resumable audit history.`,
+        saved: "Completed results are checkpointed in resumable audit history.",
+        stalled:
+          "Audit history stopped responding. Audio-V is ending this scan safely instead of waiting indefinitely.",
+      } as const;
+      _event.sender.send("library:scan-progress", {
+        ...latestScanProgress,
+        phase: "checkpointing",
+        file: null,
+        checkpoint: {
+          state,
+          pendingFiles,
+          explanation: explanations[state],
+        },
+      } satisfies ScanProgressUpdate);
+    },
+  );
   let sessionWarnings: string[] = [];
   try {
     const emitProgress = (
@@ -712,6 +777,7 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
           }
         | undefined,
     ) => {
+      latestScanProgress = progress;
       if (progress.file) {
         const normalizedPath = path.resolve(progress.file.path);
         approvedAudioFiles.add(normalizedPath);
@@ -874,12 +940,18 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
       sessionId,
     };
   } catch (error) {
-    await persistence.flush().catch(() => undefined);
-    await auditSessions.finish(
-      sessionId,
-      controller.signal.aborted ? "canceled" : "failed",
-      sessionWarnings,
-    );
+    if (controller.signal.aborted) {
+      await persistence.flushWithin(2_000).catch(() => false);
+      await Promise.race([
+        auditSessions.finish(sessionId, "canceled", sessionWarnings),
+        new Promise<void>((resolve) => setTimeout(resolve, 2_000)),
+      ]).catch(() => undefined);
+    } else {
+      await persistence.flush().catch(() => undefined);
+      await auditSessions
+        .finish(sessionId, "failed", sessionWarnings)
+        .catch(() => undefined);
+    }
     throw error;
   } finally {
     await oracleCache.flush();

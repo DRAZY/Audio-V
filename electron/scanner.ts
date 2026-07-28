@@ -712,10 +712,13 @@ async function attachFingerprintRelationships(
     });
     const historical =
       includeHistoricalMatches && cache?.findFingerprintCandidates
-      ? await cache.findFingerprintCandidates(
-          file.path,
-          100,
-          technical.fingerprint.durationSeconds,
+      ? await abortable(
+          cache.findFingerprintCandidates(
+            file.path,
+            100,
+            technical.fingerprint.durationSeconds,
+          ),
+          signal,
         )
       : [];
     throwIfCanceled(signal);
@@ -979,7 +982,10 @@ export async function scanSources(
   const analyzeAtIndex = async (index: number): Promise<void> => {
     throwIfCanceled(options?.signal);
     const filePath = filePaths[index];
-    await options?.onFileStarted?.(filePath);
+    await abortable(
+      Promise.resolve(options?.onFileStarted?.(filePath)),
+      options?.signal,
+    );
     onProgress?.({
       phase: "processing",
       completed,
@@ -988,12 +994,33 @@ export async function scanSources(
       file: null,
       fromCache: false,
     });
-    const analyzed = await (async () => {
+    const delayedActivityTimer = setTimeout(() => {
+      onProgress?.({
+        phase: "processing",
+        completed,
+        total: filePaths.length,
+        currentFile: path.basename(filePath),
+        file: null,
+        fromCache: false,
+        activity: {
+          state: "delayed",
+          elapsedSeconds: 60,
+          explanation:
+            `${path.basename(filePath)} is taking longer than usual. The watchdog remains active and cancellation is available.`,
+        },
+      });
+    }, 60_000);
+    delayedActivityTimer.unref();
+    try {
+      const analyzed = await (async () => {
         const cached =
           inventoryOnly ||
           options?.bypassCachePaths?.has(path.resolve(filePath))
           ? null
-          : await options?.cache?.get(filePath);
+          : await abortable(
+              Promise.resolve(options?.cache?.get(filePath) ?? null),
+              options?.signal,
+            );
         if (
           cached &&
           cached.oracle.engineVersion === currentOracleEngineVersion &&
@@ -1154,7 +1181,10 @@ export async function scanSources(
                 file.path,
               );
           }
-          await options?.cache?.set(file);
+          await abortable(
+            Promise.resolve(options?.cache?.set(file)),
+            options?.signal,
+          );
           return {
             file: await attachExternalChecksumEvidence(
               file,
@@ -1167,9 +1197,12 @@ export async function scanSources(
         } finally {
           await staged.cleanup();
         }
-      })();
+        })();
       const { file, fromCache } = analyzed;
-      await options?.onFileStored?.(file, index, fromCache);
+      await abortable(
+        Promise.resolve(options?.onFileStored?.(file, index, fromCache)),
+        options?.signal,
+      );
       const resultFile = options?.compactResults
         ? compactAudioFileRecord(file)
         : file;
@@ -1183,6 +1216,9 @@ export async function scanSources(
         file: resultFile,
         fromCache,
       });
+    } finally {
+      clearTimeout(delayedActivityTimer);
+    }
   };
   const workers = Array.from(
     { length: Math.min(concurrency, Math.max(1, filePaths.length)) },
@@ -1214,8 +1250,14 @@ export async function scanSources(
         file === beforeAlbumGain[index]
           ? []
           : [
-              options?.cache?.set(file),
-              options?.onFileStored?.(file, index, false),
+              abortable(
+                Promise.resolve(options?.cache?.set(file)),
+                options?.signal,
+              ),
+              abortable(
+                Promise.resolve(options?.onFileStored?.(file, index, false)),
+                options?.signal,
+              ),
             ],
       ),
     );
@@ -1230,7 +1272,12 @@ export async function scanSources(
     files.flatMap((file, index) =>
       file === filesBeforeRelationships[index]
         ? []
-        : [options?.onFileStored?.(file, index, false)],
+        : [
+            abortable(
+              Promise.resolve(options?.onFileStored?.(file, index, false)),
+              options?.signal,
+            ),
+          ],
     ),
   );
 

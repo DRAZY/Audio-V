@@ -19,19 +19,38 @@ import type {
 interface PendingRequest {
   resolve: (value: unknown) => void;
   reject: (error: Error) => void;
+  timer: NodeJS.Timeout;
 }
 
 export class AuditStorageClient {
-  readonly #worker: Worker;
+  readonly #workerPath: string;
+  readonly #databasePath: string;
+  readonly #requestTimeoutMs: number;
   readonly #pending = new Map<string, PendingRequest>();
+  #worker: Worker;
+  #restarting: Promise<void> | null = null;
   #closed = false;
 
-  constructor(workerPath: string, databasePath: string) {
-    this.#worker = new Worker(workerPath, { workerData: { databasePath } });
-    this.#worker.on("message", (response: StorageWorkerResponse) => {
+  constructor(
+    workerPath: string,
+    databasePath: string,
+    requestTimeoutMs = 30_000,
+  ) {
+    this.#workerPath = workerPath;
+    this.#databasePath = databasePath;
+    this.#requestTimeoutMs = Math.max(100, Math.trunc(requestTimeoutMs));
+    this.#worker = this.#createWorker();
+  }
+
+  #createWorker(): Worker {
+    const worker = new Worker(this.#workerPath, {
+      workerData: { databasePath: this.#databasePath },
+    });
+    worker.on("message", (response: StorageWorkerResponse) => {
       const pending = this.#pending.get(response.id);
       if (!pending) return;
       this.#pending.delete(response.id);
+      clearTimeout(pending.timer);
       if (response.ok) pending.resolve(response.value);
       else {
         const error = new Error(response.message);
@@ -39,12 +58,22 @@ export class AuditStorageClient {
         pending.reject(error);
       }
     });
-    this.#worker.on("error", (error) => this.#failAll(error));
-    this.#worker.on("exit", (code) => {
-      if (!this.#closed && code !== 0) {
-        this.#failAll(new Error(`Storage worker exited with code ${code}.`));
+    worker.on("error", (error) => {
+      void this.#restartWorker(worker, error);
+    });
+    worker.on("exit", (code) => {
+      if (!this.#closed && worker === this.#worker) {
+        void this.#restartWorker(
+          worker,
+          new Error(
+            code === 0
+              ? "Storage worker exited before returning its pending operation."
+              : `Storage worker exited with code ${code}.`,
+          ),
+        );
       }
     });
+    return worker;
   }
 
   create(source: AudioSourceSelection): Promise<string> {
@@ -178,17 +207,84 @@ export class AuditStorageClient {
     this.#failAll(new Error("The storage worker is closed."));
   }
 
-  #request<T>(request: StorageWorkerCommand): Promise<T> {
+  async #request<T>(
+    request: StorageWorkerCommand,
+    timeoutMs =
+      request.operation === "export-session"
+        ? Math.max(this.#requestTimeoutMs, 10 * 60_000)
+        : [
+              "get-session",
+              "import-legacy",
+              "rebuild-fingerprint-library",
+              "prune-fingerprint-library",
+              "clear-fingerprint-library",
+            ].includes(request.operation)
+          ? Math.max(this.#requestTimeoutMs, 5 * 60_000)
+        : this.#requestTimeoutMs,
+  ): Promise<T> {
     if (this.#closed) return Promise.reject(new Error("The storage worker is closed."));
+    await this.#restarting;
+    if (this.#closed) throw new Error("The storage worker is closed.");
     const id = randomUUID();
     return new Promise<T>((resolve, reject) => {
-      this.#pending.set(id, { resolve: (value) => resolve(value as T), reject });
-      this.#worker.postMessage({ ...request, id });
+      const worker = this.#worker;
+      const timer = setTimeout(() => {
+        const pending = this.#pending.get(id);
+        if (!pending) return;
+        this.#pending.delete(id);
+        pending.reject(
+          new Error(
+            `Audit storage did not complete ${request.operation} within ${Math.ceil(timeoutMs / 1_000)} seconds.`,
+          ),
+        );
+        void this.#restartWorker(
+          worker,
+          new Error(`Audit storage stalled during ${request.operation}.`),
+        );
+      }, timeoutMs);
+      timer.unref();
+      this.#pending.set(id, {
+        resolve: (value) => resolve(value as T),
+        reject,
+        timer,
+      });
+      try {
+        worker.postMessage({ ...request, id });
+      } catch (error) {
+        clearTimeout(timer);
+        this.#pending.delete(id);
+        reject(error instanceof Error ? error : new Error("Storage request failed."));
+        void this.#restartWorker(
+          worker,
+          error instanceof Error ? error : new Error("Storage request failed."),
+        );
+      }
     });
   }
 
   #failAll(error: Error): void {
-    for (const pending of this.#pending.values()) pending.reject(error);
+    for (const pending of this.#pending.values()) {
+      clearTimeout(pending.timer);
+      pending.reject(error);
+    }
     this.#pending.clear();
+  }
+
+  #restartWorker(worker: Worker, error: Error): Promise<void> {
+    if (this.#closed || worker !== this.#worker) return Promise.resolve();
+    if (this.#restarting) return this.#restarting;
+    this.#failAll(error);
+    this.#restarting = worker
+      .terminate()
+      .catch(() => undefined)
+      .then(() => {
+        if (!this.#closed && worker === this.#worker) {
+          this.#worker = this.#createWorker();
+        }
+      })
+      .finally(() => {
+        this.#restarting = null;
+      });
+    return this.#restarting;
   }
 }
