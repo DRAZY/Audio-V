@@ -1354,6 +1354,18 @@ button:focus-visible {
   text-align: right;
 }
 
+.hash-value[title] {
+  text-decoration: underline dotted color-mix(in srgb, var(--muted), transparent 28%);
+  text-underline-offset: 3px;
+  cursor: help;
+}
+
+.hash-value[title]:focus-visible {
+  border-radius: 3px;
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
 .oracle-card {
   margin-top: 12px;
   padding: 10px;

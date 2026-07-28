@@ -2841,7 +2841,17 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
               <div><dt>Packet bitrate deviation</dt><dd>{{ selected.oracle.technical?.packetBitrateStdDev === null || selected.oracle.technical?.packetBitrateStdDev === undefined ? "Not available" : formatBitrate(selected.oracle.technical.packetBitrateStdDev) }}</dd></div>
               <div><dt>Packet duration coverage</dt><dd>{{ selected.oracle.technical?.packetDurationCoverage === null || selected.oracle.technical?.packetDurationCoverage === undefined ? "Not available" : `${selected.oracle.technical.packetDurationCoverage.toFixed(2)}%` }}</dd></div>
               <div><dt>Decoder</dt><dd>{{ selected.oracle.measurements?.decoder ?? "Decode failed" }}</dd></div>
-              <div><dt>SHA-256</dt><dd class="hash-value">{{ selected.oracle.technical?.fileSha256.slice(0, 16) ?? "—" }}{{ selected.oracle.technical ? "…" : "" }}</dd></div>
+              <div>
+                <dt>SHA-256</dt>
+                <dd
+                  class="hash-value"
+                  :title="selected.oracle.technical?.fileSha256"
+                  :aria-label="selected.oracle.technical?.fileSha256 ? `Full SHA-256 ${selected.oracle.technical.fileSha256}` : 'SHA-256 unavailable'"
+                  :tabindex="selected.oracle.technical?.fileSha256 ? 0 : undefined"
+                >
+                  {{ selected.oracle.technical?.fileSha256.slice(0, 16) ?? "—" }}{{ selected.oracle.technical?.fileSha256 ? "…" : "" }}
+                </dd>
+              </div>
               <div v-if="selected.oracle.technical?.flacMd5"><dt>FLAC audio MD5</dt><dd>{{ selected.oracle.technical.flacMd5.status }}</dd></div>
               <div><dt>External checksums</dt><dd>{{ selected.oracle.technical?.externalChecksums?.length ? `${selected.oracle.technical.externalChecksums.filter((item) => item.status === "verified").length}/${selected.oracle.technical.externalChecksums.length} verified` : "No manifest entry" }}</dd></div>
               <div><dt>Stereo assessment</dt><dd>{{ selected.oracle.measurements?.stereoAssessment.replaceAll("-", " ") ?? "—" }}</dd></div>
@@ -2998,7 +3008,17 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
           </div>
           <article v-for="entry in filteredFingerprintLibrary" :key="entry.filePath">
             <div><strong>{{ entry.fileName }}</strong><small :title="entry.filePath">{{ entry.filePath }}</small></div>
-            <div><code>{{ entry.fingerprintSha256?.slice(0, 20) ?? "No hash" }}{{ entry.fingerprintSha256 ? "…" : "" }}</code><small>{{ entry.durationSeconds === null ? "Duration unavailable" : `${entry.durationSeconds.toFixed(1)} seconds` }} · {{ entry.exactDuplicateCount }} exact peer{{ entry.exactDuplicateCount === 1 ? "" : "s" }}</small></div>
+            <div>
+              <code
+                class="hash-value"
+                :title="entry.fingerprintSha256 ?? undefined"
+                :aria-label="entry.fingerprintSha256 ? `Full fingerprint SHA-256 ${entry.fingerprintSha256}` : 'Fingerprint hash unavailable'"
+                :tabindex="entry.fingerprintSha256 ? 0 : undefined"
+              >
+                {{ entry.fingerprintSha256?.slice(0, 20) ?? "No hash" }}{{ entry.fingerprintSha256 ? "…" : "" }}
+              </code>
+              <small>{{ entry.durationSeconds === null ? "Duration unavailable" : `${entry.durationSeconds.toFixed(1)} seconds` }} · {{ entry.exactDuplicateCount }} exact peer{{ entry.exactDuplicateCount === 1 ? "" : "s" }}</small>
+            </div>
             <time :datetime="entry.lastSeenAt">{{ new Date(entry.lastSeenAt).toLocaleString() }}</time>
             <b :class="entry.fileExists ? 'source-present' : 'source-missing'">{{ entry.fileExists ? "Present" : "Missing" }}</b>
           </article>
@@ -3331,7 +3351,17 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
                 <dl>
                   <div><dt>Analyzed</dt><dd>{{ reportSelected.oracle.measuredAt ? new Date(reportSelected.oracle.measuredAt).toLocaleString() : "Not measured" }}</dd></div>
                   <div><dt>Engine</dt><dd>{{ reportSelected.oracle.engineVersion }}</dd></div>
-                  <div><dt>SHA-256</dt><dd class="hash-value">{{ reportSelected.oracle.technical?.fileSha256 ?? "Unavailable" }}</dd></div>
+                  <div>
+                    <dt>SHA-256</dt>
+                    <dd
+                      class="hash-value"
+                      :title="reportSelected.oracle.technical?.fileSha256"
+                      :aria-label="reportSelected.oracle.technical?.fileSha256 ? `Full SHA-256 ${reportSelected.oracle.technical.fileSha256}` : 'SHA-256 unavailable'"
+                      :tabindex="reportSelected.oracle.technical?.fileSha256 ? 0 : undefined"
+                    >
+                      {{ reportSelected.oracle.technical?.fileSha256 ?? "Unavailable" }}
+                    </dd>
+                  </div>
                   <div><dt>Format</dt><dd>{{ audioFormatLabel(reportSelected) }}</dd></div>
                 </dl>
               </section>
