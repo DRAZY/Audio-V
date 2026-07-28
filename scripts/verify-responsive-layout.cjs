@@ -9,8 +9,10 @@ app.setPath(
 );
 
 const scenarios = [
-  { name: "default", width: 1540, height: 980, stacked: false },
+  { name: "wide", width: 1800, height: 980, stacked: false },
+  { name: "default", width: 1540, height: 980, stacked: true },
   { name: "minimum", width: 1120, height: 720, stacked: true },
+  { name: "snapped", width: 900, height: 720, stacked: true },
 ];
 
 function overlaps(first, second) {
@@ -70,6 +72,7 @@ app.whenReady().then(async () => {
           badge: rectangle(".product-lockup span"),
           tagline: rectangle(".product-lockup > small"),
           commands: rectangle(".source-command"),
+          documentWidth: document.documentElement.scrollWidth,
         };
       })()
     `);
@@ -87,11 +90,19 @@ app.whenReady().then(async () => {
     const withinWorkspace =
       measurement.lockup.left >= measurement.workspace.left &&
       measurement.commands.right <= measurement.workspace.right + 1;
-    const passed = singleLine && placementPassed && withinWorkspace;
+    const noPageOverflow =
+      measurement.documentWidth <= measurement.viewport.width;
+    const passed =
+      singleLine && placementPassed && withinWorkspace && noPageOverflow;
     results.push({
       ...scenario,
       measurement,
-      checks: { singleLine, placementPassed, withinWorkspace },
+      checks: {
+        singleLine,
+        placementPassed,
+        withinWorkspace,
+        noPageOverflow,
+      },
       passed,
     });
     const screenshot = await window.webContents.capturePage();
@@ -101,7 +112,7 @@ app.whenReady().then(async () => {
     );
   }
 
-  window.setContentSize(1120, 720);
+  window.setContentSize(900, 720);
   await new Promise((resolve) => setTimeout(resolve, 80));
   const warningLayout = await window.webContents.executeJavaScript(`
     (() => {
@@ -169,11 +180,13 @@ app.whenReady().then(async () => {
         tableHeadCells: [...host.querySelectorAll(".table-head > span")].map(
           (element) => {
             const value = element.getBoundingClientRect();
+            const visible = getComputedStyle(element).display !== "none";
             return {
               left: value.left,
               right: value.right,
               scrollWidth: element.scrollWidth,
               clientWidth: element.clientWidth,
+              visible,
             };
           },
         ),
@@ -190,7 +203,10 @@ app.whenReady().then(async () => {
     warningLayout.tableBody.bottom <= warningLayout.results.bottom + 1;
   const assessmentSeparated =
     warningLayout.results.bottom <= warningLayout.assessment.top + 1;
-  const tableColumnsSeparated = warningLayout.tableHeadCells.every(
+  const visibleTableHeadCells = warningLayout.tableHeadCells.filter(
+    (cell) => cell.visible,
+  );
+  const tableColumnsSeparated = visibleTableHeadCells.every(
     (cell, index, cells) =>
       cell.scrollWidth <= cell.clientWidth &&
       (index === 0 || cell.left - cells[index - 1].right >= 8),
@@ -218,6 +234,125 @@ app.whenReady().then(async () => {
   );
   await window.webContents.executeJavaScript(
     `document.querySelector(".qa-active-warning")?.remove()`,
+  );
+
+  const snappedAuditLayout = await window.webContents.executeJavaScript(`
+    (() => {
+      const host = document.createElement("div");
+      host.className = "qa-snapped-audit";
+      host.style.position = "fixed";
+      host.style.inset = "18px";
+      host.style.zIndex = "10000";
+      host.style.display = "grid";
+      host.style.gridTemplateRows = "122px 1fr";
+      host.style.gap = "12px";
+      host.style.background = "var(--background)";
+      host.innerHTML = \`
+        <section class="overview">
+          <div class="verdict-ring"><div><strong>21</strong><span>Files</span></div></div>
+          <div class="distribution">
+            <span class="eyebrow">Verdict distribution</span>
+            <div class="legend">
+              <span><i class="clear"></i>Clear <b>15</b></span>
+              <span><i class="review"></i>Review <b>6</b></span>
+              <span><i class="failed"></i>Failed <b>0</b></span>
+              <span><i class="pending"></i>Not analyzed <b>0</b></span>
+            </div>
+          </div>
+          <div class="selected-summary">
+            <span class="eyebrow">Selected file</span>
+            <h1>01 - Bass Intro_There's Something Goin' On_Love (Live at Blue Note NYC).flac</h1>
+            <div class="format-chips"><b>FLAC</b><span>96 kHz</span><span>24-bit</span><span>2 ch</span></div>
+            <p>168.8 MB · 7:51</p>
+            <small>/Volumes/Network Library/The Roots/A Very Long Album Folder/01 - Bass Intro.flac</small>
+          </div>
+        </section>
+        <section class="analysis-card">
+          <div class="analysis-tabs"><button class="active">Loudness</button></div>
+          <div class="analysis-content">
+            <div class="visualization">
+              <div class="loudness-view measured">
+                <article><span>Sample peak</span><strong>−0.00 dBFS</strong><p>Maximum decoded PCM sample.</p></article>
+                <article><span>Overall RMS</span><strong>−10.81 dBFS</strong><p>Ungated RMS across all channels.</p></article>
+                <article><span>Integrated loudness</span><strong>−9.1 LUFS</strong><p>EBU R128 programme loudness.</p></article>
+              </div>
+            </div>
+            <aside class="metrics-panel">
+              <span class="eyebrow">Declared profile</span>
+              <p>Container and codec claims read from the selected file.</p>
+              <div class="inspector-actions"><button>Re-run analysis</button></div>
+              <dl>
+                <div><dt>Codec</dt><dd>FLAC</dd></div>
+                <div><dt>Container</dt><dd>FLAC</dd></div>
+                <div><dt>Sample rate</dt><dd>96 kHz</dd></div>
+                <div><dt>Bit depth</dt><dd>24-bit</dd></div>
+              </dl>
+            </aside>
+          </div>
+        </section>
+      \`;
+      document.body.append(host);
+      const rect = (selector) => {
+        const element = host.querySelector(selector);
+        const value = element.getBoundingClientRect();
+        return {
+          left: value.left,
+          right: value.right,
+          top: value.top,
+          bottom: value.bottom,
+          clientWidth: element.clientWidth,
+          scrollWidth: element.scrollWidth,
+        };
+      };
+      return {
+        host: {
+          left: host.getBoundingClientRect().left,
+          right: host.getBoundingClientRect().right,
+        },
+        overview: rect(".overview"),
+        selected: rect(".selected-summary"),
+        selectedTitle: rect(".selected-summary h1"),
+        selectedPath: rect(".selected-summary > small"),
+        analysis: rect(".analysis-card"),
+        analysisContent: rect(".analysis-content"),
+        visualization: rect(".visualization"),
+        metrics: rect(".metrics-panel"),
+        documentWidth: document.documentElement.scrollWidth,
+        viewportWidth: innerWidth,
+      };
+    })()
+  `);
+  const snappedOverviewContained =
+    snappedAuditLayout.overview.right <= snappedAuditLayout.host.right + 1 &&
+    snappedAuditLayout.selected.right <= snappedAuditLayout.overview.right + 1 &&
+    snappedAuditLayout.selectedTitle.right <= snappedAuditLayout.selected.right + 1 &&
+    snappedAuditLayout.selectedPath.right <= snappedAuditLayout.selected.right + 1;
+  const snappedInspectorContained =
+    snappedAuditLayout.analysisContent.right <= snappedAuditLayout.analysis.right + 1 &&
+    snappedAuditLayout.visualization.right <= snappedAuditLayout.metrics.left + 1 &&
+    snappedAuditLayout.metrics.right <= snappedAuditLayout.analysis.right + 1;
+  const snappedNoPageOverflow =
+    snappedAuditLayout.documentWidth <= snappedAuditLayout.viewportWidth;
+  results.push({
+    name: "snapped-audit-content",
+    measurement: snappedAuditLayout,
+    checks: {
+      snappedOverviewContained,
+      snappedInspectorContained,
+      snappedNoPageOverflow,
+    },
+    passed:
+      snappedOverviewContained &&
+      snappedInspectorContained &&
+      snappedNoPageOverflow,
+  });
+  const snappedScreenshot = await window.webContents.capturePage();
+  await writeFile(
+    path.join(process.cwd(), "build", "layout-snapped-audit.png"),
+    snappedScreenshot.toPNG(),
+  );
+  await window.webContents.executeJavaScript(
+    `document.querySelector(".qa-snapped-audit")?.remove()`,
   );
 
   window.setContentSize(scenarios[0].width, scenarios[0].height);

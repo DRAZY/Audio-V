@@ -232,7 +232,7 @@ function createWindow(): void {
   const window = new BrowserWindow({
     width: 1540,
     height: 980,
-    minWidth: 1120,
+    minWidth: 900,
     minHeight: 720,
     backgroundColor: "#090a0e",
     title: "Audio-V",

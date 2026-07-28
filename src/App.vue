@@ -2165,7 +2165,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
             </select>
           </label>
           <button
-            class="secondary-action"
+            class="secondary-action files-action"
             :disabled="isDiscovering"
             @click="chooseSource('files')"
           >
@@ -2173,7 +2173,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
           </button>
           <button
             v-if="isDiscovering"
-            class="secondary-action"
+            class="secondary-action pause-action"
             :disabled="isScanCancelling"
             @click="toggleScanPause"
           >

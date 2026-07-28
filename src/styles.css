@@ -32,7 +32,7 @@ body,
 }
 
 body {
-  min-width: 1080px;
+  min-width: 0;
   min-height: 700px;
   background: var(--background);
   color: var(--text);
@@ -161,6 +161,8 @@ button:focus-visible {
 }
 
 .topbar {
+  min-width: 0;
+  max-width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -204,6 +206,7 @@ button:focus-visible {
 
 .source-command {
   min-width: 820px;
+  max-width: 100%;
   height: 42px;
   display: flex;
   gap: 8px;
@@ -337,6 +340,7 @@ button:focus-visible {
 .overview,
 .results-card,
 .analysis-card {
+  max-width: 100%;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -840,6 +844,7 @@ button:focus-visible {
 }
 
 .analysis-content {
+  max-width: 100%;
   min-height: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 280px;
@@ -3035,7 +3040,7 @@ button:focus-visible {
  * share one row. The command strip moves below the intact lockup instead of
  * flex-shrinking Audio-V and Oracle Engine into wrapped fragments.
  */
-@media (max-width: 1450px) {
+@media (max-width: 1750px) {
   .workspace {
     grid-template-rows: 92px 132px minmax(180px, 0.8fr) minmax(250px, 1.2fr) 30px;
   }
@@ -3058,10 +3063,167 @@ button:focus-visible {
   }
 }
 
-@media (max-width: 1450px) and (max-height: 790px) {
+@media (max-width: 1750px) and (max-height: 790px) {
   .workspace {
     grid-template-rows: 92px 112px minmax(158px, 0.8fr) minmax(210px, 1.2fr) 28px;
     gap: 8px;
+  }
+}
+
+/*
+ * Snapped-window and display-scaling layout. The command strip becomes two
+ * predictable rows, and lower-priority audit columns are progressively hidden
+ * so File name and Verdict always remain inside the visible card.
+ */
+@media (max-width: 1050px) {
+  .workspace {
+    grid-template-rows: 134px 122px minmax(158px, 0.8fr) minmax(210px, 1.2fr) 28px;
+    padding-inline: 12px;
+  }
+
+  .topbar {
+    grid-template-rows: 30px 88px;
+  }
+
+  .product-lockup > small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .source-command {
+    height: 88px;
+    display: grid;
+    grid-template-columns: 94px minmax(0, 1fr) 156px;
+    grid-template-rows: repeat(2, 42px);
+    gap: 4px 8px;
+  }
+
+  .history-action { grid-column: 1; grid-row: 1; }
+  .source-field { grid-column: 2; grid-row: 1; }
+  .scan-mode { grid-column: 3; grid-row: 1; }
+  .files-action { grid-column: 1; grid-row: 2; }
+  .pause-action { grid-column: 2; grid-row: 2; }
+  .primary-action { grid-column: 3; grid-row: 2; }
+
+  .overview {
+    grid-template-columns: 96px minmax(220px, 0.75fr) minmax(0, 1fr);
+  }
+
+  .verdict-ring {
+    width: 68px;
+    height: 68px;
+    margin-left: 13px;
+  }
+
+  .distribution,
+  .selected-summary,
+  .empty-summary {
+    padding-inline: 12px;
+  }
+
+  .scan-state {
+    max-width: 28%;
+  }
+
+  .table-grid {
+    grid-template-columns:
+      minmax(190px, 1.8fr)
+      minmax(60px, 0.55fr)
+      minmax(82px, 0.75fr)
+      minmax(70px, 0.65fr)
+      minmax(64px, 0.58fr)
+      minmax(58px, 0.52fr)
+      minmax(82px, 0.72fr);
+    column-gap: 9px;
+  }
+
+  .table-grid > :nth-child(6) {
+    display: none;
+  }
+
+  .analysis-content {
+    grid-template-columns: minmax(0, 1fr) minmax(210px, 240px);
+  }
+
+  .metrics-panel {
+    padding-inline: 11px;
+  }
+
+  .metrics-panel dl > div {
+    grid-template-columns: minmax(72px, 0.9fr) minmax(0, 1.1fr);
+    gap: 8px;
+  }
+}
+
+@media (max-width: 800px) {
+  .application {
+    grid-template-columns: 62px minmax(0, 1fr);
+  }
+
+  .side-rail {
+    padding-inline: 5px;
+  }
+
+  .workspace {
+    padding-inline: 10px;
+  }
+
+  .source-command {
+    grid-template-columns: 82px minmax(0, 1fr) 136px;
+    column-gap: 6px;
+  }
+
+  .primary-action,
+  .secondary-action {
+    min-width: 0;
+    padding-inline: 8px;
+  }
+
+  .scan-mode {
+    min-width: 0;
+  }
+
+  .overview {
+    grid-template-columns: 84px minmax(190px, 0.8fr) minmax(0, 1fr);
+  }
+
+  .legend {
+    gap-inline: 10px;
+  }
+
+  .filters .eyebrow,
+  .scan-state {
+    display: none;
+  }
+
+  .table-grid {
+    grid-template-columns:
+      minmax(170px, 1fr)
+      minmax(58px, 0.45fr)
+      minmax(66px, 0.5fr)
+      minmax(58px, 0.45fr)
+      minmax(78px, 0.6fr);
+    column-gap: 8px;
+  }
+
+  .table-grid > :nth-child(3),
+  .table-grid > :nth-child(6),
+  .table-grid > :nth-child(7) {
+    display: none;
+  }
+
+  .analysis-content {
+    grid-template-columns: minmax(0, 1fr) minmax(190px, 220px);
+  }
+
+  .loudness-view.measured {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .loudness-view.measured > article,
+  .loudness-view.measured > article.stereo-diagnostic,
+  .loudness-view.measured > article.clipping-diagnostics {
+    grid-column: 1;
   }
 }
 

@@ -6,7 +6,7 @@
 
   <p>
     <img alt="Locally verified builds" src="https://img.shields.io/badge/builds-locally%20verified-51e19b?style=for-the-badge">
-    <img alt="Release candidate pending" src="https://img.shields.io/badge/release%20candidate-pending-8b5cf6?style=for-the-badge">
+    <a href="https://github.com/DRAZY/Audio-V/releases/tag/v0.4.13"><img alt="Latest development release 0.4.13" src="https://img.shields.io/badge/latest-0.4.13-8b5cf6?style=for-the-badge"></a>
     <a href="LICENSE"><img alt="AGPL 3.0 only" src="https://img.shields.io/badge/license-AGPL--3.0--only-8b5cf6?style=for-the-badge"></a>
     <img alt="macOS and Windows" src="https://img.shields.io/badge/platforms-macOS%20%7C%20Windows-252532?style=for-the-badge">
   </p>
@@ -30,22 +30,20 @@ Audio-V is a local, cross-platform workstation for assessing audio-file integrit
 Audio-V is deliberately not a music player, tag editor, or mastering suite. It is an evidence workstation: technical properties, hashes, checksums, loudness, true peak, clipping, continuity, channel behavior, spectrograms, provenance indicators, acoustic identity, comparisons, remediation guidance, and exportable reports are brought together in one auditable workflow.
 
 > [!IMPORTANT]
-> Audio-V is currently a private development preview without a declared release candidate. Local builds have no Apple Developer ID/notarization or Windows Authenticode; macOS app bundles are ad-hoc signed for bundle integrity. A Clear verdict means the file passed Audio-V's current disclosed checks; it does not prove provenance or guarantee that audio has never been transformed.
+> Audio-V is currently a development preview. Release builds have no Apple Developer ID/notarization or Windows Authenticode; macOS app bundles are ad-hoc signed for bundle integrity. A Clear verdict means the file passed Audio-V's current disclosed checks; it does not prove provenance or guarantee that audio has never been transformed.
 
 ## Releases
 
-Audio-V is deliberately withholding public binaries and version tags until the first reliable release candidate passes native acceptance testing. Development commits and locally verified packages continue without manufacturing a public release for every iteration.
+The latest development release is **[Audio-V 0.4.13](https://github.com/DRAZY/Audio-V/releases/tag/v0.4.13)**. It contains the complete locally built asset set:
 
-When that candidate is approved, the repository will identify it by its exact version—not only a generic Releases link—and expose this complete asset set directly:
-
-| Platform | Versioned release asset | Intended system |
+| Platform | Download | Intended system |
 |---|---|---|
-| macOS | `Audio-V-<version>-mac-arm64.dmg` | Native Apple Silicon |
-| macOS | `Audio-V-<version>-mac-universal.dmg` | Apple Silicon and Intel |
-| Windows | `Audio-V-<version>-win-x64.exe` | Guided desktop installation |
-| Windows | `Audio-V-Portable-<version>-x64.exe` | Run without installation |
+| macOS | [Apple Silicon DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.13/Audio-V-0.4.13-mac-arm64.dmg) | Native Apple Silicon |
+| macOS | [Universal DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.13/Audio-V-0.4.13-mac-universal.dmg) | Apple Silicon and Intel |
+| Windows | [Windows installer](https://github.com/DRAZY/Audio-V/releases/download/v0.4.13/Audio-V-0.4.13-win-x64.exe) | Guided desktop installation |
+| Windows | [Portable executable](https://github.com/DRAZY/Audio-V/releases/download/v0.4.13/Audio-V-Portable-0.4.13-x64.exe) | Run without installation |
 
-Every release must also expose its block maps, `SHA256SUMS.txt`, and `UNSIGNED_RELEASE_MANIFEST.json` on the same version-named GitHub Release. Read the [release workflow](docs/RELEASING.md) and [unsigned installation guide](docs/UNSIGNED_INSTALLATION.md) before opening a future candidate build.
+The same version-named GitHub Release exposes block maps, [`SHA256SUMS.txt`](https://github.com/DRAZY/Audio-V/releases/download/v0.4.13/SHA256SUMS.txt), and [`UNSIGNED_RELEASE_MANIFEST.json`](https://github.com/DRAZY/Audio-V/releases/download/v0.4.13/UNSIGNED_RELEASE_MANIFEST.json). Read the [release workflow](docs/RELEASING.md) and [unsigned installation guide](docs/UNSIGNED_INSTALLATION.md) before opening an unsigned build.
 
 ## Meet the Oracle Engine
 
