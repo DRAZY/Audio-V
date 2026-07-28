@@ -1,9 +1,17 @@
 const { contextBridge } = require("electron");
 
-const serializedPayload = process.env.AUDIO_V_QA_PAYLOAD;
+const serializedPayload =
+  process.env.AUDIO_V_QA_PAYLOAD ??
+  (process.env.AUDIO_V_QA_PAYLOAD_PATH
+    ? require("node:fs").readFileSync(
+        process.env.AUDIO_V_QA_PAYLOAD_PATH,
+        "utf8",
+      )
+    : null);
 if (!serializedPayload) throw new Error("AUDIO_V_QA_PAYLOAD is required");
 
-const { source, result, comparison } = JSON.parse(serializedPayload);
+const { source, result, comparison, spectrograms = {} } =
+  JSON.parse(serializedPayload);
 
 contextBridge.exposeInMainWorld("audioV", {
   selectFiles: async () => source,
@@ -16,7 +24,8 @@ contextBridge.exposeInMainWorld("audioV", {
   pauseScan: async () => false,
   resumeScan: async () => false,
   cancelScan: async () => false,
-  inspectSpectrogram: async () => null,
+  inspectSpectrogram: async (_filePath, fftSize, channelMode) =>
+    spectrograms[`${fftSize}:${channelMode}`] ?? null,
   exportSpectrogram: async () => ({ canceled: true, filePath: null }),
   exportSpectrogramBatch: async () => ({
     canceled: true,

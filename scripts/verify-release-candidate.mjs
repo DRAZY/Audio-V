@@ -29,6 +29,23 @@ await fileCheck("Release-candidate checklist", "docs/RELEASE_CANDIDATE_CHECKLIST
 await fileCheck("Accessibility result", "build/accessibility-latest.json", (value) =>
   JSON.parse(value).passed === true,
 );
+await fileCheck(
+  "Spectrogram channel rendering",
+  "build/spectrogram-channel-validation-latest.json",
+  (value) => {
+    const report = JSON.parse(value);
+    return (
+      report.passed === true &&
+      Array.isArray(report.results) &&
+      report.results.length === 3 &&
+      report.results.every(
+        (result) =>
+          result.paintedPixels === result.width * result.height &&
+          result.maximumChannel > 30,
+      )
+    );
+  },
+);
 await fileCheck("Fidelity corpus result", "build/fidelity-validation-latest.json", (value) =>
   JSON.parse(value).passed === true,
 );

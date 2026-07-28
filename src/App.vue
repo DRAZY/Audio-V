@@ -818,6 +818,11 @@ watch(
   () => void renderSpectrogram(),
 );
 watch(
+  displaySpectrum,
+  () => void renderSpectrogram(),
+  { flush: "post" },
+);
+watch(
   () => [
     selected.value?.id,
     selected.value?.oracle.measuredAt,
@@ -2583,7 +2588,14 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
                       </select>
                     </label>
                     <label>Channels
-                      <select v-model="spectrogramChannelMode">
+                      <select
+                        v-model="spectrogramChannelMode"
+                        :title="
+                          spectrogramChannelMode === 'left-right difference'
+                            ? 'L−R isolates stereo difference energy. A quieter or darker result is expected when the channels share similar content.'
+                            : 'Left and Right use the same absolute dBFS color scale so their levels remain directly comparable.'
+                        "
+                      >
                         <option value="per-channel power average">Combined power</option>
                         <option value="left channel">Left</option>
                         <option value="right channel" :disabled="(selected.channels ?? 1) < 2">Right</option>

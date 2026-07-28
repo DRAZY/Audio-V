@@ -4,7 +4,7 @@ A release candidate is evidence-backed, not simply a successful packaging comman
 
 ## Current readiness snapshot
 
-As of source version 0.4.20 and commit `81b7e32`:
+As of source version 0.4.21:
 
 | Area | Current evidence | RC meaning |
 |---|---|---|
@@ -13,10 +13,10 @@ As of source version 0.4.20 and commit `81b7e32`:
 | Scale storage | 10,000-record persistence completed in 8.19 seconds; restore completed in 448 ms; cumulative 11,100-record database was 435 MB | Synthetic dense-evidence storage budget is green |
 | macOS packages | Apple Silicon and Universal DMGs passed structure/signature checks; native Apple Silicon packaged reference audit passed | Current development Mac evidence is green |
 | Windows packages | Installer and portable package structure and bundled resources passed macOS-side inspection | Native Windows launch and workflow acceptance remain open |
-| Release assets | Four application packages, checksums, block maps, and unsigned policy manifest published for v0.4.20 | Preview distribution is reproducible |
+| Release assets | Four application packages, checksums, block maps, and unsigned policy manifest prepared for v0.4.21 | Preview distribution is reproducible after publication |
 | Real-world origin calibration | Infrastructure is valid; licensed independent masters are absent | No probability-calibrated origin claim is allowed |
 
-The automated readiness command reports 14/14 repository evidence categories,
+The automated readiness command reports 15/15 repository evidence categories,
 but Audio-V is **not yet promoted as a release candidate**. Native Windows
 runtime/parity, Intel launch, clean-environment installation and upgrade,
 assistive-technology workflows, display scaling, and real-library stress
@@ -31,6 +31,7 @@ testing remain manual acceptance work.
 - [ ] Fidelity golden-corpus validation passes.
 - [ ] Real-world corpus infrastructure and packaged validation disclosure verify.
 - [ ] Accessibility audit has no serious or critical violations.
+- [ ] Left, right, and L−R channel selections each repaint a fully populated spectrogram canvas without requiring a Floor, zoom, or color control change.
 - [ ] Scale budgets pass for 100, 1,000, and 10,000 records.
 - [ ] Packaged CLI folder audit emits the v11 five-lane JSON evidence model, honors evidence-policy and native resource limits, and does not persist external-service keys.
 - [ ] Production dependency audit reports zero known vulnerabilities.
