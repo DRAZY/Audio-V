@@ -605,6 +605,154 @@ app.whenReady().then(async () => {
       summaryPathVisible && inspectorRowsSeparated && scanProgressContained,
   });
 
+  window.setContentSize(1600, 900);
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  const reportPaneLayout = await window.webContents.executeJavaScript(`
+    (() => {
+      const host = document.createElement("section");
+      host.className = "module-page reports-page";
+      host.style.position = "fixed";
+      host.style.inset = "20px";
+      host.style.zIndex = "10000";
+      host.style.background = "var(--raised)";
+      host.innerHTML = \`
+        <header class="module-header"><div><span class="eyebrow">Current audit report</span><h1>Audit evidence and file details</h1></div></header>
+        <div class="report-summary">
+          <article><span>Total files</span><strong>6000</strong></article>
+          <article><span>Clear</span><strong>5200</strong></article>
+          <article><span>Review</span><strong>790</strong></article>
+          <article><span>Failed</span><strong>10</strong></article>
+        </div>
+        <div class="reports-workspace">
+          <div class="report-table" aria-label="Files in current audit report"></div>
+          <article class="report-detail">
+            <header><div><span class="eyebrow">Per-file evidence report</span><h2>Selected deep-list file.flac</h2><p>/Volumes/Music/Selected deep-list file.flac</p></div></header>
+            <section class="report-interpretation"><strong>Review signal findings</strong><p>Measured evidence remains visible beside the selected list item.</p></section>
+            <div class="report-detail-grid"><section></section><section></section></div>
+            <section class="report-origin"></section>
+            <section class="report-evidence"></section>
+          </article>
+        </div>
+      \`;
+      const table = host.querySelector(".report-table");
+      for (let index = 0; index < 80; index += 1) {
+        const row = document.createElement("button");
+        row.innerHTML = \`<strong>Track \${index + 1}.flac</strong><span>FLAC · 44.1 kHz</span><b>Review</b><small>Review signal findings</small>\`;
+        table.append(row);
+      }
+      const detail = host.querySelector(".report-detail");
+      detail.querySelector(".report-detail-grid > section").style.height = "500px";
+      detail.querySelector(".report-origin").style.height = "400px";
+      detail.querySelector(".report-evidence").style.height = "400px";
+      document.body.append(host);
+      const rectangle = (element) => {
+        const value = element.getBoundingClientRect();
+        return {
+          left: value.left,
+          right: value.right,
+          top: value.top,
+          bottom: value.bottom,
+          width: value.width,
+          height: value.height,
+        };
+      };
+      const before = rectangle(detail);
+      table.scrollTop = 1800;
+      const after = rectangle(detail);
+      const result = {
+        host: rectangle(host),
+        workspace: rectangle(host.querySelector(".reports-workspace")),
+        table: rectangle(table),
+        detail: after,
+        detailHeader: rectangle(detail.querySelector(":scope > header")),
+        tableScrollTop: table.scrollTop,
+        tableScrollable: table.scrollHeight > table.clientHeight,
+        detailScrollable: detail.scrollHeight > detail.clientHeight,
+        detailStable:
+          Math.abs(before.top - after.top) <= 1 &&
+          Math.abs(before.bottom - after.bottom) <= 1,
+      };
+      return result;
+    })()
+  `);
+  const reportColumnsSeparated =
+    reportPaneLayout.table.right < reportPaneLayout.detail.left;
+  const reportDetailVisible =
+    reportPaneLayout.detail.top >= reportPaneLayout.workspace.top &&
+    reportPaneLayout.detail.bottom <= reportPaneLayout.workspace.bottom + tolerance &&
+    reportPaneLayout.detailHeader.top >= reportPaneLayout.detail.top &&
+    reportPaneLayout.detailHeader.bottom <= reportPaneLayout.detail.bottom;
+  const reportPanesIndependent =
+    reportPaneLayout.tableScrollable &&
+    reportPaneLayout.detailScrollable &&
+    reportPaneLayout.tableScrollTop > 0 &&
+    reportPaneLayout.detailStable;
+  results.push({
+    name: "independent-report-evidence-panes",
+    measurement: reportPaneLayout,
+    checks: {
+      reportColumnsSeparated,
+      reportDetailVisible,
+      reportPanesIndependent,
+    },
+    passed:
+      reportColumnsSeparated && reportDetailVisible && reportPanesIndependent,
+  });
+
+  window.setContentSize(1100, 800);
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  const stackedReportPaneLayout = await window.webContents.executeJavaScript(`
+    (() => {
+      const host = document.querySelector(".reports-page");
+      const table = host.querySelector(".report-table");
+      const detail = host.querySelector(".report-detail");
+      const rectangle = (element) => {
+        const value = element.getBoundingClientRect();
+        return {
+          left: value.left,
+          right: value.right,
+          top: value.top,
+          bottom: value.bottom,
+          width: value.width,
+          height: value.height,
+        };
+      };
+      const result = {
+        workspace: rectangle(host.querySelector(".reports-workspace")),
+        table: rectangle(table),
+        detail: rectangle(detail),
+        tableScrollable: table.scrollHeight > table.clientHeight,
+        detailScrollable: detail.scrollHeight > detail.clientHeight,
+      };
+      host.remove();
+      return result;
+    })()
+  `);
+  const reportRowsSeparated =
+    stackedReportPaneLayout.table.bottom <
+    stackedReportPaneLayout.detail.top;
+  const stackedReportPanesVisible =
+    stackedReportPaneLayout.table.top >=
+      stackedReportPaneLayout.workspace.top &&
+    stackedReportPaneLayout.detail.bottom <=
+      stackedReportPaneLayout.workspace.bottom + tolerance;
+  const stackedReportPanesIndependent =
+    stackedReportPaneLayout.tableScrollable &&
+    stackedReportPaneLayout.detailScrollable;
+  results.push({
+    name: "stacked-report-evidence-panes",
+    measurement: stackedReportPaneLayout,
+    checks: {
+      reportRowsSeparated,
+      stackedReportPanesVisible,
+      stackedReportPanesIndependent,
+    },
+    passed:
+      reportRowsSeparated &&
+      stackedReportPanesVisible &&
+      stackedReportPanesIndependent,
+  });
+
   const failed = results.filter((result) => !result.passed);
   await writeFile(
     path.join(process.cwd(), "build", "responsive-layout-latest.json"),
@@ -625,7 +773,7 @@ app.whenReady().then(async () => {
     );
   } else {
     console.log(
-      "Responsive layout passed at default and minimum desktop sizes, including open source warnings, table gutters, active assessment separation, adaptive resource controls, dense inspector text, selected paths, scan progress, and the loudness diagnostics grid.",
+      "Responsive layout passed at default and minimum desktop sizes, including open source warnings, table gutters, active assessment separation, adaptive resource controls, dense inspector text, selected paths, scan progress, independent report evidence panes, and the loudness diagnostics grid.",
     );
   }
   window.destroy();

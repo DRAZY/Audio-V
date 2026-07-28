@@ -87,6 +87,7 @@ const signalComparisonLoading = ref(false);
 const signalComparisonError = ref("");
 const reportSelectedId = ref("");
 const reportExportFormat = ref<ReportExportFormat>("pdf");
+const reportDetail = ref<HTMLElement | null>(null);
 const spectrogramCanvas = ref<HTMLCanvasElement | null>(null);
 const compareSpectrogramA = ref<HTMLCanvasElement | null>(null);
 const compareSpectrogramB = ref<HTMLCanvasElement | null>(null);
@@ -2087,6 +2088,9 @@ function openRepair(file: AudioFileRecord): void {
 
 function openReport(file: AudioFileRecord): void {
   reportSelectedId.value = file.id;
+  void nextTick(() => {
+    if (reportDetail.value) reportDetail.value.scrollTop = 0;
+  });
 }
 
 function compareFromReport(file: AudioFileRecord): void {
@@ -3324,7 +3328,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
         <div v-else class="module-empty">{{ files.length ? "No current files require attention or remediation." : "Load and audit files before opening the remediation center." }}</div>
       </section>
 
-      <section v-else-if="activeWorkspace === 'reports'" class="module-page">
+      <section v-else-if="activeWorkspace === 'reports'" class="module-page reports-page">
         <header class="module-header">
           <div><span class="eyebrow">Current audit report</span><h1>Audit evidence and file details</h1></div>
           <div class="report-export-controls">
@@ -3362,7 +3366,12 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
               <small>{{ file.oracle.headline }} · {{ file.oracle.scope }}</small>
             </button>
           </div>
-          <article v-if="reportSelected" class="report-detail">
+          <article
+            v-if="reportSelected"
+            ref="reportDetail"
+            class="report-detail"
+            aria-live="polite"
+          >
             <header>
               <div>
                 <span class="eyebrow">Per-file evidence report</span>

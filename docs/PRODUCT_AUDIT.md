@@ -52,7 +52,7 @@ Status meanings:
 - **Planned** — specified and prioritized, but not implemented.
 - **Excluded** — intentionally outside the core product.
 
-| Capability | User value | v0.4.17 source status | Disposition |
+| Capability | User value | v0.4.18 source status | Disposition |
 | --- | --- | --- | --- |
 | File and folder ingest | Analyze one track or a full library | Implemented | Current |
 | Recursive bounded discovery | Avoid freezing on large trees | Implemented | Current |
@@ -147,6 +147,7 @@ Gate 1 is complete at the repository level. Compare uses bounded alignment estim
 - Compiled-worker verification now exercises Oracle analysis, comparison, durable storage, and streamed report export.
 - Rotating JSONL application logs record lifecycle, scan/session identity, resource limits, per-file starts and outcomes, Oracle attempt/retry/timeout events, storage-worker recovery, checkpoint state, and renderer/child-process termination. Logs remain local, are size bounded, and are separate from the privacy-safe diagnostics export.
 - Exhausted Oracle worker timeouts persist as per-file `Analysis error` records with the exact filename, `oracle-engine` failure stage, worker code, attempt count, and evidence. The failed worker is replaced and the remaining library continues; infrastructure-error cache entries are retried on later audits.
+- Per-file Reports use independent bounded list and evidence panes. Selecting a row anywhere in a long report keeps the evidence visible beside it, resets the new evidence report to its header, and preserves independent scrolling in both wide and stacked window layouts.
 - `npm run benchmark:scale` enforces repeatable persistence and restoration budgets for dense-evidence 100-, 1,000-, and 10,000-record sessions. The v0.4.16 run persisted 10,000 records in 36.3 seconds, restored compact history in 310 ms, and occupied 2.05 GB across all three benchmark tiers.
 
 These dense-evidence figures validate storage and compact state retrieval on the development Mac; they do not represent full audio decode throughput.
