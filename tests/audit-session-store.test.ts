@@ -236,7 +236,8 @@ describe("AuditSessionStore", () => {
             session_bytes: number;
             evidence_bytes: number;
           };
-        expect(sizes.session_bytes).toBeLessThan(sizes.evidence_bytes / 10);
+        expect(sizes.session_bytes).toBeLessThan(sizes.evidence_bytes / 2);
+        expect(sizes.evidence_bytes).toBeLessThan(100_000);
       } finally {
         database.close();
       }

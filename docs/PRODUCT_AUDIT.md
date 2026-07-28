@@ -52,7 +52,7 @@ Status meanings:
 - **Planned** — specified and prioritized, but not implemented.
 - **Excluded** — intentionally outside the core product.
 
-| Capability | User value | v0.4.18 source status | Disposition |
+| Capability | User value | v0.4.19 source status | Disposition |
 | --- | --- | --- | --- |
 | File and folder ingest | Analyze one track or a full library | Implemented | Current |
 | Recursive bounded discovery | Avoid freezing on large trees | Implemented | Current |
@@ -209,7 +209,7 @@ Infrastructure is complete, while source acquisition remains factual external wo
 - Known generator names in editable metadata and known watermark/signature identifier strings in raw file bytes are inventoried with their exact source and limitation. Audio-V does not claim to decode proprietary watermarks and does not produce a generic AI Yes/No badge.
 - Local Chromaprint fingerprints identify exact-fingerprint and high-similarity relationships within the current audit and across a dedicated, browsable Identity workspace. The historical index can be rebuilt from sessions, pruned for missing sources, or cleared without deleting audit evidence. Optional AcoustID lookup sends only fingerprint plus rounded duration and returns linked MusicBrainz recording leads; it is off by default and its key is never persisted.
 - Metadata Inventory includes bounded native tags, BPM, ISRC, MusicBrainz IDs, declared ReplayGain values, embedded cue sheets, and adjacent cue-sheet references without invoking the decoder. Full Audit adds calculated RG2 track gain, album eligibility/reason evidence, grouped album gain, independent cue INDEX 01 programme analysis, and separate INDEX 00 pregap analysis.
-- Full audits add DR meter values and integer-lossless bit-utilization/truncation assessment. Possible zero-padded depth is Review evidence, not deterministic file damage.
+- Full audits add DR meter values and integer-lossless bit-utilization/truncation assessment. Possible zero-padded depth is an origin advisory, not deterministic file damage.
 - The accepted format list now follows a broad FFmpeg-backed set of common audio and audio-container extensions. Actual support remains decoder-runtime evidence rather than a promise based only on a filename suffix.
 - The packaged headless CLI accepts files and recursive folders, emits the same compact JSON evidence model, supports CI evidence-policy exit codes, and exposes worker, JavaScript heap, FFmpeg-thread, and native-process RSS limits. The desktop exposes the same resource policy for the next audit.
 - EBU R128 and DR measurements share one FFmpeg filter-graph pass. Full PCM analysis remains streaming and bounded; local fingerprinting performs one additional decode capped at 120 seconds. Opting into AcoustID performs a second capped fpcalc pass to create the service’s encoded fingerprint.
@@ -222,6 +222,14 @@ This milestone deliberately stops before a statistical AI classifier or automati
 - Compare accepts explicit one-to-one channel maps for differing decoded layouts. Without a map, mismatched layouts remain a bounded preview rather than receiving a misleading null.
 - ReplayGain reports why album gain is unavailable, including missing album identity, insufficient matching tracks, incompatible channel counts, and measurement failure.
 - Cue programme segments stop at the next INDEX 00/01 boundary; declared INDEX 00 pregaps are decoded and reported separately.
+
+### Oracle v11 evidence-model status
+
+- Results now expose separate integrity, signal-defect, spectral-origin, provenance, and delivery lanes. Advisory provenance strings, stereo relationships, bit padding, positive true peak without a selected delivery profile, and steep transitions no longer force the overall verdict to Review.
+- Strict full-decode failures receive a complete tolerant confirmation analysis. Only failure of both paths can establish deterministic stream damage; tolerant success becomes recoverable structural nonconformance for Review.
+- The origin classifier uses a dedicated 4,096-point, 48-region tier, retains bounded summary evidence rather than another persisted matrix, and requires a stable band edge plus corroborating evidence before issuing a strong possible-upsample or possible-lossy-transcode pattern.
+- Top-level and origin probability-like percentages are retired. The engine publishes ordinal rule strength, evidence coverage, regional stability, and independent-indicator count as distinct quantities.
+- Click/pop detection uses a locally adaptive robust residual threshold. Finding promotion considers magnitude, repetition, or duration; steep transitions alone remain advisory.
 
 Recommended layers:
 

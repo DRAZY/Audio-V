@@ -2,8 +2,12 @@ import type { OracleResult } from "../../shared/contracts";
 import { analyzeWithFfmpeg } from "./ffmpeg-analyzer";
 import { assessFidelityOrigin } from "./fidelity-assessment";
 import { classifyOracleFailure } from "./analysis-failure";
+import {
+  assessmentRequiresReview,
+  buildOracleAssessments,
+} from "./oracle-assessments";
 
-export const engineVersion = "0.8.0-oracle-v10";
+export const engineVersion = "0.9.0-oracle-v11";
 
 export function oracleFailureResult(error: unknown): OracleResult {
   const failure = classifyOracleFailure(error);
@@ -11,11 +15,11 @@ export function oracleFailureResult(error: unknown): OracleResult {
   return {
     schemaVersion: 1,
     engineVersion,
-    scope: "oracle-integrity-forensics-v10",
+    scope: "oracle-integrity-forensics-v11",
     verdict: integrityFailure ? "damaged" : "inconclusive",
     analysisState: integrityFailure ? "failed" : "error",
     failure,
-    confidence: integrityFailure ? 100 : null,
+    confidence: null,
     headline: integrityFailure
       ? "Audio stream integrity failed"
       : "Analysis could not be completed",
@@ -36,6 +40,41 @@ export function oracleFailureResult(error: unknown): OracleResult {
     measurements: null,
     technical: null,
     fidelity: null,
+    assessments: {
+      integrity: {
+        status: integrityFailure ? "failed" : "error",
+        summary: failure.summary,
+      },
+      signal: { status: "clear", findingIds: [] },
+      origin: {
+        status: "inconclusive",
+        strength: "none",
+        coveragePercent: 0,
+        stabilityPercent: null,
+        independentIndicatorCount: 0,
+        findingIds: [],
+      },
+      provenance: { status: "none", findingIds: [] },
+      delivery: {
+        profile: null,
+        status: "not-evaluated",
+        findingIds: [],
+      },
+      findings: [
+        {
+          id: integrityFailure
+            ? "deterministic-integrity-failure"
+            : "analysis-error",
+          lane: "integrity",
+          severity: integrityFailure ? "critical" : "advisory",
+          certainty: integrityFailure ? "deterministic" : "measured",
+          summary: failure.evidence,
+          evidenceIds: [
+            integrityFailure ? "full-decode" : "analysis-diagnostic",
+          ],
+        },
+      ],
+    },
     measuredAt: new Date().toISOString(),
   };
 }
@@ -45,7 +84,29 @@ export async function analyzeAudioFile(
   signal?: AbortSignal,
 ): Promise<OracleResult> {
   try {
-    const { measurements, technical } = await analyzeWithFfmpeg(filePath, signal);
+    let recoveredStrictDecode = false;
+    let analysis: Awaited<ReturnType<typeof analyzeWithFfmpeg>>;
+    try {
+      analysis = await analyzeWithFfmpeg(filePath, signal);
+    } catch (strictError) {
+      if (signal?.aborted) throw strictError;
+      const strictFailure = classifyOracleFailure(strictError);
+      if (
+        strictFailure.category !== "file-integrity" ||
+        strictFailure.stage !== "full-decode"
+      ) {
+        throw strictError;
+      }
+      try {
+        analysis = await analyzeWithFfmpeg(filePath, signal, {
+          strictDecode: false,
+        });
+        recoveredStrictDecode = true;
+      } catch {
+        throw strictError;
+      }
+    }
+    const { measurements, technical, originSpectrum } = analysis;
     const dcOffsetConcern = measurements.perChannel.some(
       (channel) => Math.abs(channel.dcOffset) >= 0.01,
     );
@@ -65,7 +126,11 @@ export async function analyzeAudioFile(
     const durationConcern =
       durationDeltaSeconds !== null && durationDeltaSeconds > 0.1;
     const flacMd5Mismatch = technical.flacMd5?.status === "mismatch";
-    const fidelity = assessFidelityOrigin(measurements, technical);
+    const fidelity = assessFidelityOrigin(
+      measurements,
+      technical,
+      originSpectrum,
+    );
     const fidelityConcern = [
       "possible-lossy-transcode",
       "possible-upsample",
@@ -94,71 +159,29 @@ export async function analyzeAudioFile(
     const rawSignatureConcern = technical.provenanceIndicators.some(
       (indicator) => indicator.type === "watermark-signature",
     );
-    const requiresReview =
-      measurements.clippedSamples > 0 ||
-      scaledClippingConcern ||
-      contentCredentialsConcern ||
-      algorithmicSourceDeclaration ||
-      rawSignatureConcern ||
-      bitUtilizationConcern ||
-      clickPopConcern ||
-      stuckSampleConcern ||
-      steepTransitionConcern ||
-      dcOffsetConcern ||
-      phaseConcern ||
-      stereoAuthenticityConcern ||
-      truePeakConcern ||
-      durationConcern ||
-      dropoutConcern ||
-      fidelityConcern ||
-      silence;
-    const concerns = [
-      measurements.clippedSamples > 0
-        ? `${measurements.clippedSamples.toLocaleString()} clipped samples across ${measurements.clipping.eventCount.toLocaleString()} contiguous events`
-        : null,
-      scaledClippingConcern
-        ? `${measurements.clipping.scaledClippingCandidateSamples.toLocaleString()} repeated plateau samples compatible with scaled clipping`
-        : null,
-      contentCredentialsConcern
-        ? `Content Credentials status ${technical.contentCredentials.status}`
-        : null,
-      algorithmicSourceDeclaration
-        ? "a Content Credential declaration of algorithmic media"
-        : null,
-      rawSignatureConcern
-        ? "a known watermark or generator identifier in the file bytes"
-        : null,
-      bitUtilizationConcern
-        ? `${measurements.bitUtilization.unusedLeastSignificantBits} consistently unused least-significant bits`
-        : null,
-      clickPopConcern
-        ? `${measurements.defects.clickPopCandidateCount.toLocaleString()} isolated click/pop waveform candidate${measurements.defects.clickPopCandidateCount === 1 ? "" : "s"}`
-        : null,
-      stuckSampleConcern
-        ? `${measurements.defects.stuckSampleCandidateCount.toLocaleString()} non-zero stuck-sample plateau candidate${measurements.defects.stuckSampleCandidateCount === 1 ? "" : "s"}`
-        : null,
-      steepTransitionConcern
-        ? `${measurements.defects.steepTransitionCandidateCount.toLocaleString()} steep full-scale transition candidate${measurements.defects.steepTransitionCandidateCount === 1 ? "" : "s"}`
-        : null,
-      dcOffsetConcern ? "material DC offset" : null,
-      phaseConcern ? "negative stereo correlation" : null,
-      stereoAuthenticityConcern
-        ? measurements.stereoAssessment === "dual-mono"
-          ? "a stereo container with sample-identical channels"
-          : "a stereo container with negligible side-channel energy"
-        : null,
-      truePeakConcern ? "positive true peak" : null,
-      durationConcern ? "declared and decoded duration mismatch" : null,
-      dropoutConcern
-        ? `${measurements.continuity.internalDigitalDropoutCount} internal digital-silence dropout candidate${measurements.continuity.internalDigitalDropoutCount === 1 ? "" : "s"}`
-        : null,
-      fidelityConcern
-        ? fidelity.classification === "possible-upsample"
-          ? "a spectral pattern compatible with upsampling"
-          : "a spectral pattern compatible with lossy-to-lossless transcoding"
-        : null,
-      silence ? "no measurable signal" : null,
-    ].filter((value): value is string => value !== null);
+    const assessments = buildOracleAssessments(
+      measurements,
+      technical,
+      fidelity,
+      { recoveredStrictDecode },
+    );
+    const requiresReview = assessmentRequiresReview(assessments);
+    const reviewFindingIds = new Set(
+      assessments.findings
+        .filter(
+          (finding) =>
+            finding.severity === "review" ||
+            finding.severity === "critical",
+        )
+        .map((finding) => finding.id),
+    );
+    const concerns = assessments.findings
+      .filter(
+        (finding) =>
+          finding.severity === "review" ||
+          finding.severity === "critical",
+      )
+      .map((finding) => finding.summary);
     const verdict = flacMd5Mismatch
       ? "damaged"
       : requiresReview
@@ -167,7 +190,7 @@ export async function analyzeAudioFile(
     return {
       schemaVersion: 1,
       engineVersion,
-      scope: "oracle-integrity-forensics-v10",
+      scope: "oracle-integrity-forensics-v11",
       verdict,
       analysisState: flacMd5Mismatch ? "failed" : "completed",
       failure: flacMd5Mismatch
@@ -180,16 +203,11 @@ export async function analyzeAudioFile(
             evidence: `Stored ${technical.flacMd5?.storedMd5}; calculated ${technical.flacMd5?.calculatedMd5}.`,
           }
         : null,
-      confidence:
-        flacMd5Mismatch
-          ? 100
-          : fidelityConcern
-            ? fidelity.confidence
-            : 100,
+      confidence: null,
       headline: flacMd5Mismatch
         ? "FLAC audio checksum failed"
         : requiresReview
-          ? fidelityConcern
+          ? assessments.origin.status === "strong-multi-feature-pattern"
             ? fidelity.classification === "possible-upsample"
               ? "Possible upsample pattern"
               : "Possible lossy-transcode pattern"
@@ -198,8 +216,12 @@ export async function analyzeAudioFile(
       interpretation: flacMd5Mismatch
         ? "The complete FLAC stream decoded, but the MD5 calculated from its uncompressed audio does not match the checksum stored in STREAMINFO. This is deterministic evidence that the decoded audio differs from the stream's recorded identity."
         : requiresReview
-          ? `Audio-V decoded the complete PCM stream but found ${concerns.join(", ")}. This verdict covers structural integrity and current signal rules; it does not certify source provenance.`
-        : "Audio-V decoded the complete PCM stream and found no clipping, positive true peak, click/pop, stuck-sample, steep-transition, material DC-offset, silence, or negative stereo-correlation concerns. This clear verdict covers current structural and signal checks; it does not certify source provenance.",
+          ? `Audio-V decoded the complete PCM stream and found review-level evidence: ${concerns.join(" ")} Integrity, signal, origin, provenance, and delivery findings are evaluated in separate lanes.`
+        : assessments.findings.some(
+              (finding) => finding.severity === "advisory",
+            )
+          ? "Audio-V decoded the complete PCM stream and found no review-level defect. Advisory observations remain visible in their assessment lanes and do not imply file damage."
+          : "Audio-V decoded the complete PCM stream and found no review-level evidence within the tested integrity, signal, and spectral-origin scope.",
       evidence: [
         {
           id: "full-decode",
@@ -257,7 +279,9 @@ export async function analyzeAudioFile(
               ? "The container did not declare a comparable duration."
               : `${measurements.durationSeconds.toFixed(3)} s decoded versus ${technical.durationSeconds?.toFixed(3)} s declared (${(durationDeltaSeconds * 1_000).toFixed(1)} ms difference).`,
           kind: "deterministic",
-          disposition: durationConcern ? "contradicts" : "supports",
+          disposition: reviewFindingIds.has("duration-mismatch")
+            ? "contradicts"
+            : "supports",
         },
         {
           id: "pcm-levels",
@@ -273,7 +297,8 @@ export async function analyzeAudioFile(
           summary: `${measurements.clippedSamples.toLocaleString()} clipped samples (${measurements.clipping.clippedSamplePercent.toFixed(6)}%), ${measurements.clipping.eventCount.toLocaleString()} contiguous events; scaled-clipping indicator ${measurements.clipping.scaledClippingIndicator}. ${measurements.clipping.limitation}`,
           kind: "measured",
           disposition:
-            measurements.clippedSamples > 0 || scaledClippingConcern
+            reviewFindingIds.has("sample-rail-hits") ||
+            reviewFindingIds.has("scaled-clipping-pattern")
               ? "contradicts"
               : "neutral",
         },
@@ -283,7 +308,8 @@ export async function analyzeAudioFile(
           summary: `${measurements.defects.clickPopCandidateCount.toLocaleString()} isolated click/pop candidates, ${measurements.defects.stuckSampleCandidateCount.toLocaleString()} stuck-sample plateaus, and ${measurements.defects.steepTransitionCandidateCount.toLocaleString()} steep transitions. ${measurements.defects.limitation}`,
           kind: "measured",
           disposition:
-            clickPopConcern || stuckSampleConcern || steepTransitionConcern
+            reviewFindingIds.has("click-pop-candidates") ||
+            reviewFindingIds.has("stuck-sample-candidates")
               ? "contradicts"
               : "neutral",
         },
@@ -296,9 +322,7 @@ export async function analyzeAudioFile(
               : `${technical.contentCredentials.status}; ${technical.contentCredentials.manifestCount} manifest(s); generator ${technical.contentCredentials.claimGenerator ?? "not declared"}; signer ${technical.contentCredentials.signer ?? "not declared"}; network access ${technical.contentCredentials.networkAccess}. ${technical.contentCredentials.limitation}`,
           kind: "deterministic",
           disposition:
-            contentCredentialsConcern || algorithmicSourceDeclaration
-              ? "contradicts"
-              : technical.contentCredentials.status === "valid"
+            technical.contentCredentials.status === "valid"
                 ? "supports"
                 : "neutral",
         },
@@ -317,21 +341,14 @@ export async function analyzeAudioFile(
           label: indicator.identifier,
           summary: `${indicator.source}: ${indicator.value}. ${indicator.interpretation}`,
           kind: "heuristic" as const,
-          disposition:
-            indicator.type === "watermark-signature"
-              ? ("contradicts" as const)
-              : ("neutral" as const),
+          disposition: "neutral" as const,
         })),
         {
           id: "bit-utilization",
           label: "Integer bit utilization",
           summary: `${measurements.bitUtilization.classification}; declared ${measurements.bitUtilization.declaredBitDepth ?? "—"} bits, effective ${measurements.bitUtilization.effectiveBitDepth ?? "—"} bits, unused least-significant bits ${measurements.bitUtilization.unusedLeastSignificantBits ?? "—"}. ${measurements.bitUtilization.limitation}`,
           kind: "measured",
-          disposition:
-            measurements.bitUtilization.classification ===
-            "possible-bit-padding"
-              ? "contradicts"
-              : "neutral",
+          disposition: "neutral",
         },
         {
           id: "stereo-authenticity",
@@ -341,7 +358,7 @@ export async function analyzeAudioFile(
               ? "The stream is declared mono; stereo authenticity is not applicable."
               : `${measurements.stereoAssessment === "dual-mono" ? "Sample-identical dual mono" : measurements.stereoAssessment === "near-mono" ? "Near-mono stereo" : measurements.stereoAssessment === "stereo-content" ? "Distinct stereo content" : "Inconclusive channel relationship"}; correlation ${measurements.stereoCorrelation?.toFixed(5) ?? "unavailable"}, side-to-mid energy ${measurements.sideToMidRatioDb?.toFixed(1) ?? "unavailable"} dB. Dual/near mono can be intentional and is not proof of deceptive processing.`,
           kind: "measured",
-          disposition: stereoAuthenticityConcern ? "contradicts" : "neutral",
+          disposition: "neutral",
         },
         {
           id: "ebu-loudness",
@@ -355,12 +372,14 @@ export async function analyzeAudioFile(
           label: "Signal continuity",
           summary: `${measurements.continuity.internalDigitalDropoutCount} internal digital-silence dropout candidates, ${measurements.continuity.discontinuityCandidateCount.toLocaleString()} steep sample-transition candidates, longest exact-zero run ${measurements.continuity.longestDigitalSilenceSeconds.toFixed(3)} s.`,
           kind: "measured",
-          disposition: dropoutConcern ? "contradicts" : "neutral",
+          disposition: reviewFindingIds.has("digital-silence-dropouts")
+            ? "contradicts"
+            : "neutral",
         },
         {
           id: "stft-spectrogram",
           label: "STFT spectrogram",
-          summary: `${measurements.spectrogram.slices.length.toLocaleString()} Hann-windowed FFT slices measured through ${Math.round(measurements.spectrogram.maxFrequencyHz).toLocaleString()} Hz; observed effective bandwidth ${measurements.spectrogram.effectiveBandwidthHz === null ? "not measurable" : `${measurements.spectrogram.effectiveBandwidthHz.toLocaleString()} Hz`}.`,
+          summary: `${measurements.spectrogram.slices.length.toLocaleString()} overview slices are persisted for display. The origin classifier separately evaluated ${originSpectrum.slices.length.toLocaleString()} time regions at ${originSpectrum.fftSize.toLocaleString()} points and retained its bounded summary; observed classifier bandwidth ${originSpectrum.effectiveBandwidthHz === null ? "not measurable" : `${originSpectrum.effectiveBandwidthHz.toLocaleString()} Hz`}.`,
           kind: "measured",
           disposition: "neutral",
         },
@@ -369,12 +388,37 @@ export async function analyzeAudioFile(
           label: "Spectral-origin assessment",
           summary: `${fidelity.basis.join(" ")} ${fidelity.limitation}`,
           kind: "heuristic",
-          disposition: fidelityConcern ? "contradicts" : "neutral",
+          disposition:
+            assessments.origin.status === "strong-multi-feature-pattern"
+              ? "contradicts"
+              : "neutral",
         },
       ],
       measurements,
       technical,
       fidelity,
+      assessments: flacMd5Mismatch
+        ? {
+            ...assessments,
+            integrity: {
+              status: "failed",
+              summary:
+                "The decoded FLAC audio does not match its stored STREAMINFO MD5.",
+            },
+            findings: [
+              ...assessments.findings,
+              {
+                id: "flac-streaminfo-md5-mismatch",
+                lane: "integrity",
+                severity: "critical",
+                certainty: "deterministic",
+                summary:
+                  "The decoded FLAC audio differs from its stored STREAMINFO identity.",
+                evidenceIds: ["flac-streaminfo-md5"],
+              },
+            ],
+          }
+        : assessments,
       measuredAt: new Date().toISOString(),
     };
   } catch (error) {

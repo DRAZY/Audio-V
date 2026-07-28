@@ -2,9 +2,20 @@
 
 Audio-V separates deterministic integrity checks, direct measurements, and heuristic interpretation. A successful heuristic never upgrades a file to proven authentic, and a spectral anomaly alone is never called proof of a transcode or upsample.
 
+## Oracle v11 assessment lanes
+
+Oracle v11 evaluates five independent lanes: **file integrity**, **signal defects**, **spectral origin**, **provenance**, and **delivery compliance**. The overall precedence is deliberately narrow:
+
+1. **Failed** requires deterministic evidence against the file itself, such as two unsuccessful decode paths or a decoded FLAC MD5 mismatch.
+2. **Analysis error** means a tool, resource, or internal stage did not complete; it is never converted to file damage.
+3. **Review** requires a material measured signal finding, recoverable structural nonconformance, external manifest mismatch, or a strong multi-feature spectral-origin pattern.
+4. **Clear** means no review-level evidence was found within the tested scope. Informational and advisory findings remain visible without changing the overall verdict.
+
+Provenance declarations and delivery preferences cannot independently turn a structurally valid file into Review or Failed. The top-level result no longer publishes a generic percentage: rule strength, evidence coverage, and regional stability describe different things and remain separate.
+
 ## Deterministic integrity
 
-- The selected primary audio stream is decoded from beginning to end with FFmpeg using fatal error handling. Only decoder diagnostics that deterministically identify corruption, truncation, malformed frames, checksum errors, or an incomplete decoded frame produce **Failed**.
+- The selected primary audio stream is decoded from beginning to end with FFmpeg using fatal error handling. When strict decoding reports a file-integrity error, Audio-V repeats the complete analysis with tolerant decoder behavior. Failure of both paths supplies deterministic evidence for **Failed**; tolerant success produces **Review** for recoverable structural nonconformance rather than incorrectly calling a playable stream damaged.
 - Engine launch failures, timeouts, output limits, unclassified tool exits, probe/measurement faults, and internal exceptions produce **Analysis error**, never **Failed**. Each error retains a stage, stable code, and exact diagnostic evidence. No file-integrity verdict is issued.
 - Native FLAC files expose the 128-bit MD5 stored in STREAMINFO. Audio-V decodes to the canonical little-endian PCM width, calculates the audio MD5, and compares it with STREAMINFO. A mismatch produces **Failed** even when frames remain decodable. The [FLAC format overview](https://xiph.org/flac/documentation_format_overview.html) identifies this signature as the checksum of unencoded audio; the [reference `flac` tool documentation](https://xiph.org/flac/documentation_tools_flac.html) likewise distinguishes bitstream errors from decoded-audio MD5 mismatch.
 - SHA-256 identifies the exact file bytes. Declared duration is compared with decoded frame duration, allowing 100 ms for normal codec delay and container rounding.
@@ -27,7 +38,7 @@ The inventory includes bounded raw tags plus normalized title/artist/album/compo
 ## Provenance and acoustic identity
 
 - Audio-V invokes the official C2PA Tool in offline mode. Remote-manifest and OCSP fetching are disabled, so a result is reproducible and does not disclose the file to a network service. It reports manifest validity, signer trust state, claim generator, signing time, and declared digital source types. The [C2PA specification](https://spec.c2pa.org/specifications/specifications/2.2/specs/ContentCredentials.html) distinguishes a valid asset from a trusted signer and treats provenance as statements rather than a truth verdict.
-- A valid Content Credential verifies its cryptographic association and assertions; it does not establish artistic truth, quality, ownership, or human authorship. Missing credentials are neutral. An invalid credential or untrusted signer routes to Review, never Failed.
+- A valid Content Credential verifies its cryptographic association and assertions; it does not establish artistic truth, quality, ownership, or human authorship. Missing credentials are neutral. Invalid credentials and untrusted signers remain visible provenance advisories and do not alter the audio-quality verdict.
 - Generator/tool names found in metadata and known identifier strings found in raw bytes are labeled inventory indicators. Editable tags and unauthenticated strings cannot prove how decoded audio was created. Audio-V deliberately has no statistical AI classifier or universal “AI: Yes/No” badge.
 - [Chromaprint](https://acoustid.org/chromaprint) locally fingerprints up to 120 seconds and supports same-fingerprint and high-similarity candidates within the current audit and a SQLite historical-session index. The Identity workspace can browse, rebuild from saved sessions, prune missing source paths, or clear that index. A fingerprint indicates acoustic relationship, not byte identity, ownership, edition, or mastering provenance.
 - AcoustID lookup is disabled by default. When the user supplies a key and explicitly enables it, Audio-V sends only the duration and Chromaprint value to AcoustID and reads linked recording identifiers/titles. The key remains in memory and is removed from persisted sources and exported evidence. Requests have a 15-second timeout and a 1 MB response limit.
@@ -35,11 +46,11 @@ The inventory includes bounded raw tags plus normalized title/artist/album/compo
 ## Dynamics and bit utilization
 
 - FFmpeg `drmeter` adds an overall and per-channel windowed DR descriptor alongside EBU loudness range, peak-to-loudness ratio, and crest factor. These metrics answer different questions and are not interchangeable mastering scores.
-- Integer bit utilization applies only when a reliable declared word length exists for a lossless integer stream. Audio-V measures consistently unused least-significant bits and reports an effective utilized depth. Two or more unused bits route to Review as possible padding or prior truncation; silence is inconclusive. The measurement cannot identify cause or recover precision.
+- Integer bit utilization applies only when a reliable declared word length exists for a lossless integer stream. Audio-V measures consistently unused least-significant bits and reports an effective utilized depth. Two or more unused bits produce an origin advisory for possible padding or prior truncation; silence is inconclusive. The measurement cannot identify cause or recover precision.
 
 ## Spectral analysis
 
-- The displayed spectrogram is measured, not decorative. Every completed audit persists a 512-point overview and 2,048-point detail tier. The inspector can decode the selected file on demand for 4,096- or 16,384-point analysis without expanding every batch record. Every tier discloses its dynamic floor, frequency range, hop size, and resolution.
+- The displayed spectrogram is measured, not decorative. Every completed audit persists a 512-point overview and 2,048-point detail tier. Oracle v11 also runs a separate 4,096-point, 48-region classifier tier and discards its full matrix after retaining bounded summary evidence; this avoids multiplying historical-database size. The inspector can decode the selected file on demand for 4,096- or 16,384-point presentation. Every tier discloses its dynamic floor, frequency range, hop size, and resolution.
 - Combined mode averages per-channel power, so opposite-polarity channels do not cancel before measurement. Left and right modes isolate the first two channels. L−R measures the side signal \((L-R)/2\); mono requests resolve to the available left channel.
 - Zoom and pan select a bounded time window from the measured slices. Drag selection reports exact visible time and frequency bounds. Inferno, magma, and viridis palettes affect presentation only; FFT data and verdict logic are unchanged. Batch PNG export applies the selected FFT resolution, channel mode, floor, and colormap to each decoded file.
 - The waveform overview is a per-channel envelope: its extrema preserve the minimum and maximum sample across channels, while RMS uses average channel power. It is not a mono downmix.
@@ -48,19 +59,26 @@ The inventory includes bounded raw tags plus normalized title/artist/album/compo
 ## Defect-validation scope
 
 The native defect gate fully decodes labeled WAV controls containing a clean signal, one inserted single-sample impulse, and one non-zero stuck-sample plateau. All three must match their expected click/pop and stuck-sample counts. These are deterministic synthetic decoder-path fixtures, not a licensed real-world defect corpus; historical recordings, vinyl transfers, hard edits, percussion, and synthesis remain necessary future false-positive/false-negative validation material.
+
+Click/pop candidates use a robust local prediction residual. The center sample is compared with the neighboring baseline, and its threshold adapts to the median and median absolute deviation of nearby sample differences. A candidate is promoted to Review only when it is repeated or materially large; a small isolated candidate is advisory. Stuck-sample promotion considers event count and duration. Steep transitions alone are advisory, because percussion, edits, and synthesis commonly create them.
+
+## Spectral-origin decision rules
+
 - Effective bandwidth is the highest locally sustained bin within 60 dB of the strongest average bin, bounded by −90 dBFS.
-- The strongest upper-band cutoff compares six bins below and above each candidate frequency. Upper-band level is the mean power over the top 15% of the declared Nyquist range.
-- A possible upsample review requires at least two seconds of content, sample rate at least 88.2 kHz, a cutoff from 18–28 kHz, at least an 18 dB cliff, no more than 65% Nyquist occupancy, and upper-band level at or below −85 dBFS.
-- A possible lossy-transcode review requires a lossless output codec at no more than 50 kHz, a cutoff from 14–21.5 kHz, at least a 25 dB cliff, and no more than 90% Nyquist occupancy.
+- The classifier measures the strongest upper-band cliff, active-region coverage, regional band-edge stability, proximity to earlier common Nyquist boundaries, sustained upper-band suppression, and a separated secondary band rupture.
+- A strong possible-upsample or possible-lossy-transcode pattern requires at least two independent evidence families and a regionally repeatable band edge. A cutoff or low-pass shape by itself can produce only a compatible-pattern advisory.
+- The possible-upsample envelope requires at least two seconds of content, a declared sample rate of at least 88.2 kHz, a band edge from 18–28 kHz, materially unused declared bandwidth, sustained upper-band suppression, regional stability, and either a prior sample-grid boundary match or a secondary band rupture.
+- The possible-lossy-transcode envelope applies only to lossless output codecs at no more than 50 kHz and requires a 14–21.5 kHz band edge, at least a 25 dB cliff, limited Nyquist occupancy, regional stability, and corroborating band evidence.
 
 The thresholds are regression-tested against deterministic native-wideband, MP3-to-FLAC, 44.1-to-96 kHz, intentional low-pass, silence, short-duration, and narrow-band tonal controls. They are deliberately labeled **possible**: microphones, mastering filters, instrument bandwidth, noise reduction, and artistic processing can create similar spectra. A broader real-music corpus is required before Audio-V may use a stronger “likely” classification.
 
 ### Rule strength and evidence coverage
 
-Origin Assessment reports two separate quantities:
+Origin Assessment reports three separate quantities:
 
-- **Heuristic rule strength** indicates how strongly the measured values satisfy the current versioned rule. It is not the probability that the inferred source history is true. The current values are fixed rule strengths and must not be described as statistically calibrated confidence.
+- **Heuristic rule strength** is the ordinal `none`, `weak`, `moderate`, or `strong`. It indicates how completely the measured values satisfy the current versioned multi-feature rule and is not a probability that the inferred source history is true.
 - **Evidence coverage** indicates how much of the classifier's required input was usable: sufficient decoded duration, measurable effective bandwidth, a stable cutoff and drop, and upper-band energy. Every successfully decoded file with an Origin Assessment receives coverage from 0–100%, including inconclusive files.
+- **Regional stability** reports how consistently the measured band edge repeats across active time regions. It is a measurement of repeatability, not provenance confidence.
 
 An inconclusive assessment has no rule-strength score and includes a machine-readable reason: insufficient duration, unmeasurable bandwidth, or no stable cutoff. Assigning a probability in those cases would manufacture certainty. Stronger confidence requires a large provenance-labeled corpus and held-out calibration; additional spectral features alone cannot prove whether an identical cutoff came from lossy encoding or intentional production filtering.
 
@@ -70,11 +88,23 @@ An inconclusive assessment has no rule-strength score and includes a machine-rea
 
 Reports include file identity, engine version, decoded measurements, analysis settings, evidence disposition, clipping diagnostics, and classifier limitations. Raw spectrogram matrices are omitted from batch JSON exports to keep reports bounded; PNG exports preserve the selected FFT resolution, channel mode, colormap, and display floor.
 
-The headless CLI uses the same Oracle worker and compact JSON contract and is included with desktop packages. Folder recursion, deterministic ordering, worker count, per-worker JavaScript heap limits, FFmpeg thread caps, native-process RSS enforcement, and policy exit codes make it suitable for CI and archival ingest. Desktop controls are additionally resolved against an aggregate budget capped at the smaller of 20% of physical memory or 4 GB, with a 768 MB application reserve and an aggregate FFmpeg ceiling of 75% of logical CPUs. FFmpeg subprocesses stream decoded PCM and do not materialize complete tracks in application memory. Full spectral arrays are persisted outside the live desktop queue and loaded only for selected evidence. Local Chromaprint uses one decode capped at 120 seconds; the optional AcoustID request performs a second capped pass only when it needs the service’s encoded form.
+The headless CLI uses the same Oracle worker and compact JSON contract and is included with desktop packages. Folder recursion, deterministic ordering, worker count, per-worker JavaScript heap limits, FFmpeg thread caps, native-process RSS enforcement, and policy exit codes make it suitable for CI and archival ingest. Desktop controls are additionally resolved against an aggregate budget capped at the smaller of 20% of physical memory or 4 GB, with a 768 MB application reserve and an aggregate FFmpeg ceiling of 75% of logical CPUs. FFmpeg subprocesses stream decoded PCM and do not materialize complete tracks in application memory. The live audit keeps complete display tiers; durable history retains a 32-region overview, a 160-point waveform, the full measurement summary, and the 4,096-point classifier summary. Higher-resolution matrices are regenerated from the source on selection. This keeps the 10,000-file benchmark below a 600 MiB database budget without discarding verdict evidence. Local Chromaprint uses one decode capped at 120 seconds; the optional AcoustID request performs a second capped pass only when it needs the service’s encoded form.
 
-Click/pop detection requires an isolated impulse against stable neighboring windows. Stuck-sample detection requires a constant, non-zero run lasting at least 10 ms or 128 frames. These and steep full-scale transitions are conservative Review candidates, not deterministic corruption evidence.
+Click/pop detection uses the adaptive robust residual described above. Stuck-sample detection requires a constant, non-zero run lasting at least 10 ms or 128 frames. These are conservative candidates, not deterministic corruption evidence; steep transitions remain advisory inventory.
 
 Comparison alignment is estimated from a mono 8 kHz preview capped at 120 seconds. The recovered signed gain and offset are then applied to a complete decoded, matching-channel FFmpeg null pass. Audio-V reports per-channel PSNR-derived null depth, compared frames, and duration coverage; resampling is disclosed when source sample rates differ.
+
+## Scientific and standards basis
+
+Oracle rules are implementation policy built on disclosed measurements, not a claim that one standard defines “audio authenticity.” The principal technical references are:
+
+- [ITU-R BS.1770-5](https://www.itu.int/rec/R-REC-BS.1770-5-202311-I/en) and the [EBU loudness resource](https://tech.ebu.ch/loudness/) for loudness and true-peak measurement.
+- [RFC 9639, Free Lossless Audio Codec](https://www.rfc-editor.org/rfc/rfc9639.html) for FLAC framing and STREAMINFO semantics.
+- The [C2PA harms model](https://c2pa.org/specifications/specifications/2.0/security/Harms_Modelling.html) for the explicit separation between cryptographic provenance, trust, and truth.
+- Koops et al., [Robust Lossy Audio Compression Identification](https://arxiv.org/abs/2407.21545), for the evidence that compression-history identification is a multi-feature classification problem rather than a universal cutoff test.
+- Esquef et al., [Automatic detection of audio defects using deep anomaly detection](https://link.springer.com/article/10.1186/s13636-024-00389-9), for contemporary defect-detection framing. Audio-V does not reproduce that neural model; its bounded local residual detector remains deterministic, disclosed, and corpus-gated.
+
+These references constrain measurement and claim language. They do not replace validation: synthetic fixtures prove regression behavior, while published false-positive and false-negative rates still require a legally usable labeled corpus.
 
 ## Non-destructive level remediation
 

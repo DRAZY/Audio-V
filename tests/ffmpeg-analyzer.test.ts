@@ -36,6 +36,12 @@ describe("FFmpeg Oracle analyzer", () => {
           (spectrum) => spectrum.fftSize,
         ),
       ).toEqual([512, 2048]);
+      expect(result.originSpectrum.fftSize).toBe(4096);
+      expect(result.originSpectrum.slices.length).toBeGreaterThan(0);
+      expect(result.measurements.originSpectrumSummary).toMatchObject({
+        fftSize: 4096,
+        slices: [],
+      });
       expect(result.measurements.spectrogram.effectiveBandwidthHz).toBeGreaterThan(0);
       expect(result.technical.fileSha256).toMatch(/^[a-f0-9]{64}$/);
       expect(result.technical.packetBitrateP05).not.toBeNull();

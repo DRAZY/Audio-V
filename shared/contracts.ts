@@ -133,6 +133,10 @@ export interface SpectrogramMeasurements {
   strongestCutoffHz: number | null;
   cutoffDropDb: number | null;
   upperBandLevelDbfs: number | null;
+  activeSlicePercent?: number;
+  cutoffStabilityPercent?: number | null;
+  priorNyquistMatchHz?: number | null;
+  bandRuptureScoreDb?: number | null;
   durationSeconds: number;
   slices: SpectrogramSlice[];
 }
@@ -254,6 +258,7 @@ export interface SignalMeasurements {
   waveform: WaveformMeasurements | null;
   spectrogram: SpectrogramMeasurements;
   spectrogramPyramid?: SpectrogramMeasurements[];
+  originSpectrumSummary?: SpectrogramMeasurements;
 }
 
 export interface ContentCredentialsAssessment {
@@ -462,9 +467,62 @@ export interface FidelityAssessment {
     | "possible-upsample";
   confidence: number | null;
   confidenceType: "rule-strength-v1" | null;
+  ruleStrength?: "none" | "weak" | "moderate" | "strong";
+  stabilityPercent?: number | null;
+  independentIndicators?: string[];
+  analysisFftSize?: number | null;
   evidenceCoverage: number;
   basis: string[];
   limitation: string;
+}
+
+export type OracleAssessmentLane =
+  | "integrity"
+  | "signal"
+  | "origin"
+  | "provenance"
+  | "delivery";
+
+export interface OracleAssessmentFinding {
+  id: string;
+  lane: OracleAssessmentLane;
+  severity: "info" | "advisory" | "review" | "critical";
+  certainty: "deterministic" | "measured" | "heuristic" | "declared";
+  summary: string;
+  evidenceIds: string[];
+}
+
+export interface OracleAssessmentLanes {
+  integrity: {
+    status: "passed" | "failed" | "error";
+    summary: string;
+  };
+  signal: {
+    status: "clear" | "advisory" | "review";
+    findingIds: string[];
+  };
+  origin: {
+    status:
+      | "inconclusive"
+      | "no-strong-anomaly"
+      | "compatible-pattern"
+      | "strong-multi-feature-pattern";
+    strength: "none" | "weak" | "moderate" | "strong";
+    coveragePercent: number;
+    stabilityPercent: number | null;
+    independentIndicatorCount: number;
+    findingIds: string[];
+  };
+  provenance: {
+    status: "none" | "declared" | "valid" | "untrusted" | "invalid";
+    findingIds: string[];
+  };
+  delivery: {
+    profile: string | null;
+    status: "not-evaluated" | "compliant" | "outside-target";
+    findingIds: string[];
+  };
+  findings: OracleAssessmentFinding[];
 }
 
 export interface OracleResult {
@@ -481,7 +539,8 @@ export interface OracleResult {
     | "oracle-integrity-fidelity-v7"
     | "oracle-integrity-provenance-v8"
     | "oracle-integrity-forensics-v9"
-    | "oracle-integrity-forensics-v10";
+    | "oracle-integrity-forensics-v10"
+    | "oracle-integrity-forensics-v11";
   verdict: OracleVerdict;
   analysisState?: OracleAnalysisState;
   failure?: OracleFailure | null;
@@ -492,6 +551,7 @@ export interface OracleResult {
   measurements: SignalMeasurements | null;
   technical: StreamTechnicalAnalysis | null;
   fidelity: FidelityAssessment | null;
+  assessments?: OracleAssessmentLanes;
   cueTracks?: CueTrackAnalysis[];
   measuredAt: string | null;
 }

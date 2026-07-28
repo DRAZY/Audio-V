@@ -69,7 +69,8 @@ function reportFiles(report: AuditReport): AudioFileRecord[] {
 export function audioFileReportRow(file: AudioFileRecord): ReportRow {
     const signal = file.oracle.measurements;
     const technical = file.oracle.technical;
-    const spectrum = signal?.spectrogram;
+    const spectrum =
+      signal?.originSpectrumSummary ?? signal?.spectrogram;
     const checksumStatus =
       technical?.externalChecksums
         ?.map(
@@ -92,6 +93,18 @@ export function audioFileReportRow(file: AudioFileRecord): ReportRow {
       Verdict: file.oracle.verdict,
       "Oracle headline": file.oracle.headline,
       "Oracle confidence": display(file.oracle.confidence),
+      "Integrity lane": display(file.oracle.assessments?.integrity.status),
+      "Signal lane": display(file.oracle.assessments?.signal.status),
+      "Spectral-origin lane": display(file.oracle.assessments?.origin.status),
+      "Provenance lane": display(file.oracle.assessments?.provenance.status),
+      "Delivery lane": display(file.oracle.assessments?.delivery.status),
+      "Assessment findings":
+        file.oracle.assessments?.findings
+          .map(
+            (finding) =>
+              `${finding.severity}:${finding.lane}:${finding.id}:${finding.summary}`,
+          )
+          .join(" | ") ?? "",
       "Analysis state": analysisState,
       "User review status": file.userReview ? "reviewed" : "not reviewed",
       "User reviewed at": display(file.userReview?.reviewedAt),
@@ -245,6 +258,17 @@ export function audioFileReportRow(file: AudioFileRecord): ReportRow {
       ),
       "Origin assessment": display(file.oracle.fidelity?.classification),
       "Origin confidence": display(file.oracle.fidelity?.confidence),
+      "Origin rule strength": display(
+        file.oracle.fidelity?.ruleStrength,
+      ),
+      "Origin regional stability percent": display(
+        file.oracle.fidelity?.stabilityPercent,
+      ),
+      "Origin independent indicators":
+        file.oracle.fidelity?.independentIndicators?.join(" | ") ?? "",
+      "Origin classifier FFT size": display(
+        file.oracle.fidelity?.analysisFftSize,
+      ),
       "Content Credentials": display(
         technical?.contentCredentials?.status,
       ),
@@ -298,6 +322,18 @@ export function audioFileReportRow(file: AudioFileRecord): ReportRow {
       "Strongest cutoff Hz": display(spectrum?.strongestCutoffHz),
       "Cutoff drop dB": display(spectrum?.cutoffDropDb),
       "Upper-band level dBFS": display(spectrum?.upperBandLevelDbfs),
+      "Active classifier slices percent": display(
+        spectrum?.activeSlicePercent,
+      ),
+      "Classifier cutoff stability percent": display(
+        spectrum?.cutoffStabilityPercent,
+      ),
+      "Prior Nyquist match distance Hz": display(
+        spectrum?.priorNyquistMatchHz,
+      ),
+      "Secondary band rupture dB": display(
+        spectrum?.bandRuptureScoreDb,
+      ),
       "Oracle engine": file.oracle.engineVersion,
       "Measured at": display(file.oracle.measuredAt),
     };

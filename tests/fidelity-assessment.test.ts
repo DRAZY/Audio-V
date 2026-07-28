@@ -19,7 +19,9 @@ describe("spectral-origin assessment", () => {
     expect(result.fidelity?.classification).toBe(
       "no-strong-spectral-anomaly",
     );
-    expect(result.fidelity?.confidenceType).toBe("rule-strength-v1");
+    expect(result.fidelity?.confidenceType).toBeNull();
+    expect(result.fidelity?.confidence).toBeNull();
+    expect(result.fidelity?.ruleStrength).toBe("strong");
     expect(result.fidelity?.evidenceCoverage).toBeGreaterThanOrEqual(90);
   });
 
@@ -29,12 +31,18 @@ describe("spectral-origin assessment", () => {
     );
 
     expect(result.verdict).toBe("review");
-    expect(result.confidence).toBe(72);
+    expect(result.confidence).toBeNull();
     expect(result.fidelity?.classification).toBe(
       "possible-lossy-transcode",
     );
     expect(result.fidelity?.reasonCode).toBe("possible-lossy-transcode");
-    expect(result.interpretation).toContain("does not certify source provenance");
+    expect(result.fidelity?.ruleStrength).toBe("strong");
+    expect(
+      result.fidelity?.independentIndicators?.length,
+    ).toBeGreaterThanOrEqual(2);
+    expect(result.assessments?.origin.status).toBe(
+      "strong-multi-feature-pattern",
+    );
   });
 
   it("routes a known 44.1-to-96 kHz control to conservative review", async () => {
@@ -43,10 +51,12 @@ describe("spectral-origin assessment", () => {
     );
 
     expect(result.verdict).toBe("review");
-    expect(result.confidence).toBe(78);
+    expect(result.confidence).toBeNull();
     expect(result.fidelity?.classification).toBe("possible-upsample");
     expect(result.fidelity?.limitation).toContain("not proof");
     expect(result.fidelity?.limitation).toContain("not a probability");
+    expect(result.fidelity?.analysisFftSize).toBe(4096);
+    expect(result.fidelity?.stabilityPercent).toBeGreaterThanOrEqual(65);
   });
 
   it("explains inconclusive evidence without fabricating confidence", async () => {

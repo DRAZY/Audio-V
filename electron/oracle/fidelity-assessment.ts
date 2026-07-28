@@ -20,8 +20,8 @@ const losslessCodecs = new Set([
 
 function evidenceCoverage(
   measurements: SignalMeasurements,
+  spectrum: SignalMeasurements["spectrogram"],
 ): number {
-  const spectrum = measurements.spectrogram;
   const durationScore =
     measurements.durationSeconds >= 10
       ? 25
@@ -45,14 +45,40 @@ function evidenceCoverage(
 export function assessFidelityOrigin(
   measurements: SignalMeasurements,
   technical: StreamTechnicalAnalysis,
+  classifierSpectrum: SignalMeasurements["spectrogram"] =
+    measurements.spectrogram,
 ): FidelityAssessment {
-  const spectrum = measurements.spectrogram;
+  const spectrum = classifierSpectrum;
   const cutoff = spectrum.strongestCutoffHz;
   const drop = spectrum.cutoffDropDb;
   const bandwidth = spectrum.effectiveBandwidthHz;
   const nyquist = technical.sampleRate / 2;
   const occupancy = bandwidth === null ? null : bandwidth / nyquist;
-  const coverage = evidenceCoverage(measurements);
+  const coverage = evidenceCoverage(measurements, spectrum);
+  const stability = spectrum.cutoffStabilityPercent ?? null;
+  const activeSlicePercent = spectrum.activeSlicePercent ?? 0;
+  const stableCutoff =
+    stability !== null && stability >= 65 && activeSlicePercent >= 30;
+  const priorNyquistMatch =
+    spectrum.priorNyquistMatchHz !== null &&
+    spectrum.priorNyquistMatchHz !== undefined &&
+    spectrum.priorNyquistMatchHz <= 500;
+  const secondaryBandRupture =
+    (spectrum.bandRuptureScoreDb ?? 0) >= 12;
+  const upperBandSuppression = (spectrum.upperBandLevelDbfs ?? 0) <= -85;
+  const independentIndicators = [
+    ...(stableCutoff ? ["regionally stable cutoff"] : []),
+    ...(priorNyquistMatch ? ["prior sample-grid boundary match"] : []),
+    ...(secondaryBandRupture ? ["secondary spectral-band rupture"] : []),
+    ...(upperBandSuppression ? ["sustained upper-band suppression"] : []),
+  ];
+  const common = {
+    confidence: null,
+    confidenceType: null,
+    stabilityPercent: stability,
+    independentIndicators,
+    analysisFftSize: spectrum.fftSize,
+  } as const;
   const limitation =
     "Spectral bandwidth can be shaped by mastering, microphones, instruments, noise reduction, or intentional filtering. Rule strength is not a probability of provenance; this assessment is evidence for review, not proof of encoding history.";
 
@@ -60,8 +86,8 @@ export function assessFidelityOrigin(
     return {
       classification: "inconclusive",
       reasonCode: "insufficient-duration",
-      confidence: null,
-      confidenceType: null,
+      ...common,
+      ruleStrength: "none",
       evidenceCoverage: coverage,
       basis: [
         `Only ${measurements.durationSeconds.toFixed(2)} seconds of decoded audio were available; at least two seconds are required.`,
@@ -73,8 +99,8 @@ export function assessFidelityOrigin(
     return {
       classification: "inconclusive",
       reasonCode: "unmeasurable-bandwidth",
-      confidence: null,
-      confidenceType: null,
+      ...common,
+      ruleStrength: "none",
       evidenceCoverage: coverage,
       basis: [
         "The effective signal bandwidth could not be measured reliably from this audio.",
@@ -86,8 +112,8 @@ export function assessFidelityOrigin(
     return {
       classification: "inconclusive",
       reasonCode: "unstable-cutoff",
-      confidence: null,
-      confidenceType: null,
+      ...common,
+      ruleStrength: "weak",
       evidenceCoverage: coverage,
       basis: [
         `Observed bandwidth reaches approximately ${Math.round(bandwidth!).toLocaleString()} Hz of the ${Math.round(nyquist).toLocaleString()} Hz Nyquist range.`,
@@ -101,20 +127,23 @@ export function assessFidelityOrigin(
     technical.sampleRate >= 88_200 &&
     cutoff >= 18_000 &&
     cutoff <= 28_000 &&
-    drop >= 18 &&
+    drop >= 5 &&
     occupancy <= 0.65 &&
-    (spectrum.upperBandLevelDbfs ?? 0) <= -85
+    upperBandSuppression &&
+    stableCutoff &&
+    (priorNyquistMatch || secondaryBandRupture)
   ) {
     return {
       classification: "possible-upsample",
       reasonCode: "possible-upsample",
-      confidence: 78,
-      confidenceType: "rule-strength-v1",
+      ...common,
+      ruleStrength: "strong",
       evidenceCoverage: coverage,
       basis: [
         `Declared Nyquist frequency is ${Math.round(nyquist).toLocaleString()} Hz, but measured bandwidth ends near ${Math.round(bandwidth!).toLocaleString()} Hz.`,
         `A ${drop.toFixed(1)} dB spectral cliff appears near ${Math.round(cutoff).toLocaleString()} Hz.`,
         `The upper 15% of the declared band averages ${spectrum.upperBandLevelDbfs?.toFixed(1)} dBFS.`,
+        `The cutoff repeats across ${stability?.toFixed(1)}% of active analysis regions and is supported by ${independentIndicators.length} evidence families.`,
       ],
       limitation,
     };
@@ -126,18 +155,21 @@ export function assessFidelityOrigin(
     cutoff >= 14_000 &&
     cutoff <= 21_500 &&
     drop >= 25 &&
-    occupancy <= 0.9
+    occupancy <= 0.9 &&
+    stableCutoff &&
+    (priorNyquistMatch || secondaryBandRupture || upperBandSuppression)
   ) {
     return {
       classification: "possible-lossy-transcode",
       reasonCode: "possible-lossy-transcode",
-      confidence: 72,
-      confidenceType: "rule-strength-v1",
+      ...common,
+      ruleStrength: "strong",
       evidenceCoverage: coverage,
       basis: [
         `The lossless container has a ${drop.toFixed(1)} dB spectral cliff near ${Math.round(cutoff).toLocaleString()} Hz.`,
         `Measured bandwidth occupies ${Math.round(occupancy * 100)}% of the declared Nyquist band.`,
         "This pattern is compatible with a perceptual-codec low-pass but is not unique to lossy encoding.",
+        `The cutoff repeats across ${stability?.toFixed(1)}% of active analysis regions and is supported by ${independentIndicators.length} evidence families.`,
       ],
       limitation,
     };
@@ -147,8 +179,8 @@ export function assessFidelityOrigin(
     return {
       classification: "no-strong-spectral-anomaly",
       reasonCode: "no-strong-anomaly",
-      confidence: 85,
-      confidenceType: "rule-strength-v1",
+      ...common,
+      ruleStrength: "strong",
       evidenceCoverage: coverage,
       basis: [
         `Measured bandwidth occupies ${Math.round(occupancy * 100)}% of the declared Nyquist band.`,
@@ -161,8 +193,11 @@ export function assessFidelityOrigin(
   return {
     classification: "bandwidth-limited",
     reasonCode: "bandwidth-limited",
-    confidence: 55,
-    confidenceType: "rule-strength-v1",
+    ...common,
+    ruleStrength:
+      stableCutoff && independentIndicators.length >= 2
+        ? "moderate"
+        : "weak",
     evidenceCoverage: coverage,
     basis: [
       `Observed bandwidth is ${Math.round(bandwidth!).toLocaleString()} Hz against a ${Math.round(nyquist).toLocaleString()} Hz Nyquist limit.`,

@@ -12,7 +12,7 @@ A release candidate is evidence-backed, not simply a successful packaging comman
 - [ ] Real-world corpus infrastructure and packaged validation disclosure verify.
 - [ ] Accessibility audit has no serious or critical violations.
 - [ ] Scale budgets pass for 100, 1,000, and 10,000 records.
-- [ ] Packaged CLI folder audit emits the v10 JSON evidence model, honors evidence-policy and native resource limits, and does not persist external-service keys.
+- [ ] Packaged CLI folder audit emits the v11 five-lane JSON evidence model, honors evidence-policy and native resource limits, and does not persist external-service keys.
 - [ ] Production dependency audit reports zero known vulnerabilities.
 - [ ] Apple Silicon DMG, Universal DMG, Windows installer, and Windows portable artifacts pass structural inspection.
 - [ ] Both macOS app bundles have valid whole-bundle ad-hoc signatures, no Developer ID identity, and remain valid after quarantine metadata is applied.

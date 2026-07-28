@@ -6,7 +6,7 @@
 
   <p>
     <img alt="Locally verified builds" src="https://img.shields.io/badge/builds-locally%20verified-51e19b?style=for-the-badge">
-    <a href="https://github.com/DRAZY/Audio-V/releases/tag/v0.4.18"><img alt="Latest development release 0.4.18" src="https://img.shields.io/badge/latest-0.4.18-8b5cf6?style=for-the-badge"></a>
+    <a href="https://github.com/DRAZY/Audio-V/releases/tag/v0.4.19"><img alt="Latest development release 0.4.19" src="https://img.shields.io/badge/latest-0.4.19-8b5cf6?style=for-the-badge"></a>
     <a href="LICENSE"><img alt="AGPL 3.0 only" src="https://img.shields.io/badge/license-AGPL--3.0--only-8b5cf6?style=for-the-badge"></a>
     <img alt="macOS and Windows" src="https://img.shields.io/badge/platforms-macOS%20%7C%20Windows-252532?style=for-the-badge">
   </p>
@@ -34,28 +34,28 @@ Audio-V is deliberately not a music player, tag editor, or mastering suite. It i
 
 ## Releases
 
-The latest development release is **[Audio-V 0.4.18](https://github.com/DRAZY/Audio-V/releases/tag/v0.4.18)**. It contains the complete locally built asset set:
+The latest development release is **[Audio-V 0.4.19](https://github.com/DRAZY/Audio-V/releases/tag/v0.4.19)**. It contains the complete locally built asset set:
 
 | Platform | Download | Intended system |
 |---|---|---|
-| macOS | [Apple Silicon DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.18/Audio-V-0.4.18-mac-arm64.dmg) | Native Apple Silicon |
-| macOS | [Universal DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.18/Audio-V-0.4.18-mac-universal.dmg) | Apple Silicon and Intel |
-| Windows | [Windows installer](https://github.com/DRAZY/Audio-V/releases/download/v0.4.18/Audio-V-0.4.18-win-x64.exe) | Guided desktop installation |
-| Windows | [Portable executable](https://github.com/DRAZY/Audio-V/releases/download/v0.4.18/Audio-V-Portable-0.4.18-x64.exe) | Run without installation |
+| macOS | [Apple Silicon DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.19/Audio-V-0.4.19-mac-arm64.dmg) | Native Apple Silicon |
+| macOS | [Universal DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.19/Audio-V-0.4.19-mac-universal.dmg) | Apple Silicon and Intel |
+| Windows | [Windows installer](https://github.com/DRAZY/Audio-V/releases/download/v0.4.19/Audio-V-0.4.19-win-x64.exe) | Guided desktop installation |
+| Windows | [Portable executable](https://github.com/DRAZY/Audio-V/releases/download/v0.4.19/Audio-V-Portable-0.4.19-x64.exe) | Run without installation |
 
-The same version-named GitHub Release exposes block maps, [`SHA256SUMS.txt`](https://github.com/DRAZY/Audio-V/releases/download/v0.4.18/SHA256SUMS.txt), and [`UNSIGNED_RELEASE_MANIFEST.json`](https://github.com/DRAZY/Audio-V/releases/download/v0.4.18/UNSIGNED_RELEASE_MANIFEST.json). Read the [release workflow](docs/RELEASING.md) and [unsigned installation guide](docs/UNSIGNED_INSTALLATION.md) before opening an unsigned build.
+The same version-named GitHub Release exposes block maps, [`SHA256SUMS.txt`](https://github.com/DRAZY/Audio-V/releases/download/v0.4.19/SHA256SUMS.txt), and [`UNSIGNED_RELEASE_MANIFEST.json`](https://github.com/DRAZY/Audio-V/releases/download/v0.4.19/UNSIGNED_RELEASE_MANIFEST.json). Read the [release workflow](docs/RELEASING.md) and [unsigned installation guide](docs/UNSIGNED_INSTALLATION.md) before opening an unsigned build.
 
 ## Meet the Oracle Engine
 
 The **Oracle Engine** is Audio-V's analysis and evidence layer. It does not make a verdict from a filename, extension, bitrate label, or spectrogram alone. It moves each file through a versioned pipeline:
 
 1. **Discover and identify** — inspect the container and primary audio stream, normalize the format label, and calculate file identity.
-2. **Decode completely** — run the selected stream from beginning to end through the bundled FFmpeg 8.1.2 LGPL engine with fatal error handling.
+2. **Decode completely** — run the selected stream from beginning to end through the bundled FFmpeg 8.1.2 LGPL engine with fatal error handling, then use a tolerant confirmation pass before declaring a strict-decode failure to be file damage.
 3. **Verify integrity** — evaluate decode completion, FLAC STREAMINFO audio MD5 when present, external MD5/SHA manifests, and declared-versus-decoded duration.
 4. **Inspect provenance and identity** — validate offline C2PA statements, inventory generator/signature indicators, and calculate a local Chromaprint without inventing an AI verdict.
 5. **Measure the signal** — calculate level, loudness, true peak, clipping, DC offset, continuity, channel relationship, dynamics, bit utilization, waveform envelope, and spectral data.
-6. **Assess fidelity indicators** — examine measured bandwidth and upper-band behavior using conservative, versioned origin rules.
-7. **Assemble the evidence** — separate deterministic facts, direct measurements, and heuristic indicators before issuing a scoped verdict and explanation.
+6. **Assess fidelity indicators** — examine 4,096-point multi-region bandwidth, band-edge stability, earlier Nyquist boundaries, upper-band suppression, and independent band ruptures using conservative, versioned rules.
+7. **Assemble five evidence lanes** — keep file integrity, signal defects, spectral origin, provenance, and delivery compliance separate before issuing a scoped verdict and explanation.
 
 ### Three kinds of evidence
 
@@ -65,7 +65,7 @@ The **Oracle Engine** is Audio-V's analysis and evidence layer. It does not make
 | **Measured** | What is present in decoded or locally derived evidence? | LUFS, dBTP, clipping, stereo correlation, STFT spectrum, Chromaprint relationship |
 | **Heuristic** | Does the signal or editable inventory match a disclosed review pattern? | Possible transcode/upsample, generator metadata, known raw identifier string |
 
-Heuristic rule strength is not a probability of provenance. Audio-V separately reports evidence coverage and explains when an origin assessment is inconclusive. Microphones, mastering filters, instruments, noise reduction, and intentional processing can resemble codec cutoffs, so spectral evidence remains a reason to investigate—not an accusation.
+Heuristic rule strength is an ordinal (`none`, `weak`, `moderate`, or `strong`), not a probability of provenance. Audio-V separately reports evidence coverage and regional stability and explains when an origin assessment is inconclusive. A strong origin Review requires multiple evidence families; microphones, mastering filters, instruments, noise reduction, and intentional processing can still resemble codec cutoffs, so spectral evidence remains a reason to investigate—not an accusation.
 
 ### Real-world validation disclosure
 
@@ -77,9 +77,9 @@ The corpus infrastructure is implemented, but the project does not claim real-wo
 
 | Verdict | Meaning |
 |---|---|
-| **Clear** | The entire selected stream decoded and passed the current deterministic and measured rules. This does not certify provenance. |
-| **Review** | Decoding completed, but a measured finding, checksum discrepancy, or heuristic pattern deserves human inspection. Review does not automatically mean damage or require repair. |
-| **Failed** | Deterministic evidence exists against the file itself, such as decoder-reported stream corruption or a FLAC decoded-audio MD5 mismatch. |
+| **Clear** | The entire selected stream decoded and no review-level evidence was found in the tested scope. Advisory observations can remain visible. This does not certify provenance. |
+| **Review** | A material measured defect, recoverable stream nonconformance, checksum discrepancy, or strong multi-feature origin pattern deserves human inspection. Review does not automatically mean damage or require repair. |
+| **Failed** | Deterministic evidence exists against the file itself, such as strict and tolerant decode failure or a FLAC decoded-audio MD5 mismatch. |
 
 **Not analyzed** is a workflow state, not a verdict. It means Metadata Inventory cataloged declared technical properties without decoding the signal or invoking Oracle. **Analysis error** is also separate from Failed: Audio-V shows the failed processing stage and exact diagnostic evidence, issues no file-integrity verdict, and offers a retry.
 

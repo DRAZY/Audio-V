@@ -190,6 +190,10 @@ export class SpectrogramAccumulator {
     let strongestCutoffHz: number | null = null;
     let cutoffDropDb: number | null = null;
     let upperBandLevelDbfs: number | null = null;
+    let activeSlicePercent = 0;
+    let cutoffStabilityPercent: number | null = null;
+    let priorNyquistMatchHz: number | null = null;
+    let bandRuptureScoreDb: number | null = null;
     if (this.#slices.length > 0) {
       const averageLevels = Array.from({ length: this.#binCount }, (_, bin) => {
         const averagePower =
@@ -223,8 +227,12 @@ export class SpectrogramAccumulator {
       upperBandLevelDbfs = Number(
         (10 * Math.log10(Math.max(upperBandPower, 1e-12))).toFixed(2),
       );
-      const comparisonWidth = 6;
+      const comparisonWidth = Math.max(
+        6,
+        Math.round((300 * fftSize) / this.#sampleRate),
+      );
       let strongestDrop = 0;
+      const dropCandidates: Array<{ bin: number; drop: number }> = [];
       for (
         let bin = Math.max(
           comparisonWidth,
@@ -242,6 +250,9 @@ export class SpectrogramAccumulator {
             .slice(bin, bin + comparisonWidth)
             .reduce((sum, level) => sum + level, 0) / comparisonWidth;
         const drop = before - after;
+        if (before >= strongest - 30 && drop > 0) {
+          dropCandidates.push({ bin, drop });
+        }
         if (before >= strongest - 30 && drop > strongestDrop) {
           strongestDrop = drop;
           strongestCutoffHz = Math.round((bin * this.#sampleRate) / fftSize);
@@ -249,6 +260,96 @@ export class SpectrogramAccumulator {
       }
       cutoffDropDb =
         strongestCutoffHz === null ? null : Number(strongestDrop.toFixed(2));
+      if (strongestCutoffHz !== null) {
+        const priorNyquistRates = [
+          8_000, 11_025, 12_000, 16_000, 22_050, 24_000, 32_000, 44_100,
+          48_000, 88_200, 96_000,
+        ].filter((frequency) => frequency < this.#sampleRate / 2 - 250);
+        priorNyquistMatchHz =
+          priorNyquistRates.length === 0
+            ? null
+            : Math.min(
+                ...priorNyquistRates.map((frequency) =>
+                  Math.abs(strongestCutoffHz! - frequency),
+                ),
+              );
+        const separatedDrops = dropCandidates
+          .filter(
+            ({ bin }) =>
+              Math.abs(
+                (bin * this.#sampleRate) / fftSize - strongestCutoffHz!,
+              ) >= 1_000,
+          )
+          .sort((left, right) => right.drop - left.drop);
+        bandRuptureScoreDb =
+          separatedDrops.length > 0
+            ? Number(separatedDrops[0].drop.toFixed(2))
+            : null;
+      }
+
+      const activeSlices = this.#slices.filter(
+        (slice) => Math.max(...slice.levelsDbfs) > -70,
+      );
+      activeSlicePercent = Number(
+        ((activeSlices.length / this.#slices.length) * 100).toFixed(1),
+      );
+      if (strongestCutoffHz !== null && activeSlices.length >= 3) {
+        let matchingSlices = 0;
+        for (const slice of activeSlices) {
+          const sliceStrongest = Math.max(...slice.levelsDbfs);
+          let sliceCutoffHz: number | null = null;
+          let sliceStrongestDrop = 0;
+          let sliceBandwidthHz: number | null = null;
+          const sliceBandwidthFloor = Math.max(-90, sliceStrongest - 60);
+          for (let bin = this.#binCount - 2; bin >= 1; bin -= 1) {
+            const localAverage =
+              (slice.levelsDbfs[bin - 1] +
+                slice.levelsDbfs[bin] +
+                slice.levelsDbfs[bin + 1]) /
+              3;
+            if (localAverage >= sliceBandwidthFloor) {
+              sliceBandwidthHz = (bin * this.#sampleRate) / fftSize;
+              break;
+            }
+          }
+          for (
+            let bin = Math.max(
+              comparisonWidth,
+              Math.ceil((8_000 * fftSize) / this.#sampleRate),
+            );
+            bin < this.#binCount - comparisonWidth;
+            bin += 1
+          ) {
+            const before =
+              slice.levelsDbfs
+                .slice(bin - comparisonWidth, bin)
+                .reduce((sum, level) => sum + level, 0) / comparisonWidth;
+            const after =
+              slice.levelsDbfs
+                .slice(bin, bin + comparisonWidth)
+                .reduce((sum, level) => sum + level, 0) / comparisonWidth;
+            const drop = before - after;
+            if (before >= sliceStrongest - 30 && drop > sliceStrongestDrop) {
+              sliceStrongestDrop = drop;
+              sliceCutoffHz = (bin * this.#sampleRate) / fftSize;
+            }
+          }
+          const cutoffMatches =
+            sliceCutoffHz !== null &&
+            sliceStrongestDrop >= Math.max(5, strongestDrop * 0.6) &&
+            Math.abs(sliceCutoffHz - strongestCutoffHz) <= 500;
+          const bandwidthMatches =
+            sliceBandwidthHz !== null &&
+            effectiveBandwidthHz !== null &&
+            Math.abs(sliceBandwidthHz - effectiveBandwidthHz) <= 1_000;
+          if (cutoffMatches || bandwidthMatches) {
+            matchingSlices += 1;
+          }
+        }
+        cutoffStabilityPercent = Number(
+          ((matchingSlices / activeSlices.length) * 100).toFixed(1),
+        );
+      }
     }
     return {
       algorithm: "STFT",
@@ -263,6 +364,10 @@ export class SpectrogramAccumulator {
       strongestCutoffHz,
       cutoffDropDb,
       upperBandLevelDbfs,
+      activeSlicePercent,
+      cutoffStabilityPercent,
+      priorNyquistMatchHz,
+      bandRuptureScoreDb,
       durationSeconds: this.#totalFrames / this.#sampleRate,
       slices: this.#slices,
     };

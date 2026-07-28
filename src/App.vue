@@ -445,7 +445,7 @@ function oracleConfidenceDescription(file: AudioFileRecord): string {
       file.oracle.fidelity?.classification ?? "",
     )
   ) {
-    return `${file.oracle.fidelity?.confidence ?? "—"}% heuristic rule strength · ${file.oracle.fidelity?.evidenceCoverage ?? 0}% evidence coverage`;
+    return `${file.oracle.fidelity?.ruleStrength ?? "unrated"} heuristic rule strength · ${file.oracle.fidelity?.evidenceCoverage ?? 0}% evidence coverage`;
   }
   if (file.oracle.measurements) {
     return `Deterministic checks completed · ${file.oracle.scope}`;
@@ -1800,6 +1800,14 @@ function originAssessmentLabel(file: AudioFileRecord): string {
   }[classification];
 }
 
+function originSpectrum(file: AudioFileRecord): SpectrogramMeasurements | null {
+  return (
+    file.oracle.measurements?.originSpectrumSummary ??
+    file.oracle.measurements?.spectrogram ??
+    null
+  );
+}
+
 function originAssessmentSummary(file: AudioFileRecord): string {
   const classification = file.oracle.fidelity?.classification;
   if (classification === "no-strong-spectral-anomaly") {
@@ -1827,10 +1835,30 @@ function originConfidenceLabel(file: AudioFileRecord): string {
     typeof fidelity.evidenceCoverage === "number"
       ? `${fidelity.evidenceCoverage}% evidence coverage`
       : "evidence coverage unavailable for this legacy result";
-  if (fidelity.confidence === null) {
-    return `No responsible classification · ${coverage}`;
+  const strength =
+    fidelity.ruleStrength && fidelity.ruleStrength !== "none"
+      ? `${fidelity.ruleStrength} rule strength`
+      : "No responsible origin classification";
+  const stability =
+    fidelity.stabilityPercent === null ||
+    fidelity.stabilityPercent === undefined
+      ? "stability unavailable"
+      : `${fidelity.stabilityPercent}% regional stability`;
+  return `${strength} · ${coverage} · ${stability}`;
+}
+
+function assessmentStatusLabel(
+  file: AudioFileRecord,
+  lane: "integrity" | "signal" | "origin" | "provenance" | "delivery",
+): string {
+  const assessment = file.oracle.assessments?.[lane];
+  if (!assessment) return "Legacy result · re-run for v11 lanes";
+  if (lane === "delivery") {
+    return assessment.status === "not-evaluated"
+      ? "No delivery profile selected"
+      : assessment.status.replaceAll("-", " ");
   }
-  return `${fidelity.confidence}% heuristic rule strength · ${coverage}`;
+  return assessment.status.replaceAll("-", " ");
 }
 
 function repairActionability(file: AudioFileRecord): {
@@ -2922,6 +2950,33 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
               <div><dt>Cue sheet</dt><dd>{{ selected.metadata?.cueSheet.embedded ? "Embedded" : selected.metadata?.cueSheet.sidecarPaths.length ? `${selected.metadata.cueSheet.sidecarPaths.length} sidecar` : "None found" }}</dd></div>
               <div v-if="selected.oracle.technical?.repairProvenance"><dt>Audio-V action</dt><dd>−{{ selected.oracle.technical.repairProvenance.gainReductionDb.toFixed(2) }} dB · {{ selected.oracle.technical.repairProvenance.outputBitDepth }}-bit copy</dd></div>
             </dl>
+            <section
+              v-if="selected.oracle.assessments"
+              class="origin-assessment-card"
+            >
+              <header>
+                <span class="eyebrow">Oracle v11 evidence lanes</span>
+                <strong>Separated assessment model</strong>
+                <em>Only review-level evidence changes the overall verdict</em>
+              </header>
+              <p>Integrity, signal defects, spectral origin, provenance declarations, and delivery guidance are evaluated independently so an editable tag or delivery preference cannot masquerade as file damage.</p>
+              <dl>
+                <div><dt>File integrity</dt><dd>{{ assessmentStatusLabel(selected, "integrity") }}</dd></div>
+                <div><dt>Signal defects</dt><dd>{{ assessmentStatusLabel(selected, "signal") }}</dd></div>
+                <div><dt>Spectral origin</dt><dd>{{ assessmentStatusLabel(selected, "origin") }}</dd></div>
+                <div><dt>Provenance</dt><dd>{{ assessmentStatusLabel(selected, "provenance") }}</dd></div>
+                <div><dt>Delivery compliance</dt><dd>{{ assessmentStatusLabel(selected, "delivery") }}</dd></div>
+              </dl>
+              <ul v-if="selected.oracle.assessments.findings.length">
+                <li
+                  v-for="finding in selected.oracle.assessments.findings"
+                  :key="finding.id"
+                >
+                  {{ finding.severity }} · {{ finding.lane }} · {{ finding.summary }}
+                </li>
+              </ul>
+              <small v-else>No advisory or review-level findings were produced.</small>
+            </section>
             <section class="origin-assessment-card">
               <header>
                 <span class="eyebrow">Measured origin assessment</span>
@@ -2931,11 +2986,14 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
               <p>{{ originAssessmentSummary(selected) }}</p>
               <dl v-if="selected.oracle.measurements">
                 <div><dt>Declared Nyquist</dt><dd>{{ formatHz((selected.sampleRate ?? 0) / 2) }}</dd></div>
-                <div><dt>Observed bandwidth</dt><dd>{{ formatHz(selected.oracle.measurements.spectrogram.effectiveBandwidthHz) }}</dd></div>
-                <div><dt>Strongest cutoff</dt><dd>{{ formatHz(selected.oracle.measurements.spectrogram.strongestCutoffHz) }}</dd></div>
-                <div><dt>Cutoff strength</dt><dd>{{ selected.oracle.measurements.spectrogram.cutoffDropDb === null ? "—" : `${selected.oracle.measurements.spectrogram.cutoffDropDb.toFixed(1)} dB` }}</dd></div>
-                <div><dt>Upper-band level</dt><dd>{{ selected.oracle.measurements.spectrogram.upperBandLevelDbfs === null ? "—" : `${selected.oracle.measurements.spectrogram.upperBandLevelDbfs.toFixed(1)} dBFS` }}</dd></div>
+                <div><dt>Observed bandwidth</dt><dd>{{ formatHz(originSpectrum(selected)?.effectiveBandwidthHz ?? null) }}</dd></div>
+                <div><dt>Strongest cutoff</dt><dd>{{ formatHz(originSpectrum(selected)?.strongestCutoffHz ?? null) }}</dd></div>
+                <div><dt>Cutoff strength</dt><dd>{{ originSpectrum(selected)?.cutoffDropDb === null || originSpectrum(selected)?.cutoffDropDb === undefined ? "—" : `${originSpectrum(selected)!.cutoffDropDb!.toFixed(1)} dB` }}</dd></div>
+                <div><dt>Upper-band level</dt><dd>{{ originSpectrum(selected)?.upperBandLevelDbfs === null || originSpectrum(selected)?.upperBandLevelDbfs === undefined ? "—" : `${originSpectrum(selected)!.upperBandLevelDbfs!.toFixed(1)} dBFS` }}</dd></div>
                 <div><dt>Evidence coverage</dt><dd>{{ selected.oracle.fidelity?.evidenceCoverage ?? 0 }}%</dd></div>
+                <div><dt>Classifier FFT</dt><dd>{{ selected.oracle.fidelity?.analysisFftSize ?? "—" }}</dd></div>
+                <div><dt>Regional stability</dt><dd>{{ selected.oracle.fidelity?.stabilityPercent === null || selected.oracle.fidelity?.stabilityPercent === undefined ? "—" : `${selected.oracle.fidelity.stabilityPercent}%` }}</dd></div>
+                <div><dt>Independent indicators</dt><dd>{{ selected.oracle.fidelity?.independentIndicators?.length ?? 0 }}</dd></div>
                 <div><dt>Assessment reason</dt><dd>{{ selected.oracle.fidelity?.reasonCode?.replaceAll("-", " ") ?? "Not assessed" }}</dd></div>
               </dl>
               <ul v-if="selected.oracle.fidelity?.basis.length">
@@ -3435,6 +3493,27 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
                 </dl>
               </section>
             </div>
+            <section
+              v-if="reportSelected.oracle.assessments"
+              class="report-origin"
+            >
+              <span class="eyebrow">Oracle v11 evidence lanes</span>
+              <dl>
+                <div><dt>File integrity</dt><dd>{{ assessmentStatusLabel(reportSelected, "integrity") }}</dd></div>
+                <div><dt>Signal defects</dt><dd>{{ assessmentStatusLabel(reportSelected, "signal") }}</dd></div>
+                <div><dt>Spectral origin</dt><dd>{{ assessmentStatusLabel(reportSelected, "origin") }}</dd></div>
+                <div><dt>Provenance</dt><dd>{{ assessmentStatusLabel(reportSelected, "provenance") }}</dd></div>
+                <div><dt>Delivery compliance</dt><dd>{{ assessmentStatusLabel(reportSelected, "delivery") }}</dd></div>
+              </dl>
+              <ul v-if="reportSelected.oracle.assessments.findings.length">
+                <li
+                  v-for="finding in reportSelected.oracle.assessments.findings"
+                  :key="finding.id"
+                >
+                  {{ finding.severity }} · {{ finding.lane }} · {{ finding.summary }}
+                </li>
+              </ul>
+            </section>
             <section class="report-origin">
               <span class="eyebrow">Origin assessment</span>
               <strong>{{ originAssessmentLabel(reportSelected) }}</strong>
@@ -3469,12 +3548,13 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
           <p>Capabilities are disclosed by format so an unavailable decoder is never mistaken for unfinished processing.</p>
         </header>
         <div class="capability-grid">
-          <article><span>Decode integrity</span><strong>Multi-codec full decode</strong><p>Every selected stream is decoded from beginning to end. Fatal stream or truncation errors produce a deterministic Failed verdict.</p></article>
+          <article><span>Decode integrity</span><strong>Strict plus confirmation decode</strong><p>Every selected stream is decoded from beginning to end. A strict decoder error is confirmed with a tolerant full pass before Audio-V can issue a deterministic Failed verdict.</p></article>
+          <article><span>Oracle v11 policy</span><strong>Five independent evidence lanes</strong><p>File integrity, signal defects, spectral origin, provenance, and delivery guidance remain separate. Advisory inventory never masquerades as file damage.</p></article>
           <article><span>Metadata workflow</span><strong>Explicit inventory mode</strong><p>Catalog declared format, codec, duration, bitrate, sample rate, bit depth, and channels without decoding. Files remain Not analyzed until a Full Oracle Audit runs.</p></article>
           <article><span>Signal analysis</span><strong>Measured PCM and spectrum</strong><p>Peak, RMS, clipping, DC offset, channel relationship, and a real STFT spectrogram come from decoded samples.</p></article>
           <article><span>Broadcast loudness</span><strong>EBU R128 / BS.1770</strong><p>Integrated LUFS, loudness range, and oversampled true peak are measured by the bundled engine.</p></article>
           <article><span>Codec integrity</span><strong>FLAC audio MD5</strong><p>The decoded PCM is independently compared with the checksum stored in STREAMINFO; mismatch is a deterministic failure.</p></article>
-          <article><span>Spectral origin</span><strong>Conservative review classifier</strong><p>Measured cutoffs can flag compatible patterns with rule strength, evidence coverage, reason codes, and explicit mastering limitations.</p></article>
+          <article><span>Spectral origin</span><strong>4,096-point multi-region classifier</strong><p>Strong Review requires a repeatable band edge and corroborating evidence. Ordinal rule strength, evidence coverage, regional stability, and limitations remain distinct.</p></article>
           <article><span>Content provenance</span><strong>Offline C2PA verification</strong><p>Content Credentials are cryptographically inspected with remote manifest and OCSP fetching disabled. Valid credentials record claims; they do not certify truth or human authorship.</p></article>
           <article><span>Acoustic identity</span><strong>Chromaprint duplicates</strong><p>Local fingerprints identify same-recording and high-similarity candidates. Optional AcoustID lookup is session-only and never runs without a key and explicit opt-in.</p></article>
           <article><span>Metadata depth</span><strong>Tags, cue, ReplayGain</strong><p>Audio-V inventories identity tags, explains ReplayGain 2.0 album eligibility, and independently decodes cue INDEX 01 programme plus INDEX 00 pregap regions without becoming a tag editor.</p></article>
@@ -3566,7 +3646,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
           :title="sourceIoNotice || undefined"
         ><i></i>{{ scanMessage }}</span>
         <span>{{ files.length.toLocaleString() }} files in session</span>
-        <span>Oracle integrity, fidelity &amp; forensics scope v10</span>
+        <span>Oracle evidence lanes &amp; forensics scope v11</span>
       </footer>
     </main>
   </div>

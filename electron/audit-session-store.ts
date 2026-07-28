@@ -14,6 +14,7 @@ import type {
   FingerprintLibraryMutationResult,
 } from "../shared/contracts";
 import {
+  archiveAudioFileRecord,
   compactAudioFileRecord,
   restoreAudioFileDetails,
 } from "../shared/compact-audio-record";
@@ -913,7 +914,7 @@ export class AuditSessionStore {
       `)
       .get(evidenceKey);
     if (existing) return evidenceKey;
-    const serialized = JSON.stringify(record);
+    const serialized = JSON.stringify(archiveAudioFileRecord(record));
     this.#database
       .prepare(`
         INSERT INTO oracle_evidence (

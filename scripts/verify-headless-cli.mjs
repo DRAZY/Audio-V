@@ -39,8 +39,11 @@ try {
   const checks = {
     schema: evidence.schema === "Audio-V Oracle CLI evidence v1",
     oneFile: evidence.summary?.discovered === 1,
-    engine: file?.oracle?.engineVersion === "0.8.0-oracle-v10",
-    scope: file?.oracle?.scope === "oracle-integrity-forensics-v10",
+    engine: file?.oracle?.engineVersion === "0.9.0-oracle-v11",
+    scope: file?.oracle?.scope === "oracle-integrity-forensics-v11",
+    assessmentLanes:
+      file?.oracle?.assessments?.integrity?.status === "passed" &&
+      typeof file?.oracle?.assessments?.origin?.status === "string",
     contentCredentials:
       typeof file?.oracle?.technical?.contentCredentials?.status === "string",
     chromaprint:
@@ -66,7 +69,7 @@ try {
   if (!passed) {
     throw new Error(`CLI validation failed: ${JSON.stringify(checks)}`);
   }
-  console.log("Verified headless CLI v10 evidence, native resource policy, and credential boundary.");
+  console.log("Verified headless CLI v11 evidence lanes, native resource policy, and credential boundary.");
 } finally {
   await fs.rm(temporary, { recursive: true, force: true });
 }

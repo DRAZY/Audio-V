@@ -29,9 +29,13 @@ describe("analyzeAudioFile", () => {
     const result = await analyzeAudioFile(filePath);
 
     expect(result.verdict).toBe("verified");
-    expect(result.confidence).toBe(100);
-    expect(result.scope).toBe("oracle-integrity-forensics-v10");
+    expect(result.confidence).toBeNull();
+    expect(result.scope).toBe("oracle-integrity-forensics-v11");
     expect(result.headline).toBe("Current checks passed");
+    expect(result.assessments).toMatchObject({
+      integrity: { status: "passed" },
+      signal: { status: "clear" },
+    });
     expect(result.measurements?.frames).toBe(11_025);
     expect(result.evidence[0].kind).toBe("deterministic");
     expect(result.measuredAt).not.toBeNull();
@@ -46,13 +50,13 @@ describe("analyzeAudioFile", () => {
     const result = await analyzeAudioFile(filePath);
 
     expect(result.verdict).toBe("review");
-    expect(result.confidence).toBe(100);
+    expect(result.confidence).toBeNull();
     expect(result.measurements?.clippedSamples).toBeGreaterThan(0);
     expect(result.headline).toBe("Review signal findings");
     expect(result.interpretation).toContain("clipped samples");
   });
 
-  it("returns a deterministic damage verdict for a truncated WAVE stream", async () => {
+  it("uses a tolerant confirmation decode before classifying a strict stream error", async () => {
     const valid = pcmWave({ seconds: 0.1 });
     const filePath = await writeAudio(
       "truncated.wav",
@@ -61,16 +65,19 @@ describe("analyzeAudioFile", () => {
 
     const result = await analyzeAudioFile(filePath);
 
-    expect(result.verdict).toBe("damaged");
-    expect(result.analysisState).toBe("failed");
-    expect(result.failure).toMatchObject({
-      category: "file-integrity",
-      stage: "full-decode",
-      code: "DECODE_INTEGRITY_FAILED",
-    });
-    expect(result.confidence).toBe(100);
-    expect(result.measurements).toBeNull();
-    expect(result.evidence[0].disposition).toBe("contradicts");
+    expect(result.verdict).toBe("review");
+    expect(result.analysisState).toBe("completed");
+    expect(result.failure).toBeNull();
+    expect(result.confidence).toBeNull();
+    expect(result.measurements).not.toBeNull();
+    expect(result.assessments?.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "recoverable-stream-nonconformance",
+          severity: "review",
+        }),
+      ]),
+    );
   });
 
   it("returns a deterministic damage verdict for an invalid FLAC stream", async () => {
@@ -82,5 +89,7 @@ describe("analyzeAudioFile", () => {
     expect(result.analysisState).toBe("failed");
     expect(result.measurements).toBeNull();
     expect(result.headline).toBe("Audio stream integrity failed");
+    expect(result.confidence).toBeNull();
+    expect(result.assessments?.integrity.status).toBe("failed");
   });
 });

@@ -36,9 +36,11 @@ Identity lists Chromaprint entries retained from historical audits, exact-finger
 
 ## Origin Assessment
 
-**Heuristic rule strength** shows how strongly a classifiable file matches a versioned rule. It is not a probability that a source history is true.
+**Heuristic rule strength** is the ordinal none, weak, moderate, or strong. It shows how completely a classifiable file matches a versioned multi-feature rule; it is not a probability that a source history is true.
 
 **Evidence coverage** shows how much usable classifier input was available. An inconclusive file still receives coverage and a reason such as insufficient duration, unmeasurable bandwidth, or unstable cutoff.
+
+**Regional stability** shows how consistently a measured band edge repeats across active time regions. Strong origin Review requires corroboration from at least one additional evidence family.
 
 Intentional filtering, microphones, instruments, analog transfers, noise reduction, and mastering can resemble codec cutoffs. Use Origin Assessment to prioritize review, not accuse a source.
 
@@ -113,6 +115,6 @@ Source and CI users can audit files or recursive folders without opening the des
 npm run cli -- ./collection --output ./audio-v-evidence.json --concurrency 2 --memory-mb 256 --fail-on failed
 ```
 
-Use `--fail-on review`, `failed`, or `never` to choose when evidence returns policy exit code 2. Processing errors return exit code 1. The output uses the same compact Oracle v10 JSON contract as desktop JSON reports. Desktop packages include launchers under `Contents/Resources/cli` on macOS and `resources\cli` on Windows.
+Use `--fail-on review`, `failed`, or `never` to choose when evidence returns policy exit code 2. Processing errors return exit code 1. The output uses the same compact Oracle v11 five-lane JSON contract as desktop JSON reports. Desktop packages include launchers under `Contents/Resources/cli` on macOS and `resources\cli` on Windows.
 
 For unsigned installation and checksum verification, see [UNSIGNED_INSTALLATION.md](UNSIGNED_INSTALLATION.md).

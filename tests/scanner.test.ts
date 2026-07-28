@@ -574,6 +574,52 @@ describe("scanSources", () => {
     expect(mismatch.files[0].oracle.headline).toBe(
       "External checksum mismatch",
     );
+    expect(mismatch.files[0].oracle.confidence).toBeNull();
+    expect(mismatch.files[0].oracle.assessments?.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "external-checksum-mismatch",
+          severity: "review",
+          certainty: "deterministic",
+        }),
+      ]),
+    );
+  });
+
+  it("inventories editable generator metadata without changing audio quality to Review", async () => {
+    const directory = await makeTemporaryDirectory();
+    const filePath = path.join(directory, "declared-generator.flac");
+    await runEngine("ffmpeg", [
+      "-nostdin",
+      "-hide_banner",
+      "-v",
+      "error",
+      "-f",
+      "lavfi",
+      "-i",
+      "sine=frequency=880:sample_rate=48000:duration=0.5",
+      "-metadata",
+      "comment=Created with Suno",
+      "-c:a",
+      "flac",
+      "-y",
+      filePath,
+    ]);
+
+    const result = await scanSources({
+      kind: "files",
+      label: "provenance inventory",
+      paths: [filePath],
+    });
+    const file = result.files[0];
+
+    expect(file.oracle.verdict).toBe("verified");
+    expect(file.oracle.assessments?.provenance.status).toBe("declared");
+    expect(
+      file.oracle.evidence.find((item) =>
+        item.id.startsWith("generator-metadata-"),
+      )?.disposition,
+    ).toBe("neutral");
   });
 
   it("bypasses cached evidence for adaptive recovery validation", async () => {

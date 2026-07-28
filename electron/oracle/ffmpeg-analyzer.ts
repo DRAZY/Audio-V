@@ -309,9 +309,11 @@ function parseDrMeter(stderr: string): {
 export async function analyzeWithFfmpeg(
   filePath: string,
   signal?: AbortSignal,
+  options: { strictDecode?: boolean } = {},
 ): Promise<{
   measurements: SignalMeasurements;
   technical: StreamTechnicalAnalysis;
+  originSpectrum: SignalMeasurements["spectrogram"];
 }> {
   const { technical } = await atOracleStage(
     "stream-probe",
@@ -350,6 +352,12 @@ export async function analyzeWithFfmpeg(
     totalFrames,
     { fftSize: 2048, maxSlices: 90 },
   );
+  const originSpectrogram = new SpectrogramAccumulator(
+    technical.sampleRate,
+    technical.channels,
+    totalFrames,
+    { fftSize: 4096, maxSlices: 48 },
+  );
   const waveform = new WaveformEnvelopeAccumulator(
     technical.sampleRate,
     technical.channels,
@@ -358,6 +366,7 @@ export async function analyzeWithFfmpeg(
   let carry: Buffer<ArrayBufferLike> = Buffer.alloc(0);
 
   await atOracleStage("full-decode", async () => {
+    const strictDecode = options.strictDecode !== false;
     await runEngine(
       "ffmpeg",
       [
@@ -366,9 +375,7 @@ export async function analyzeWithFfmpeg(
       "-nostats",
       "-v",
       "error",
-      "-xerror",
-      "-err_detect",
-      "explode",
+      ...(strictDecode ? ["-xerror", "-err_detect", "explode"] : []),
       "-i",
       filePath,
       "-map",
@@ -393,6 +400,7 @@ export async function analyzeWithFfmpeg(
         measurement.pushInterleaved(samples);
         spectrogram.pushInterleaved(samples);
         detailSpectrogram.pushInterleaved(samples);
+        originSpectrogram.pushInterleaved(samples);
         waveform.pushInterleaved(samples);
         carry = combined.subarray(completeLength);
       },
@@ -438,6 +446,7 @@ export async function analyzeWithFfmpeg(
         );
   const overviewSpectrum = spectrogram.finish();
   const detailSpectrum = detailSpectrogram.finish();
+  const originSpectrum = originSpectrogram.finish();
   const pcmMeasurements = measurement.finish();
   const trackGainDb =
     loudness.integratedLufs === null
@@ -449,6 +458,7 @@ export async function analyzeWithFfmpeg(
       : Number((10 ** (pcmMeasurements.samplePeakDbfs / 20)).toFixed(8));
   return {
     technical,
+    originSpectrum,
     measurements: {
       ...pcmMeasurements,
       standard: "Audio-V signal measurement v2",
@@ -476,6 +486,10 @@ export async function analyzeWithFfmpeg(
       waveform: waveform.finish(),
       spectrogram: overviewSpectrum,
       spectrogramPyramid: [overviewSpectrum, detailSpectrum],
+      originSpectrumSummary: {
+        ...originSpectrum,
+        slices: [],
+      },
     },
   };
 }

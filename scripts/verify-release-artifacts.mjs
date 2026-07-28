@@ -107,21 +107,25 @@ function requireAdHocSignedApp(application) {
   }
 }
 
-function requireQuarantineSafeSignature(application) {
-  execFileSync("xattr", [
-    "-w",
-    "com.apple.quarantine",
-    "0081;00000000;Audio-V;https://github.com/DRAZY/Audio-V",
-    application,
-  ]);
+async function requireQuarantineSafeSignature(application) {
+  const verificationRoot = path.join(root, "tmp");
+  await fs.mkdir(verificationRoot, { recursive: true });
+  const temporary = await fs.mkdtemp(
+    path.join(verificationRoot, "quarantine-signature-"),
+  );
+  const quarantinedCopy = path.join(temporary, "Audio-V.app");
   try {
-    requireAdHocSignedApp(application);
-  } finally {
+    execFileSync("ditto", ["--noqtn", application, quarantinedCopy]);
+    execFileSync("xattr", ["-cr", quarantinedCopy]);
     execFileSync("xattr", [
-      "-d",
+      "-w",
       "com.apple.quarantine",
-      application,
+      "0081;00000000;Audio-V;https://github.com/DRAZY/Audio-V",
+      quarantinedCopy,
     ]);
+    requireAdHocSignedApp(quarantinedCopy);
+  } finally {
+    await fs.rm(temporary, { recursive: true, force: true });
   }
 }
 
@@ -199,7 +203,7 @@ if (platform === "mac") {
       "fpcalc",
     ], "audio-v-cli");
     requireAdHocSignedApp(application);
-    requireQuarantineSafeSignature(application);
+    await requireQuarantineSafeSignature(application);
   }
   const universalExecutable = path.join(
     release,

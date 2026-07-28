@@ -163,23 +163,50 @@ export class PcmMeasurementAccumulator {
     const after = window.slice(5).map((entry) => entry.sample);
     const mean = (values: number[]) =>
       values.reduce((sum, value) => sum + value, 0) / values.length;
+    const median = (values: number[]) => {
+      const sorted = [...values].sort((left, right) => left - right);
+      const middle = Math.floor(sorted.length / 2);
+      return sorted.length % 2 === 0
+        ? (sorted[middle - 1] + sorted[middle]) / 2
+        : sorted[middle];
+    };
     const beforeMean = mean(before);
     const afterMean = mean(after);
     const neighbors = [...before, ...after];
-    const neighborRms = Math.sqrt(
-      neighbors.reduce((sum, value) => sum + value * value, 0) /
-        neighbors.length,
+    const localDifferences = [
+      ...before.slice(1).map((value, index) =>
+        Math.abs(value - before[index]),
+      ),
+      ...after.slice(1).map((value, index) =>
+        Math.abs(value - after[index]),
+      ),
+    ];
+    const typicalDifference = median(localDifferences);
+    const differenceMad = median(
+      localDifferences.map((value) => Math.abs(value - typicalDifference)),
     );
     const range = (values: number[]) =>
       Math.max(...values) - Math.min(...values);
     const baseline = (beforeMean + afterMean) / 2;
     const impulse = Math.abs(center.sample - baseline);
+    const adaptiveImpulseThreshold = Math.max(
+      0.2,
+      typicalDifference * 10,
+      differenceMad * 12,
+    );
+    const localContinuityTolerance = Math.min(
+      0.12,
+      Math.max(
+        0.04,
+        typicalDifference * 8,
+        differenceMad * 10,
+      ),
+    );
     if (
-      range(before) <= 0.04 &&
-      range(after) <= 0.04 &&
-      Math.abs(beforeMean - afterMean) <= 0.05 &&
-      impulse >= 0.25 &&
-      impulse >= 6 * Math.max(neighborRms, 0.005)
+      range(before) <= localContinuityTolerance &&
+      range(after) <= localContinuityTolerance &&
+      Math.abs(beforeMean - afterMean) <= localContinuityTolerance &&
+      impulse >= adaptiveImpulseThreshold
     ) {
       this.#clickPopCandidateCount += 1;
       this.#appendDefectEvent({
@@ -570,7 +597,7 @@ export class PcmMeasurementAccumulator {
         events: this.#defectEvents,
         eventsTruncated: this.#defectEventsTruncated,
         limitation:
-          "Click/pop and stuck-sample detections are conservative waveform-shape candidates. Percussion, synthesis, square waves, hard edits, and test tones can produce similar measurements, so candidates require review and never establish file damage.",
+          "Click/pop candidates use a local robust residual threshold derived from neighboring sample differences; stuck samples use duration and exact-repeat rules. Percussion, synthesis, square waves, hard edits, and test tones can produce similar measurements, so candidates remain reviewable evidence and never establish file damage by themselves.",
       },
       waveform: null,
       spectrogram: emptySpectrogram,

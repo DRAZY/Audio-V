@@ -8,6 +8,7 @@ const outputPath = path.resolve("build/performance-latest.json");
 const databasePath = path.resolve(
   `tests/.tmp-scale-benchmark-${process.pid}.sqlite3`,
 );
+const databaseBudgetBytes = 600 * 1024 * 1024;
 const budgets = {
   100: { persistMs: 1_500, restoreMs: 500 },
   1000: { persistMs: 12_000, restoreMs: 1_000 },
@@ -52,8 +53,8 @@ function syntheticRecord(index) {
     scanError: null,
     oracle: {
       schemaVersion: 1,
-      engineVersion: "0.8.0-oracle-v10",
-      scope: "oracle-integrity-forensics-v10",
+      engineVersion: "0.9.0-oracle-v11",
+      scope: "oracle-integrity-forensics-v11",
       verdict: "verified",
       confidence: 100,
       headline: "Current checks passed",
@@ -133,8 +134,14 @@ try {
     architecture: process.arch,
     node: process.version,
     databaseBytes,
+    databaseBudgetBytes,
+    databaseBytesPerStoredRecord: Number(
+      (databaseBytes / counts.reduce((sum, count) => sum + count, 0)).toFixed(2),
+    ),
     results,
-    passed: results.every((result) => result.passed),
+    passed:
+      databaseBytes <= databaseBudgetBytes &&
+      results.every((result) => result.passed),
   };
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
   await fs.writeFile(outputPath, `${JSON.stringify(report, null, 2)}\n`);
