@@ -2,6 +2,26 @@
 
 A release candidate is evidence-backed, not simply a successful packaging command.
 
+## Current readiness snapshot
+
+As of source version 0.4.20 and commit `81b7e32`:
+
+| Area | Current evidence | RC meaning |
+|---|---|---|
+| Source regression | 129 tests passed | Automated source behavior is green |
+| Build and UI | Type checks, production build, responsive-layout checks, and 41 accessibility rules passed | Repository-level UI gate is green |
+| Scale storage | 10,000-record persistence completed in 8.19 seconds; restore completed in 448 ms; cumulative 11,100-record database was 435 MB | Synthetic dense-evidence storage budget is green |
+| macOS packages | Apple Silicon and Universal DMGs passed structure/signature checks; native Apple Silicon packaged reference audit passed | Current development Mac evidence is green |
+| Windows packages | Installer and portable package structure and bundled resources passed macOS-side inspection | Native Windows launch and workflow acceptance remain open |
+| Release assets | Four application packages, checksums, block maps, and unsigned policy manifest published for v0.4.20 | Preview distribution is reproducible |
+| Real-world origin calibration | Infrastructure is valid; licensed independent masters are absent | No probability-calibrated origin claim is allowed |
+
+The automated readiness command reports 14/14 repository evidence categories,
+but Audio-V is **not yet promoted as a release candidate**. Native Windows
+runtime/parity, Intel launch, clean-environment installation and upgrade,
+assistive-technology workflows, display scaling, and real-library stress
+testing remain manual acceptance work.
+
 ## Automated acceptance
 
 - [ ] `npm ci` completes from the lockfile.

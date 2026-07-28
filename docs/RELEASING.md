@@ -2,7 +2,21 @@
 
 Audio-V follows the Deemix Remastered distribution model: installers are built and verified on maintainer-controlled machines, written to the ignored `release/` directory, and uploaded directly to a release named for the exact version. GitHub does not build or publish Audio-V binaries.
 
-Development iterations do not receive tags or GitHub Releases. The first published tag is created only after the repository meets the release-candidate checklist and the maintainer explicitly promotes that source revision. Its README entry must name the exact version and link each of the four primary assets directly; a generic Releases link alone is insufficient.
+Routine source commits do not require a release. A development checkpoint that
+is distributed for user testing receives an exact version, tag, GitHub
+prerelease, four matching application packages, checksum manifest, unsigned
+policy manifest, and direct README links. The current line uses `v0.4.x`
+development releases.
+
+A true release candidate is a deliberate promotion after the automated and
+manual acceptance evidence in
+[`RELEASE_CANDIDATE_CHECKLIST.md`](RELEASE_CANDIDATE_CHECKLIST.md) is complete
+or explicitly waived. Use a semantic prerelease version such as
+`v0.5.0-rc.1`, the title **Audio-V 0.5.0 Release Candidate 1**, and GitHub’s
+prerelease flag. “Release candidate” describes readiness; GitHub’s
+“prerelease” flag prevents it from being mistaken for the final stable
+release. The README must name the exact promoted version and link all four
+primary assets directly; a generic Releases link alone is insufficient.
 
 `.github/workflows/verify.yml` is an optional, manual-only cross-platform verification workflow. It runs only when a maintainer explicitly dispatches it and is not triggered by pushes, pull requests, or tags. This prevents the private repository from consuming GitHub-hosted runner allowance during normal development and publication.
 
@@ -94,9 +108,22 @@ Build and launch-test Windows packages on a maintainer-controlled Windows instal
 
 ## Maintainer synchronization policy
 
-For maintainer-directed feature work before the first release candidate, a verified implementation is synchronized when its source commit is pushed to `main` and its four matching packages are retained in the ignored local `release/` workspace. No development tag or GitHub Release is created. Once the maintainer promotes a release candidate, the tag must match `package.json`; applicable native correctness, packaged-runtime verification, and release-candidate checks must pass before upload.
+For maintainer-directed work, verified source is synchronized when its commit is
+pushed to `main`. Documentation-only commits do not require rebuilding
+unchanged application packages. A source or packaged-runtime change that is
+distributed to testers receives a new development version and four matching
+packages; local current-version artifacts are retained until their upload is
+confirmed. Once the maintainer promotes a release candidate, its semantic
+version, tag, package metadata, README links, and assets must match; applicable
+native correctness, packaged-runtime verification, and release-candidate
+checks must pass before upload.
 
-After the first release candidate, GitHub Releases preserve meaningful published versions as the project’s historical distribution record. Superseded private-development previews are not part of that public history. The local ignored `release/` directory is a current-build workspace, not an archive. After a release succeeds:
+GitHub Releases preserve meaningful published test versions as the project’s
+distribution record while the repository is private. Before public launch, the
+maintainer may remove superseded private-development previews and retain the
+first release candidate plus later promoted versions. The local ignored
+`release/` directory is a current-build workspace, not an archive. After a
+release succeeds:
 
 1. Download the exact published assets for the current version.
 2. Verify `SHA256SUMS.txt` against all four application packages.

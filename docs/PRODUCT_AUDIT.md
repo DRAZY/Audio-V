@@ -1,6 +1,6 @@
 # Audio-V product audit and capability contract
 
-Last reviewed: 2026-07-27
+Last reviewed: 2026-07-28
 
 This document is the product truth source between the approved vision, the original request, competing applications, and what the repository actually implements. A feature is not considered present because a mock-up displays it.
 
@@ -29,7 +29,7 @@ The official [AudioAuditor website](https://audioauditor.org/) and [source repos
 
 | AudioAuditor benchmark capability | Audio-V decision | Current state |
 | --- | --- | --- |
-| Automated batch analysis | Adopt | Implemented with recursive discovery, bounded two-file decoding, cancellation, progress, and cache |
+| Automated batch analysis | Adopt | Implemented with recursive discovery, adaptively bounded 1–8 worker decoding, pause/cancellation, truthful finalization progress, checkpoints, and cache reuse |
 | Fake-lossless / spectral-cutoff review | Adopt conservatively | Implemented as an explicitly heuristic origin assessment with inconclusive behavior |
 | AI-generated audio detection | Research-gated | Generic “AI detected” verdict excluded until a validated corpus exists; offline C2PA validation, known generator metadata, and known identifier strings are implemented as separately labeled indicators rather than an AI verdict |
 | MQA detection | Evidence-gated | Planned only as marker/profile disclosure; Audio-V will not imply MQA authenticity or decoding without a reproducible method |
@@ -39,7 +39,7 @@ The official [AudioAuditor website](https://audioauditor.org/) and [source repos
 | Waveform and spectrogram compare | Adopt without playback | Implemented independent File A/B loading, bounded waveform envelopes, paired spectra, normalized spectral-difference heatmap, and measurement table |
 | Audio player, equalizer, lyrics | Exclude | No player, EQ, lyrics, queue playback, or transport code |
 | CSV / PDF / XLSX / DOCX export | Adopt and add JSON | Implemented from one evidence model; JSON remains the lossless machine-readable format |
-| Free / actively developed / open source | Product decision | Active development is current; licensing and public-repository status must be declared before release rather than inferred |
+| Free / actively developed / open source | Product decision | Active development is current; source is AGPL-3.0-only, contributor and trademark policies are published, and development releases disclose their unsigned status |
 
 AudioAuditor also advertises MQA and experimental AI checks. Audio-V now covers exact/internal silence, steep-transition, click/pop, and stuck-sample candidates; persistent Chromaprint identity relationships; offline C2PA inspection; known generator/signature inventory; and integer lossless bit-utilization review. MQA markers and a statistically calibrated AI classifier remain future work; neither may appear as authoritative until fixtures and failure boundaries exist.
 
@@ -138,9 +138,9 @@ Gate 1 is complete at the repository level. Compare uses bounded alignment estim
 - Analysis uses an adaptive, bounded worker schedule derived from available CPU parallelism instead of fixed two-file waves. Result order remains deterministic even when files finish out of order.
 - Session writes are buffered into bounded batches and committed transactionally, reducing per-file worker messages and SQLite transaction overhead.
 - Renderer progress events are coalesced to animation frames, and the audit result table is virtualized with overscan. A 10,000-record audit retains authoritative application state while mounting only the visible rows.
-- Rich waveform and spectrogram arrays remain authoritative as compressed, content-addressed SQLite evidence shared by cache and session history. They no longer accumulate in the Electron main process or renderer: live queues and History use compact summaries, selected tracks hydrate full detail on demand, and only 16 recently used detailed records remain resident.
+- Rich waveform and spectrogram arrays no longer accumulate in the Electron main process or renderer. Live queues carry measurement summaries without visual matrices; durable history retains a bounded 32-region spectrogram overview, 160-point waveform, the complete measurement/verdict summary, and the independent 4,096-point classifier summary. Higher inspection tiers regenerate from the selected source on demand, and only 16 recently used detailed records remain resident.
 - Resource controls are per-file ceilings rather than independent speed settings. Before workers start, Audio-V resolves one to eight requested file workers against a system-wide budget capped at 20% of physical memory or 8 GB and 75% of logical CPUs; unsafe combinations are visibly reduced.
-- Current-audit fingerprint matching uses exact-hash and ±3-second duration indexes instead of an all-pairs scan. Above 1,000 files, per-file historical enrichment is deferred to the persistent fingerprint library screen so end-of-audit relationship assembly cannot multiply into tens of millions of comparisons.
+- Current-audit fingerprint matching uses exact-hash and ±3-second duration indexes instead of an all-pairs scan. Exact candidate expansion is capped, near-match expansion is deferred above 2,000 files, and per-file historical enrichment is deferred above 1,000 files. Exact duplicates remain available while end-of-audit relationship assembly stays bounded.
 - Checksum manifests are indexed once per source, and the Oracle reuses an already-computed SHA-256 result instead of rereading the file.
 - Mounted and removable libraries use eight-way bounded directory discovery. Full audits stage each active macOS `/Volumes`, Windows UNC, mapped-drive, or non-system-drive file through one 4 MB sequential transfer, run repeated forensic passes locally, and delete the copy afterward. Staging follows the resolved 1–8 file concurrency and an aggregate temporary-space reservation, rather than adding an independent unbounded “network sessions” control.
 - Authoritative JSON and CSV session reports stream from paged SQLite records without a fixed payload limit. PDF, DOCX, and XLSX generation also runs outside the Electron main process and consumes compact session evidence instead of hydrating every full spectrogram.
@@ -148,7 +148,7 @@ Gate 1 is complete at the repository level. Compare uses bounded alignment estim
 - Rotating JSONL application logs record lifecycle, scan/session identity, resource limits, per-file starts and outcomes, Oracle attempt/retry/timeout events, storage-worker recovery, checkpoint state, and renderer/child-process termination. Logs remain local, are size bounded, and are separate from the privacy-safe diagnostics export.
 - Exhausted Oracle worker timeouts persist as per-file `Analysis error` records with the exact filename, `oracle-engine` failure stage, worker code, attempt count, and evidence. The failed worker is replaced and the remaining library continues; infrastructure-error cache entries are retried on later audits.
 - Per-file Reports use independent bounded list and evidence panes. Selecting a row anywhere in a long report keeps the evidence visible beside it, resets the new evidence report to its header, and preserves independent scrolling in both wide and stacked window layouts.
-- `npm run benchmark:scale` enforces repeatable persistence and restoration budgets for dense-evidence 100-, 1,000-, and 10,000-record sessions. The v0.4.16 run persisted 10,000 records in 36.3 seconds, restored compact history in 310 ms, and occupied 2.05 GB across all three benchmark tiers.
+- `npm run benchmark:scale` enforces repeatable persistence and restoration budgets for dense-evidence 100-, 1,000-, and 10,000-record sessions. The v0.4.19 benchmark persisted 10,000 records in 8.19 seconds, restored compact history in 448 ms, and occupied 435 MB across the cumulative 11,100 stored records, below the 600 MiB database budget.
 
 These dense-evidence figures validate storage and compact state retrieval on the development Mac; they do not represent full audio decode throughput.
 
@@ -186,7 +186,7 @@ Gate 4 is complete at the repository and local-package level. Actual macOS-versu
 - Primary navigation, verdict filters, analysis tabs, virtual result rows, canvases, and live scan state expose keyboard and assistive-technology semantics. A skip link, visible focus, reduced-motion behavior, and Command/Ctrl keyboard workflow are implemented.
 - An automated axe-core gate checks the production renderer and fails on serious or critical accessibility violations. The current empty-state audit passes 41 rules with no serious or critical violations.
 - Settings exports a privacy-safe diagnostic record containing application/runtime versions, aggregate session status, and engine capabilities without accepting filenames, paths, hashes, tags, or audio evidence. A unit test enforces the aggregate-only boundary.
-- User, privacy/security, unsigned-installation, release, methodology, contribution, and release-candidate documentation now cover the complete product workflow and limitations.
+- The beginner user journey, plain-language Oracle Engine and glossary, scientific methodology, privacy/security, unsigned-installation, release, contribution, and release-candidate documents cover the complete product workflow and limitations at different levels of depth.
 - `npm run verify:release-candidate` produces a machine-readable automated readiness result from licensing, documentation, accessibility, fidelity, scale, and artifact evidence.
 
 Gate 5 is complete for automated repository readiness and local macOS validation. It is not yet honest to call the application market-ready: the manual clean-environment matrix in `docs/RELEASE_CANDIDATE_CHECKLIST.md`, actual Windows packaged runtime, locally captured Windows/macOS parity evidence, Intel hardware launch, VoiceOver/Narrator workflow review, display scaling, upgrade/uninstall, and real-library performance remain external acceptance work. Signing/notarization is an explicit policy waiver rather than a failure.
@@ -277,7 +277,7 @@ No build may be called a beta until:
 - Source warnings no longer abort all valid files in a mixed selection.
 - Packaged FFmpeg/ffprobe 8.1.2 LGPL engines perform complete multi-codec stream decoding and technical probing on macOS and Windows.
 - Real sample peak, RMS, DC offset, clipping, near-clipping, stereo correlation, duplicate-mono, EBU R128 integrated loudness/LRA, and BS.1770 true-peak metrics run automatically during batch ingest.
-- Measured 512- and 2,048-point Hann-window STFT tiers are persisted for every successfully decoded format; 4,096- and 16,384-point combined/L/R/L−R views decode on demand and expose zoom, pan, region measurement, scientific colormaps, and batch PNG export.
+- Measured 512- and 2,048-point Hann-window STFT tiers are created for successfully decoded formats during active inspection. Durable large-library history retains a bounded 32-region overview and the 4,096-point classifier summary; 4,096- and 16,384-point combined/L/R/L−R presentation views decode on demand and expose zoom, pan, region measurement, scientific colormaps, and batch PNG export.
 - Streaming packet analysis reports p05/p95 bitrate, deviation, duration coverage, and observed CBR/VBR for every demuxer that exposes packet size and duration.
 - Native FLAC files receive an independent canonical decoded-PCM comparison against the MD5 stored in STREAMINFO.
 - Exact digital-silence runs, internal dropout candidates, steep transition candidates, crest factor, and peak-to-loudness ratio are measured and disclosed.

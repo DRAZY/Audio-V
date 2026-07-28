@@ -6,7 +6,29 @@ Audio-V is a local audio-integrity and fidelity workstation. It completely decod
 
 It is not a music player, mastering suite, source-provenance oracle, or guarantee that a recording has never been transformed.
 
-## Audit
+If this is your first visit, read [The Oracle Engine, explained simply](ORACLE_ENGINE.md)
+to understand how evidence becomes a verdict. The
+[plain-language glossary](GLOSSARY.md) explains unfamiliar audio terms.
+
+## Five-minute first audit
+
+1. Leave the run mode on **Full Oracle audit**.
+2. Select **Choose files** and pick one or two familiar tracks.
+3. Wait until progress reaches 100%. The number means file analysis and final
+   history work are complete.
+4. Select a result row.
+5. Read the Oracle headline and interpretation before opening the detailed
+   measurements.
+6. If the verdict is Review, find the Review-level finding in the evidence
+   lanes. The lane explains what kind of question Oracle is raising.
+7. Open Spectrogram, Loudness, or Origin Assessment only when the explanation
+   points there.
+8. Export the per-file report if you want a permanent record.
+
+This order keeps a new user from treating one unfamiliar number as the whole
+verdict.
+
+## Audit workspace
 
 Choose individual files with **Choose files**, or recursively discover supported audio with **Choose folder**. The table populates as files complete. **Pause** stops scheduling new work after active jobs finish; **Cancel audit** terminates active decoders while retaining completed session evidence.
 
@@ -22,6 +44,14 @@ An **Analysis error** means a tool, resource, probe, measurement, or internal pr
 
 Select a row to inspect its measured spectrogram, loudness, technical profile, evidence chain, Origin Assessment, and Oracle verdict. A Clear result does not prove provenance.
 
+The results table can be sorted by verdict so Clear, Review, Failed, Not
+analyzed, and Analysis error files can be handled together. Long paths and
+hashes are shortened visually; hover over them to read the complete value.
+
+**Review acknowledged** records that a person has seen a Review result. It
+does not modify the source, erase the finding, repair anything, or convert the
+verdict to Clear.
+
 In **Spectrogram**, choose 512, 2,048, 4,096, or 16,384 FFT resolution. Higher settings separate nearby frequencies more precisely but provide coarser time resolution and require an on-demand decode. Choose combined power, left, right, or L−R; use zoom and pan to navigate, drag across the plot for exact time/frequency bounds, and export one PNG or a batch using the current inspection settings. Inferno, magma, and viridis change only the display palette.
 
 In **Loudness**, clipping diagnostics show the percentage of decoded samples at full scale, per-channel counts, contiguous clipping events, their locations on a track timeline, and possible scaled-clipping plateaus. Clipping and possible scaled clipping remain Review findings because intentional mastering and synthesized waveforms can create the same measurements. Failed is reserved for deterministic file-integrity evidence.
@@ -29,6 +59,22 @@ In **Loudness**, clipping diagnostics show the percentage of decoded samples at 
 The **Declared metadata inventory** lists normalized fields and a bounded set of raw tags. Metadata Inventory mode gives this capability a fast, non-decoding purpose; Full Oracle Audit adds local C2PA, fingerprint, dynamics, bit-utilization, and signal evidence.
 
 The **Provenance & identity** card distinguishes cryptographic Content Credential status, editable generator metadata, known identifier strings, local Chromaprint relationships, and optional external matches. These are not collapsed into an “AI: Yes/No” badge. A raw identifier is not proof that Audio-V decoded a proprietary watermark, and a valid C2PA claim authenticates a signed statement rather than the truth of every statement.
+
+## Understanding progress and finalization
+
+The analyzed-file count can reach the discovered-file count before the session
+is ready to close. Audio-V therefore reserves 100% for durable completion and
+names the remaining stage:
+
+- **Album ReplayGain** groups eligible tracks.
+- **Fingerprint relationships** link exact and bounded similarity matches.
+- **Durable history** commits the final session state.
+
+For sources above 1,000 files, Audio-V keeps calculated track ReplayGain but
+defers the second full-library album decode. Audit an album or smaller folder
+when exact album ReplayGain is needed. For sources above 2,000 files, exact
+fingerprint duplicates remain linked while near-match expansion is deferred.
+These limits keep completion time and stored evidence bounded.
 
 ## Identity library
 
@@ -95,7 +141,7 @@ share them. The privacy-safe diagnostics export remains path-free.
 
 Settings also displays the packaged Oracle validation basis: public independent source-master count, contributor groups, controlled cases, corpus version, current claim level, and the first material limitation. “Infrastructure ready · masters pending” means the validation machinery exists but no licensed real-world master has been counted; it is not a hidden calibration score.
 
-**Audit resource policy** applies to the next audit. Choose Recovery safe, Balanced, or Performance, or set 1–4 concurrent Oracle workers, a 128–512 MB JavaScript heap cap, 1/2/4 FFmpeg threads per file, and a 256 MB–2 GB native-process RSS limit individually. These selectors are per-file ceilings, so maximizing every selector is not a valid performance preset. Before creating workers, Audio-V caps their aggregate at the smaller of 20% of physical memory or 4 GB, reserves memory for the desktop process, and limits aggregate FFmpeg threads to 75% of logical CPUs. The Settings card keeps the requested configuration intact and separately reports effective audit limits and adaptive-recovery transitions. Crossing an enforced native limit terminates that file as a resource error rather than calling it damaged.
+**Audit resource policy** applies to the next audit. Choose Recovery safe, Balanced, or Performance, or set 1–8 concurrent Oracle workers, a 128–512 MB JavaScript heap cap, 1/2/4 FFmpeg threads per file, and a 256 MB–2 GB native-process RSS limit individually. These selectors are per-file ceilings, so maximizing every selector is not a valid performance preset. Before creating workers, Audio-V caps their aggregate at the smaller of 20% of physical memory or 8 GB, with a minimum application budget of 1.5 GB, reserves memory for the desktop process, and limits aggregate FFmpeg threads to 75% of logical CPUs. The Settings card keeps the requested configuration intact and separately reports effective audit limits and adaptive-recovery transitions. Crossing an enforced native limit terminates that file as a resource error rather than calling it damaged.
 
 **Mounted-source I/O policy** is automatic on both platforms. Audio-V recognizes macOS `/Volumes` paths, Windows UNC paths, mapped drives, and non-system drive letters. Directory discovery issues at most eight concurrent metadata operations. Each active full-audit file uses one 4 MB sequential copy into local temporary storage, then packet inspection, decoding, loudness, integrity, fingerprint, and spectral passes run locally before the copy is deleted. Up to four transfers can be active because transfer count follows the safely resolved worker count. Staging is skipped when a file is larger than 16 GB or would consume more than half of currently unreserved temporary space; the status line discloses whether staging or direct analysis is active. Metadata Inventory does not stage files because it does not perform repeated full-stream passes.
 
@@ -103,7 +149,13 @@ SMB, NFS, and removable-drive transport sessions remain managed by macOS or Wind
 
 **Cancel audit** changes the workspace to an explicit Cancelling state, stops assigning files, interrupts discovery and native decoders, and checkpoints completed records before the session closes as Canceled. If synchronous signal analysis cannot receive a cooperative cancel message promptly, Audio-V replaces that worker after a short grace period. Cancellation does not mark an active source file damaged; reopen the partial evidence or resume the source from History.
 
-Large sessions retain full waveform and spectrogram evidence in SQLite while keeping compact technical summaries in the working queue. Selecting a track hydrates its complete detail on demand. This prevents thousands of approximately megabyte-sized spectral payloads from being duplicated across Electron processes without discarding authoritative evidence.
+Large sessions retain the complete measurement and verdict summary while
+compacting durable display evidence to a 32-region spectrogram overview and a
+160-point waveform. Selecting a track can regenerate higher-resolution
+spectrogram tiers from the source on demand. This prevents thousands of
+approximately megabyte-sized visual payloads from being duplicated across
+Electron processes without discarding the evidence that determined the
+verdict.
 
 **AcoustID / MusicBrainz lookup** is off by default. When enabled with an AcoustID application key, Audio-V sends the local Chromaprint value and rounded duration—not the audio—to AcoustID. The key remains only in application memory and is removed from saved sessions and reports. Matches are identity leads, not proof of ownership or mastering provenance.
 
