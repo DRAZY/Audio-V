@@ -519,6 +519,17 @@ ipcMain.handle("library:select-folder", async () => {
 
 ipcMain.handle("sessions:list", () => auditSessions.listSessions());
 
+ipcMain.handle("sessions:clear-history", async () => {
+  if (activeScanSessionId) {
+    throw new Error(
+      "History cannot be cleared while an audit is running. Cancel or finish the audit first.",
+    );
+  }
+  const result = await auditSessions.clearHistory();
+  logApplication("info", "audit-history.cleared", { ...result });
+  return result;
+});
+
 ipcMain.handle("fingerprints:list", () =>
   auditSessions.listFingerprintLibrary(),
 );

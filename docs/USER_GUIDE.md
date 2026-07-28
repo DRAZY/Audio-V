@@ -114,6 +114,8 @@ Audio-V stores the source, discovered count, completed records, and currently de
 
 If the same file interrupts the application again during safe validation, the next adaptive resume quarantines only that repeated candidate as **Analysis error · Quarantined during crash recovery**, not Failed or damaged, and restores the saved settings for everything else. **Use prior limits** explicitly bypasses isolated validation and carries a repeat-crash risk. Settings preserve the requested profile while separately displaying the effective recovery or full-audit limits. If a saved removable or network source is not mounted, Audio-V explains which path must be reconnected instead of starting a broken resume.
 
+**Clear history** removes all finished, canceled, failed, and interrupted session records after a confirmation. It is unavailable while an audit is active and never deletes source audio, reusable Oracle cache records, or the separate Identity fingerprint index. If you clear the history currently open in the workspace, Audio-V closes that saved view and returns to an empty audit workspace.
+
 ## Keyboard commands
 
 - `Command/Ctrl+O` — choose audio files

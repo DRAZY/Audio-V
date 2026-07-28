@@ -637,6 +637,11 @@ export interface AuditSessionSummary {
   finishedAt: string | null;
 }
 
+export interface AuditHistoryClearResult {
+  affected: number;
+  retainedRunning: number;
+}
+
 export interface StoredAuditSession extends AuditSessionSummary {
   warnings: string[];
   files: AudioFileRecord[];
@@ -830,6 +835,7 @@ export interface AudioVDesktopApi {
   selectFolder(): Promise<AudioSourceSelection | null>;
   scanSelection(source: AudioSourceSelection): Promise<ScanSelectionResult>;
   listAuditSessions(): Promise<AuditSessionSummary[]>;
+  clearAuditHistory(): Promise<AuditHistoryClearResult>;
   openAuditSession(sessionId: string): Promise<StoredAuditSession>;
   openAuditSessionFile(
     sessionId: string,

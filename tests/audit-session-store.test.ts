@@ -128,6 +128,47 @@ describe("AuditSessionStore", () => {
     }
   });
 
+  it("clears terminal history without deleting a running audit, cache, or fingerprints", async () => {
+    const directory = await fs.mkdtemp(
+      path.join(process.cwd(), "tests/.tmp-session-clear-history-"),
+    );
+    temporaryDirectories.push(directory);
+    const audioPath = path.join(directory, "history.wav");
+    await fs.writeFile(audioPath, pcmWave({ seconds: 6 }));
+    const store = new AuditSessionStore(path.join(directory, "sessions.sqlite3"));
+
+    try {
+      const source = {
+        kind: "files" as const,
+        label: "Finished history",
+        paths: [audioPath],
+      };
+      const result = await scanSources(source);
+      const completedId = store.create(source);
+      store.storeFile(completedId, result.files[0], 0, false);
+      store.finish(completedId, "completed", []);
+      await store.setCached(result.files[0]);
+      const runningId = store.create({
+        ...source,
+        label: "Audit still running",
+      });
+
+      expect(store.clearHistory()).toEqual({
+        affected: 1,
+        retainedRunning: 1,
+      });
+      expect(store.getSession(completedId)).toBeNull();
+      expect(store.getSession(runningId)).toMatchObject({
+        status: "running",
+        label: "Audit still running",
+      });
+      expect((await store.getCached(audioPath))?.path).toBe(audioPath);
+      expect(await store.listFingerprintLibrary()).toHaveLength(1);
+    } finally {
+      store.close();
+    }
+  });
+
   it("recovers an abruptly interrupted audit and isolates only in-flight files", async () => {
     const directory = await fs.mkdtemp(
       path.join(process.cwd(), "tests/.tmp-session-recovery-"),

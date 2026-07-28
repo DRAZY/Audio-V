@@ -52,7 +52,7 @@ Status meanings:
 - **Planned** — specified and prioritized, but not implemented.
 - **Excluded** — intentionally outside the core product.
 
-| Capability | User value | v0.4.21 source status | Disposition |
+| Capability | User value | v0.4.22 source status | Disposition |
 | --- | --- | --- | --- |
 | File and folder ingest | Analyze one track or a full library | Implemented | Current |
 | Recursive bounded discovery | Avoid freezing on large trees | Implemented | Current |
@@ -125,7 +125,7 @@ The Oracle Engine must be an independent, versioned worker rather than renderer 
 - True-peak remediation derives its gain from the current authoritative Oracle record rather than accepting a renderer-supplied measurement.
 - Renderer navigation, permission requests, and content loading use default-deny policies.
 - Spectrogram power and waveform envelopes are channel-safe and no longer erase opposite-polarity stereo material.
-- Audit history can reopen persisted evidence. At startup, orphaned running sessions become explicit interrupted checkpoints; the last source label is restored, adaptive resume avoids preloading the large partial result set, completed cache records are reused, and files active during interruption are validated serially before the saved worker profile is restored. A candidate that repeats the interruption is quarantined alone on the next resume. Requested and effective limits remain separately visible, and an explicit prior-limits path discloses its repeat-crash risk. Active queues can pause after current jobs finish. Cancellation rejects active work immediately, interrupts discovery/checksum/finalization stages, gives native decoders a cooperative shutdown window, then recycles any analysis worker blocked in synchronous computation. Completed records remain checkpointed, and failed records can be retried.
+- Audit history can reopen persisted evidence or clear every terminal session after an explicit confirmation. Clearing is blocked during an active audit and does not delete source audio, reusable Oracle cache, or the independent Identity index. At startup, orphaned running sessions become explicit interrupted checkpoints; the last source label is restored, adaptive resume avoids preloading the large partial result set, completed cache records are reused, and files active during interruption are validated serially before the saved worker profile is restored. A candidate that repeats the interruption is quarantined alone on the next resume. Requested and effective limits remain separately visible, and an explicit prior-limits path discloses its repeat-crash risk. Active queues can pause after current jobs finish. Cancellation rejects active work immediately, interrupts discovery/checksum/finalization stages, gives native decoders a cooperative shutdown window, then recycles any analysis worker blocked in synchronous computation. Completed records remain checkpointed, and failed records can be retried.
 - The legacy 300-entry JSON cache migrates once into the unbounded SQLite Oracle cache, keyed by file size, modification time, and Oracle engine version.
 - Compare now runs a separate decoded-signal worker that measures offset, gain, polarity, correlation, residual energy, and relationship.
 - Spectrum analysis now stores a selectable 512-point overview and 2,048-point detail tier.

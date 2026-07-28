@@ -104,6 +104,8 @@ port.on("message", (request: StorageWorkerRequest) => {
         return store.finish(request.sessionId, request.status, request.warnings);
       case "list-sessions":
         return store.listSessions(request.limit);
+      case "clear-history":
+        return store.clearHistory();
       case "get-session":
         return store.getSession(request.sessionId, request.compact);
       case "get-session-file":

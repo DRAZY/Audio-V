@@ -54,6 +54,8 @@ const isScanPaused = ref(false);
 const isScanCancelling = ref(false);
 const historyOpen = ref(false);
 const recentSessions = ref<AuditSessionSummary[]>([]);
+const historyClearing = ref(false);
+const historyMessage = ref("");
 const fingerprintLibrary = ref<FingerprintLibraryEntry[]>([]);
 const fingerprintLibraryLoading = ref(false);
 const fingerprintLibraryMessage = ref("Index has not been loaded.");
@@ -1286,6 +1288,49 @@ async function refreshAuditSessions(): Promise<void> {
   }
 }
 
+async function clearAuditHistory(): Promise<void> {
+  if (
+    !window.audioV ||
+    historyClearing.value ||
+    isDiscovering.value ||
+    recentSessions.value.length === 0 ||
+    !window.confirm(
+      "Clear all saved audit history?\n\nThis removes completed, canceled, failed, and interrupted sessions. It does not delete source audio, reusable Oracle cache, or the separate Identity fingerprint index. This action cannot be undone.",
+    )
+  ) return;
+
+  historyClearing.value = true;
+  historyMessage.value = "Clearing saved audit sessions…";
+  const wasViewingHistoricalSession = activeSessionId.value.length > 0;
+  try {
+    const result = await window.audioV.clearAuditHistory();
+    recentSessions.value = await window.audioV.listAuditSessions();
+    if (wasViewingHistoricalSession) {
+      files.value = [];
+      activeSessionId.value = "";
+      selectedId.value = "";
+      compareAId.value = "";
+      compareBId.value = "";
+      reportSelectedId.value = "";
+      scanProgress.value = null;
+      sourceWarnings.value = [];
+      scanFailureMessage.value = "";
+      sourceRoot.value = "No source selected";
+      scanMessage.value = "History cleared · ready for files or a folder";
+    }
+    historyMessage.value =
+      `Cleared ${result.affected.toLocaleString()} saved audit session${result.affected === 1 ? "" : "s"}` +
+      (result.retainedRunning
+        ? ` · retained ${result.retainedRunning.toLocaleString()} running session${result.retainedRunning === 1 ? "" : "s"}`
+        : " · source audio, Oracle cache, and Identity index were not changed");
+  } catch (error) {
+    historyMessage.value =
+      error instanceof Error ? error.message : "Saved audit history could not be cleared.";
+  } finally {
+    historyClearing.value = false;
+  }
+}
+
 async function refreshFingerprintLibrary(): Promise<void> {
   if (!window.audioV || fingerprintLibraryLoading.value) return;
   fingerprintLibraryLoading.value = true;
@@ -2301,8 +2346,31 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
             <span class="eyebrow">Persistent audit history</span>
             <strong>Open completed evidence or resume an interrupted source</strong>
           </div>
-          <button class="secondary-action" @click="refreshAuditSessions">Refresh</button>
+          <div class="session-history-actions">
+            <button
+              class="secondary-action"
+              :disabled="historyClearing"
+              @click="refreshAuditSessions"
+            >
+              Refresh
+            </button>
+            <button
+              class="danger-action"
+              :disabled="historyClearing || isDiscovering || recentSessions.length === 0"
+              @click="clearAuditHistory"
+            >
+              {{ historyClearing ? "Clearing…" : "Clear history" }}
+            </button>
+          </div>
         </header>
+        <p
+          v-if="historyMessage"
+          class="session-history-message"
+          role="status"
+          aria-live="polite"
+        >
+          {{ historyMessage }}
+        </p>
         <div v-if="recentSessions.length" class="session-history-list">
           <article v-for="session in recentSessions" :key="session.id">
             <div>

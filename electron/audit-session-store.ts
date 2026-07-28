@@ -6,6 +6,7 @@ import { gzipSync, gunzipSync } from "node:zlib";
 import type {
   AudioFileRecord,
   AudioSourceSelection,
+  AuditHistoryClearResult,
   AuditSessionStatus,
   AuditSessionSummary,
   StoredAuditSession,
@@ -391,6 +392,50 @@ export class AuditSessionStore {
       `)
       .all(safeLimit) as unknown as SessionRow[];
     return rows.map((row) => this.#summary(row));
+  }
+
+  clearHistory(): AuditHistoryClearResult {
+    const terminalSessions = this.#database
+      .prepare(`
+        SELECT COUNT(*) AS count
+        FROM audit_sessions
+        WHERE status <> 'running'
+      `)
+      .get() as unknown as { count: number };
+    const runningSessions = this.#database
+      .prepare(`
+        SELECT COUNT(*) AS count
+        FROM audit_sessions
+        WHERE status = 'running'
+      `)
+      .get() as unknown as { count: number };
+
+    this.#database.exec("BEGIN IMMEDIATE");
+    try {
+      this.#database.exec(`
+        DELETE FROM audit_sessions
+        WHERE status <> 'running';
+
+        DELETE FROM oracle_evidence
+        WHERE NOT EXISTS (
+          SELECT 1 FROM audit_files
+          WHERE audit_files.evidence_key = oracle_evidence.evidence_key
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM oracle_cache
+          WHERE oracle_cache.evidence_key = oracle_evidence.evidence_key
+        );
+      `);
+      this.#database.exec("COMMIT");
+    } catch (error) {
+      this.#database.exec("ROLLBACK");
+      throw error;
+    }
+
+    return {
+      affected: terminalSessions.count,
+      retainedRunning: runningSessions.count,
+    };
   }
 
   getSession(

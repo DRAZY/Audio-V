@@ -3,6 +3,7 @@ import { Worker } from "node:worker_threads";
 import type {
   AudioFileRecord,
   AudioSourceSelection,
+  AuditHistoryClearResult,
   AuditSessionStatus,
   AuditSessionSummary,
   ReportExportFormat,
@@ -127,6 +128,10 @@ export class AuditStorageClient {
     return this.#request({ operation: "list-sessions", limit });
   }
 
+  clearHistory(): Promise<AuditHistoryClearResult> {
+    return this.#request({ operation: "clear-history" });
+  }
+
   getSession(
     sessionId: string,
     compact = false,
@@ -226,6 +231,7 @@ export class AuditStorageClient {
         ? Math.max(this.#requestTimeoutMs, 10 * 60_000)
         : [
               "get-session",
+              "clear-history",
               "import-legacy",
               "rebuild-fingerprint-library",
               "prune-fingerprint-library",

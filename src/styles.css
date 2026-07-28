@@ -1742,6 +1742,23 @@ button:focus-visible {
   gap: 7px;
 }
 
+.session-history > header .session-history-actions {
+  display: flex;
+  flex: 0 0 auto;
+  grid-auto-flow: column;
+  gap: 8px;
+}
+
+.session-history-message {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--muted);
+  background: var(--soft);
+  font: 500 11px/1.45 var(--font-data);
+}
+
 .session-history-list {
   display: grid;
 }
@@ -3059,6 +3076,21 @@ button:focus-visible {
 
   .session-history-list article > button:last-child {
     grid-column: 2 / -1;
+  }
+}
+
+@media (max-width: 720px) {
+  .session-history > header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .session-history > header .session-history-actions {
+    width: 100%;
+  }
+
+  .session-history > header .session-history-actions button {
+    flex: 1;
   }
 }
 

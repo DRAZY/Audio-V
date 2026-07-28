@@ -6,7 +6,7 @@
 
   <p>
     <img alt="Locally verified builds" src="https://img.shields.io/badge/builds-locally%20verified-51e19b?style=for-the-badge">
-    <a href="https://github.com/DRAZY/Audio-V/releases/tag/v0.4.21"><img alt="Latest development release 0.4.21" src="https://img.shields.io/badge/latest-0.4.21-8b5cf6?style=for-the-badge"></a>
+    <a href="https://github.com/DRAZY/Audio-V/releases/tag/v0.4.22"><img alt="Latest development release 0.4.22" src="https://img.shields.io/badge/latest-0.4.22-8b5cf6?style=for-the-badge"></a>
     <a href="LICENSE"><img alt="AGPL 3.0 only" src="https://img.shields.io/badge/license-AGPL--3.0--only-8b5cf6?style=for-the-badge"></a>
     <img alt="macOS and Windows" src="https://img.shields.io/badge/platforms-macOS%20%7C%20Windows-252532?style=for-the-badge">
   </p>
@@ -66,21 +66,21 @@ but the main workflow is designed to answer three simple questions:
 ## Download Audio-V
 
 The current locally built development release is
-**[Audio-V 0.4.21](https://github.com/DRAZY/Audio-V/releases/tag/v0.4.21)**.
+**[Audio-V 0.4.22](https://github.com/DRAZY/Audio-V/releases/tag/v0.4.22)**.
 
 | Your computer | Download | What you receive |
 |---|---|---|
-| Apple Silicon Mac | [Apple Silicon DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.21/Audio-V-0.4.21-mac-arm64.dmg) | Native build for M-series Macs |
-| Any supported Mac | [Universal DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.21/Audio-V-0.4.21-mac-universal.dmg) | Apple Silicon and Intel in one package |
-| Windows | [Windows installer](https://github.com/DRAZY/Audio-V/releases/download/v0.4.21/Audio-V-0.4.21-win-x64.exe) | Guided installation |
-| Windows portable | [Portable executable](https://github.com/DRAZY/Audio-V/releases/download/v0.4.21/Audio-V-Portable-0.4.21-x64.exe) | Runs without installation |
+| Apple Silicon Mac | [Apple Silicon DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.22/Audio-V-0.4.22-mac-arm64.dmg) | Native build for M-series Macs |
+| Any supported Mac | [Universal DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.22/Audio-V-0.4.22-mac-universal.dmg) | Apple Silicon and Intel in one package |
+| Windows | [Windows installer](https://github.com/DRAZY/Audio-V/releases/download/v0.4.22/Audio-V-0.4.22-win-x64.exe) | Guided installation |
+| Windows portable | [Portable executable](https://github.com/DRAZY/Audio-V/releases/download/v0.4.22/Audio-V-Portable-0.4.22-x64.exe) | Runs without installation |
 
 These builds are not signed with paid Apple or Microsoft certificates. Verify
 the download with
-[`SHA256SUMS.txt`](https://github.com/DRAZY/Audio-V/releases/download/v0.4.21/SHA256SUMS.txt),
+[`SHA256SUMS.txt`](https://github.com/DRAZY/Audio-V/releases/download/v0.4.22/SHA256SUMS.txt),
 then follow the
 [unsigned installation guide](docs/UNSIGNED_INSTALLATION.md). The
-[`UNSIGNED_RELEASE_MANIFEST.json`](https://github.com/DRAZY/Audio-V/releases/download/v0.4.21/UNSIGNED_RELEASE_MANIFEST.json)
+[`UNSIGNED_RELEASE_MANIFEST.json`](https://github.com/DRAZY/Audio-V/releases/download/v0.4.22/UNSIGNED_RELEASE_MANIFEST.json)
 records the signing policy and artifact identities.
 
 ## Your first audit
@@ -349,6 +349,10 @@ unexpected interruption, adaptive resume:
 3. restores the saved worker profile after that isolated check; and
 4. quarantines a repeatedly unstable file as Analysis error rather than
    crashing the remaining audit or calling the file damaged.
+
+History can also be cleared after confirmation when no audit is running. This
+removes saved session entries only—your audio files, reusable Oracle cache, and
+the separate Identity fingerprint index are left alone.
 
 ### Automation and the packaged CLI
 

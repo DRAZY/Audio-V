@@ -22,6 +22,7 @@ const api: AudioVDesktopApi = {
     return () => ipcRenderer.removeListener("library:scan-progress", handler);
   },
   listAuditSessions: () => ipcRenderer.invoke("sessions:list"),
+  clearAuditHistory: () => ipcRenderer.invoke("sessions:clear-history"),
   openAuditSession: (sessionId) =>
     ipcRenderer.invoke("sessions:open", sessionId),
   openAuditSessionFile: (sessionId, filePath) =>
