@@ -475,6 +475,51 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
+  "sessions:set-file-reviewed",
+  async (
+    _event,
+    requestedSessionId: unknown,
+    requestedFilePath: unknown,
+    requestedReviewed: unknown,
+  ) => {
+    if (
+      typeof requestedSessionId !== "string" ||
+      !/^[a-f0-9-]{36}$/iu.test(requestedSessionId) ||
+      typeof requestedFilePath !== "string" ||
+      typeof requestedReviewed !== "boolean"
+    ) {
+      throw new TypeError(
+        "A valid audit session, file path, and reviewed state are required.",
+      );
+    }
+    const resolvedPath = path.resolve(requestedFilePath);
+    const storedFile = await auditSessions.getSessionFile(
+      requestedSessionId,
+      resolvedPath,
+    );
+    if (!storedFile) {
+      throw new Error("The requested file is not present in this audit session.");
+    }
+    const updated: AudioFileRecord = { ...storedFile };
+    if (requestedReviewed) {
+      updated.userReview = {
+        status: "reviewed",
+        reviewedAt: new Date().toISOString(),
+      };
+    } else {
+      delete updated.userReview;
+    }
+    await auditSessions.updateSessionFile(
+      requestedSessionId,
+      resolvedPath,
+      updated,
+    );
+    authoritativeRecords.set(resolvedPath, updated);
+    return updated;
+  },
+);
+
+ipcMain.handle(
   "sessions:prepare-resume",
   async (
     _event,
@@ -877,6 +922,11 @@ ipcMain.handle("oracle:analyze-file", async (
       typeof requestedSessionId === "string" &&
       /^[a-f0-9-]{36}$/iu.test(requestedSessionId)
     ) {
+      const stored = await auditSessions.getSessionFile(
+        requestedSessionId,
+        filePath,
+      );
+      if (stored?.userReview) updated.userReview = stored.userReview;
       await auditSessions.updateSessionFile(requestedSessionId, filePath, updated);
     }
   }

@@ -17,6 +17,10 @@ import type {
 } from "../shared/contracts";
 import iconUrl from "../build/icon.svg";
 import { audioFormatLabel } from "../shared/audio-format";
+import {
+  sortAuditResults,
+  type AuditResultSort,
+} from "../shared/audit-result-sort";
 import { createVirtualWindow } from "../shared/virtual-window";
 
 type AnalysisPanel = "spectrogram" | "loudness" | "evidence";
@@ -68,6 +72,7 @@ const acoustIdApiKey = ref("");
 const filter = ref<
   "all" | "clear" | "review" | "not-analyzed" | "error" | "failed"
 >("all");
+const auditResultSort = ref<AuditResultSort>("original");
 const compareAId = ref("");
 const compareBId = ref("");
 const comparisonFiles = ref<AudioFileRecord[]>([]);
@@ -101,7 +106,7 @@ const spectrogramSelectionStart = ref<{ x: number; y: number } | null>(null);
 const spectrogramRegion = ref("Drag across the plot to measure a region");
 const spectrogramCursor = ref("Move across the plot for time, frequency, and level");
 let spectrogramInspectionRequest = 0;
-const acknowledgedReviewIds = ref<Set<string>>(new Set());
+const reviewStatusUpdatingIds = ref<Set<string>>(new Set());
 const repairingFileId = ref("");
 const repairBitDepthModes = ref<Record<string, RepairBitDepthMode>>({});
 const tableBody = ref<HTMLElement | null>(null);
@@ -200,30 +205,30 @@ const spectrogramVisibleTimes = computed(() => {
 });
 
 const visibleFiles = computed(() => {
-  if (filter.value === "all") return files.value;
-  if (filter.value === "clear") {
-    return files.value.filter((file) =>
+  let filtered: AudioFileRecord[];
+  if (filter.value === "all") filtered = files.value;
+  else if (filter.value === "clear") {
+    filtered = files.value.filter((file) =>
       ["verified", "authentic"].includes(file.oracle.verdict),
     );
-  }
-  if (filter.value === "review") {
-    return files.value.filter((file) =>
+  } else if (filter.value === "review") {
+    filtered = files.value.filter((file) =>
       ["review", "likely-transcode", "likely-upsample"].includes(file.oracle.verdict),
     );
-  }
-  if (filter.value === "not-analyzed") {
-    return files.value.filter(
+  } else if (filter.value === "not-analyzed") {
+    filtered = files.value.filter(
       (file) => oracleAnalysisState(file) === "not-analyzed",
     );
-  }
-  if (filter.value === "error") {
-    return files.value.filter(
+  } else if (filter.value === "error") {
+    filtered = files.value.filter(
       (file) => oracleAnalysisState(file) === "error",
     );
+  } else {
+    filtered = files.value.filter(
+      (file) => oracleAnalysisState(file) === "failed",
+    );
   }
-  return files.value.filter(
-    (file) => oracleAnalysisState(file) === "failed",
-  );
+  return sortAuditResults(filtered, auditResultSort.value);
 });
 const virtualWindow = computed(() => {
   const window = createVirtualWindow(
@@ -856,6 +861,11 @@ function scheduleTableViewportMeasurement(): void {
 }
 
 watch(filter, () => {
+  tableScrollTop.value = 0;
+  if (tableBody.value) tableBody.value.scrollTop = 0;
+  scheduleTableViewportMeasurement();
+});
+watch(auditResultSort, () => {
   tableScrollTop.value = 0;
   if (tableBody.value) tableBody.value.scrollTop = 0;
   scheduleTableViewportMeasurement();
@@ -1956,15 +1966,75 @@ function repairBitDepthExplanation(file: AudioFileRecord): string {
 }
 
 function isAcknowledged(file: AudioFileRecord): boolean {
-  return acknowledgedReviewIds.value.has(file.id);
+  return file.userReview?.status === "reviewed";
 }
 
-function acknowledgeReview(file: AudioFileRecord): void {
-  acknowledgedReviewIds.value = new Set([
-    ...acknowledgedReviewIds.value,
+function isReviewStatusUpdating(file: AudioFileRecord): boolean {
+  return reviewStatusUpdatingIds.value.has(file.id);
+}
+
+async function setReviewed(
+  file: AudioFileRecord,
+  reviewed: boolean,
+  announce = true,
+): Promise<void> {
+  if (!window.audioV || !activeSessionId.value) {
+    scanMessage.value = "A saved audit session is required to mark a file as reviewed.";
+    return;
+  }
+  reviewStatusUpdatingIds.value = new Set([
+    ...reviewStatusUpdatingIds.value,
     file.id,
   ]);
-  scanMessage.value = `Review acknowledged · ${file.name}`;
+  try {
+    const updated = await window.audioV.setFileReviewed(
+      activeSessionId.value,
+      file.path,
+      reviewed,
+    );
+    files.value = files.value.map((candidate) =>
+      candidate.id === file.id
+        ? { ...candidate, userReview: updated.userReview }
+        : candidate,
+    );
+    if (announce) {
+      scanMessage.value = reviewed
+        ? `Marked as reviewed · verdict unchanged · ${file.name}`
+        : `Review marker removed · verdict unchanged · ${file.name}`;
+    }
+  } catch (error) {
+    scanMessage.value =
+      error instanceof Error
+        ? `Review status was not saved · ${error.message}`
+        : "Review status was not saved.";
+  } finally {
+    reviewStatusUpdatingIds.value = new Set(
+      [...reviewStatusUpdatingIds.value].filter((id) => id !== file.id),
+    );
+  }
+}
+
+function toggleReviewed(file: AudioFileRecord): void {
+  void setReviewed(file, !isAcknowledged(file));
+}
+
+function cycleAuditResultSort(): void {
+  auditResultSort.value =
+    auditResultSort.value === "original"
+      ? "verdict-ascending"
+      : auditResultSort.value === "verdict-ascending"
+        ? "verdict-descending"
+        : "original";
+}
+
+function auditResultSortLabel(): string {
+  if (auditResultSort.value === "verdict-ascending") {
+    return "Verdict, Clear to Failed";
+  }
+  if (auditResultSort.value === "verdict-descending") {
+    return "Verdict, Failed to Clear";
+  }
+  return "Verdict, original order";
 }
 
 function openEvidence(file: AudioFileRecord): void {
@@ -2027,10 +2097,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
       return;
     }
     files.value = [...files.value, result.file];
-    acknowledgedReviewIds.value = new Set([
-      ...acknowledgedReviewIds.value,
-      file.id,
-    ]);
+    await setReviewed(file, true, false);
     selectedId.value = result.file.id;
     activeWorkspace.value = "audit";
     activePanel.value = "loudness";
@@ -2292,7 +2359,26 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
         <div class="table-grid table-head">
           <span>File name</span><span>Format</span><span>Sample rate</span>
           <span>Bit depth</span><span>Duration</span><span>Bitrate</span>
-          <span>Channels</span><span>Verdict</span>
+          <span>Channels</span>
+          <span class="sortable-heading">
+            <button
+              type="button"
+              :aria-label="`${auditResultSortLabel()}. Activate to change sorting.`"
+              :title="`${auditResultSortLabel()}. Click to change sorting.`"
+              @click="cycleAuditResultSort"
+            >
+              Verdict
+              <i aria-hidden="true">
+                {{
+                  auditResultSort === "verdict-ascending"
+                    ? "↑"
+                    : auditResultSort === "verdict-descending"
+                      ? "↓"
+                      : "↕"
+                }}
+              </i>
+            </button>
+          </span>
         </div>
         <div ref="tableBody" class="table-body" @scroll="updateTableViewport">
           <div
@@ -2666,11 +2752,20 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
                 <ol>
                   <li><b>1</b><span><strong>Understand</strong>Read the contradictory evidence and the plain-language interpretation.</span></li>
                   <li><b>2</b><span><strong>Verify</strong>Listen or compare with a trusted edition when the finding is heuristic.</span></li>
-                  <li><b>3</b><span><strong>Act</strong>Acknowledge it, export evidence, reveal the source, or open safe repair options.</span></li>
+                  <li><b>3</b><span><strong>Act</strong>Mark it as reviewed, export evidence, reveal the source, or open safe repair options.</span></li>
                 </ol>
                 <div class="review-actions">
-                  <button @click="acknowledgeReview(selected)">
-                    {{ isAcknowledged(selected) ? "Review acknowledged" : "Acknowledge review" }}
+                  <button
+                    :disabled="isReviewStatusUpdating(selected)"
+                    @click="toggleReviewed(selected)"
+                  >
+                    {{
+                      isReviewStatusUpdating(selected)
+                        ? "Saving…"
+                        : isAcknowledged(selected)
+                          ? "Undo reviewed"
+                          : "Mark as reviewed"
+                    }}
                   </button>
                   <button @click="exportFileEvidence(selected)">Export evidence</button>
                   <button @click="revealSource(selected)">Reveal source</button>
@@ -2690,6 +2785,13 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
                     Retry analysis
                   </button>
                 </div>
+                <small v-if="isAcknowledged(selected)" class="reviewed-disclosure">
+                  Reviewed by user
+                  <template v-if="selected.userReview?.reviewedAt">
+                    · {{ new Date(selected.userReview.reviewedAt).toLocaleString() }}
+                  </template>
+                  · Oracle verdict unchanged
+                </small>
               </section>
               <article
                 v-for="item in selected.oracle.evidence"
@@ -3095,7 +3197,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
         <div v-if="attentionItems.length" class="repair-list">
           <article v-for="file in attentionItems" :key="file.id">
             <div>
-              <span class="row-verdict" :class="fileStateClass(file)"><i></i>{{ shortVerdict(file) }}<em v-if="isAcknowledged(file)">Acknowledged</em></span>
+              <span class="row-verdict" :class="fileStateClass(file)"><i></i>{{ shortVerdict(file) }}<em v-if="isAcknowledged(file)">Reviewed · verdict unchanged</em></span>
               <h2>{{ file.name }}</h2>
               <p>{{ reviewExplanation(file) }}</p>
               <div class="repair-actions">
@@ -3133,11 +3235,18 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
                 {{ repairingFileId === file.id ? "Creating and verifying…" : `Create −1 dBTP ${repairTargetBitDepth(file)}-bit FLAC copy` }}
               </button>
               <button
-                v-else-if="!isAcknowledged(file)"
+                v-else
                 class="acknowledge-action"
-                @click="acknowledgeReview(file)"
+                :disabled="isReviewStatusUpdating(file)"
+                @click="toggleReviewed(file)"
               >
-                Acknowledge review
+                {{
+                  isReviewStatusUpdating(file)
+                    ? "Saving…"
+                    : isAcknowledged(file)
+                      ? "Undo reviewed"
+                      : "Mark as reviewed"
+                }}
               </button>
               <span class="preservation-badge">Original remains untouched</span>
             </aside>

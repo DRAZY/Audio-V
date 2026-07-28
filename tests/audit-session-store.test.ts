@@ -59,6 +59,46 @@ describe("AuditSessionStore", () => {
     }
   });
 
+  it("persists and removes the user-reviewed workflow state", async () => {
+    const directory = await fs.mkdtemp(
+      path.join(process.cwd(), "tests/.tmp-session-review-"),
+    );
+    temporaryDirectories.push(directory);
+    const audioPath = path.join(directory, "review.wav");
+    await fs.writeFile(audioPath, pcmWave({ seconds: 0.2 }));
+    const result = await scanSources({
+      kind: "files",
+      label: "Review workflow",
+      paths: [audioPath],
+    });
+    const store = new AuditSessionStore(path.join(directory, "sessions.sqlite3"));
+    try {
+      const sessionId = store.create({
+        kind: "files",
+        label: "Review workflow",
+        paths: [audioPath],
+      });
+      store.storeFile(sessionId, result.files[0], 0, false);
+      const reviewed = {
+        ...result.files[0],
+        userReview: {
+          status: "reviewed" as const,
+          reviewedAt: "2026-07-27T12:00:00.000Z",
+        },
+      };
+      expect(store.updateSessionFile(sessionId, audioPath, reviewed)).toBe(true);
+      expect(store.getSession(sessionId, true)?.files[0].userReview).toEqual(
+        reviewed.userReview,
+      );
+      const unreviewed = { ...reviewed };
+      delete unreviewed.userReview;
+      expect(store.updateSessionFile(sessionId, audioPath, unreviewed)).toBe(true);
+      expect(store.getSessionFile(sessionId, audioPath)?.userReview).toBeUndefined();
+    } finally {
+      store.close();
+    }
+  });
+
   it("retains partial results when an audit is canceled", async () => {
     const directory = await fs.mkdtemp(
       path.join(process.cwd(), "tests/.tmp-session-cancel-"),

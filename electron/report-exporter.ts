@@ -93,6 +93,8 @@ export function audioFileReportRow(file: AudioFileRecord): ReportRow {
       "Oracle headline": file.oracle.headline,
       "Oracle confidence": display(file.oracle.confidence),
       "Analysis state": analysisState,
+      "User review status": file.userReview ? "reviewed" : "not reviewed",
+      "User reviewed at": display(file.userReview?.reviewedAt),
       "Failure category": display(file.oracle.failure?.category),
       "Failure stage": display(file.oracle.failure?.stage),
       "Failure code": display(file.oracle.failure?.code),

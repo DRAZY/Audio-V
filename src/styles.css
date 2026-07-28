@@ -702,6 +702,36 @@ button:focus-visible {
   white-space: nowrap;
 }
 
+.table-head .sortable-heading {
+  overflow: visible;
+}
+
+.sortable-heading button {
+  max-width: 100%;
+  padding: 5px 7px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.sortable-heading button:hover,
+.sortable-heading button:focus-visible {
+  border-color: var(--line-strong);
+  background: var(--soft);
+  color: #e1e2e8;
+  outline: none;
+}
+
+.sortable-heading i {
+  margin-left: 4px;
+  color: var(--accent);
+  font-style: normal;
+}
+
 .table-body {
   min-height: 0;
   overflow-y: auto;
@@ -1359,6 +1389,8 @@ button:focus-visible {
 }
 
 .inspector-actions button:disabled,
+.review-actions button:disabled,
+.acknowledge-action:disabled,
 .safe-copy-action:disabled {
   opacity: 0.5;
   cursor: default;
@@ -2403,6 +2435,13 @@ button:focus-visible {
   color: #cbbdff;
   font: 700 10px/1 var(--font-data);
   text-transform: uppercase;
+}
+
+.reviewed-disclosure {
+  display: block;
+  margin-top: 10px;
+  color: var(--muted);
+  font: 600 11px/1.4 var(--font-data);
 }
 
 .repair-actions {

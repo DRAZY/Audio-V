@@ -519,6 +519,10 @@ export interface AudioFileRecord {
   metadata: MetadataInventory;
   scanError: string | null;
   oracle: OracleResult;
+  userReview?: {
+    status: "reviewed";
+    reviewedAt: string;
+  };
 }
 
 export interface AudioSourceSelection {
@@ -752,6 +756,11 @@ export interface AudioVDesktopApi {
   openAuditSessionFile(
     sessionId: string,
     filePath: string,
+  ): Promise<AudioFileRecord>;
+  setFileReviewed(
+    sessionId: string,
+    filePath: string,
+    reviewed: boolean,
   ): Promise<AudioFileRecord>;
   prepareAuditSessionResume(
     sessionId: string,
