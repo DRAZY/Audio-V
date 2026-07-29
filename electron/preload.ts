@@ -14,6 +14,10 @@ const api: AudioVDesktopApi = {
   selectFolder: () => ipcRenderer.invoke("library:select-folder"),
   validateAcoustIdApiKey: (apiKey) =>
     ipcRenderer.invoke("acoustid:validate-api-key", apiKey),
+  loadExternalIdentityPreferences: () =>
+    ipcRenderer.invoke("identity:preferences-load"),
+  saveExternalIdentityPreferences: (preferences) =>
+    ipcRenderer.invoke("identity:preferences-save", preferences),
   scanSelection: (source) => ipcRenderer.invoke("library:scan-selection", source),
   onScanProgress: (listener) => {
     const handler = (

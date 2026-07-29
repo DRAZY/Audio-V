@@ -1,7 +1,7 @@
 {
   "schema": "Audio-V release defect register v1",
-  "releaseVersion": "0.4.32",
-  "auditedAt": "2026-07-29T21:57:32.000Z",
+  "releaseVersion": "0.4.33",
+  "auditedAt": "2026-07-29T22:12:00.000Z",
   "repositoryIssueCountAtAudit": 0,
   "defects": [
     {
@@ -38,6 +38,13 @@
       "status": "fixed",
       "summary": "Compare received compact audit summaries without their waveform and spectrogram payloads, leaving one or both measured visual panels blank while decoded null analysis completed separately.",
       "verification": "scripts/verify-comparison-visuals.cjs loads two compacted audit records, hydrates both full records independently, and requires painted File A, File B, difference, and residual canvases plus both waveform paths; tests/full-track-comparison.test.ts rejects false equivalence from an uncorrelated short overlap."
+    },
+    {
+      "id": "AV-2026-006",
+      "severity": "P2",
+      "status": "fixed",
+      "summary": "AcoustID enablement, the personal API key, and MusicBrainz enrichment existed only in renderer memory and reset whenever Audio-V closed.",
+      "verification": "tests/external-identity-preferences.test.ts verifies encrypted restart restoration, explicit clearing, and refusal of plaintext fallback; scripts/verify-identity-preferences.cjs verifies both enabled controls and the protected key restore into the Settings UI without overflow."
     }
   ],
   "limitations": [

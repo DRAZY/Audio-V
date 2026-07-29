@@ -1,7 +1,14 @@
 import path from "node:path";
 import { promises as fs } from "node:fs";
 import { availableParallelism, totalmem } from "node:os";
-import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  safeStorage,
+  shell,
+} from "electron";
 import type {
   AnalysisResourceLimits,
   AuditHistoryCleanupProgress,
@@ -44,6 +51,10 @@ import {
   normalizeAcoustIdApiKey,
   validateAcoustIdApiKey,
 } from "./oracle/analysis-tools";
+import {
+  ExternalIdentityPreferencesStore,
+  type ExternalIdentityPreferencesUpdate,
+} from "./external-identity-preferences";
 
 const approvedSelections = new Map<string, AudioSourceSelection>();
 const approvedAudioFiles = new Set<string>();
@@ -100,6 +111,7 @@ const defaultResourceLimits = resolveAnalysisResourcePolicy(
 ).limits;
 let currentResourceLimits = defaultResourceLimits;
 let applicationLogger: ApplicationLogger | null = null;
+let externalIdentityPreferences: ExternalIdentityPreferencesStore;
 const validatedAcoustIdApiKeys = new Set<string>();
 let officialAcoustIdClientKey: string | null | undefined;
 
@@ -1216,6 +1228,65 @@ ipcMain.handle("acoustid:validate-api-key", async (_event, requestedKey: unknown
   return true;
 });
 
+ipcMain.handle("identity:preferences-load", async () => {
+  if (!externalIdentityPreferences) {
+    throw new Error("External identity preferences are not ready.");
+  }
+  return externalIdentityPreferences.load();
+});
+
+ipcMain.handle(
+  "identity:preferences-save",
+  async (_event, requestedPreferences: unknown) => {
+    if (
+      !requestedPreferences ||
+      typeof requestedPreferences !== "object"
+    ) {
+      throw new TypeError("Valid external identity preferences are required.");
+    }
+    const candidate =
+      requestedPreferences as Partial<ExternalIdentityPreferencesUpdate>;
+    if (
+      typeof candidate.acoustIdEnabled !== "boolean" ||
+      typeof candidate.musicBrainzEnabled !== "boolean" ||
+      (candidate.acoustIdApiKey !== null &&
+        typeof candidate.acoustIdApiKey !== "string")
+    ) {
+      throw new TypeError("External identity preferences are invalid.");
+    }
+    const requestedKey = candidate.acoustIdApiKey?.trim() ?? "";
+    const current = await externalIdentityPreferences.load();
+    const normalizedRequestedKey = requestedKey
+      ? normalizeAcoustIdApiKey(requestedKey)
+      : "";
+    const normalizedKey =
+      normalizedRequestedKey &&
+      normalizedRequestedKey === current.acoustIdApiKey
+        ? normalizedRequestedKey
+        : normalizedRequestedKey
+          ? await ensureValidatedAcoustIdApiKey(normalizedRequestedKey)
+          : "";
+    const officialKey = await loadOfficialAcoustIdClientKey();
+    if (candidate.acoustIdEnabled && !normalizedKey && !officialKey) {
+      throw new Error(
+        "Add a valid AcoustID application key before enabling recognition in this build.",
+      );
+    }
+    const saved = await externalIdentityPreferences.save({
+      acoustIdEnabled: candidate.acoustIdEnabled,
+      musicBrainzEnabled: candidate.musicBrainzEnabled,
+      acoustIdApiKey: normalizedKey || null,
+    });
+    logApplication("info", "identity.preferences-saved", {
+      acoustIdEnabled: saved.acoustIdEnabled,
+      musicBrainzEnabled: saved.musicBrainzEnabled,
+      hasStoredAcoustIdApiKey: saved.hasStoredAcoustIdApiKey,
+      protection: saved.protection,
+    });
+    return saved;
+  },
+);
+
 ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown) => {
   if (!isSourceSelection(requestedSource)) {
     throw new TypeError("A valid file or folder selection is required.");
@@ -1951,6 +2022,10 @@ app.whenReady().then(async () => {
   const userDataPath = app.getPath("userData");
   applicationLogger = new ApplicationLogger(
     path.join(userDataPath, "logs"),
+  );
+  externalIdentityPreferences = new ExternalIdentityPreferencesStore(
+    path.join(userDataPath, "external-identity-preferences-v1.json"),
+    safeStorage,
   );
   logApplication("info", "application.started", {
     version: app.getVersion(),

@@ -81,6 +81,11 @@ const recoveryStatus = ref("");
 const acoustIdEnabled = ref(false);
 const acoustIdApiKey = ref("");
 const musicBrainzEnabled = ref(false);
+const identityPreferencesSaving = ref(false);
+const identityPreferencesMessage = ref(
+  "Loading saved external identity preferences…",
+);
+let identityPreferencesRequest = 0;
 const acoustIdValidationState = ref<"idle" | "checking" | "valid" | "error">(
   "idle",
 );
@@ -1250,6 +1255,7 @@ onMounted(() => {
   void refreshAuditSessions();
   void refreshFingerprintLibrary();
   void refreshAuditStorageStatus();
+  void loadExternalIdentityPreferences();
   void window.audioV?.externalIdentityServiceStatus().then((status) => {
     externalIdentityStatus.value = status;
     if (status.officialClientConfigured) {
@@ -1363,6 +1369,86 @@ onMounted(() => {
   window.addEventListener("keydown", handleGlobalKeydown);
   scheduleTableViewportMeasurement();
 });
+
+async function loadExternalIdentityPreferences(): Promise<void> {
+  if (!window.audioV) return;
+  try {
+    const preferences =
+      await window.audioV.loadExternalIdentityPreferences();
+    acoustIdEnabled.value = preferences.acoustIdEnabled;
+    musicBrainzEnabled.value = preferences.musicBrainzEnabled;
+    acoustIdApiKey.value = preferences.acoustIdApiKey;
+    identityPreferencesMessage.value =
+      preferences.protection === "os-encrypted"
+        ? "Preferences restored · credentials are protected by the operating system."
+        : "Preferences restored · secure credential storage is unavailable.";
+    if (preferences.hasStoredAcoustIdApiKey) {
+      acoustIdValidationState.value = "idle";
+      acoustIdValidationMessage.value =
+        "Stored application key restored · it will be checked before the next audit.";
+    }
+  } catch (error) {
+    identityPreferencesMessage.value = desktopErrorMessage(
+      error,
+      "Saved external identity preferences could not be loaded.",
+    );
+  }
+}
+
+async function saveExternalIdentityPreferences(
+  clearAcoustIdKey = false,
+): Promise<boolean> {
+  if (!window.audioV) return false;
+  const request = ++identityPreferencesRequest;
+  identityPreferencesSaving.value = true;
+  identityPreferencesMessage.value = clearAcoustIdKey
+    ? "Clearing the stored AcoustID key…"
+    : "Saving external identity preferences…";
+  const requestedKey = clearAcoustIdKey
+    ? null
+    : acoustIdApiKey.value.trim() || null;
+  if (requestedKey) {
+    acoustIdValidationState.value = "checking";
+    acoustIdValidationMessage.value =
+      "Checking and securely saving this application key…";
+  }
+  try {
+    const saved = await window.audioV.saveExternalIdentityPreferences({
+      acoustIdEnabled: clearAcoustIdKey ? false : acoustIdEnabled.value,
+      musicBrainzEnabled: musicBrainzEnabled.value,
+      acoustIdApiKey: requestedKey,
+    });
+    if (request !== identityPreferencesRequest) return true;
+    acoustIdEnabled.value = saved.acoustIdEnabled;
+    musicBrainzEnabled.value = saved.musicBrainzEnabled;
+    acoustIdApiKey.value = saved.acoustIdApiKey;
+    identityPreferencesMessage.value =
+      "Saved for future Audio-V launches · not included in audit evidence.";
+    acoustIdValidationState.value = saved.hasStoredAcoustIdApiKey
+      ? "valid"
+      : "idle";
+    acoustIdValidationMessage.value = saved.hasStoredAcoustIdApiKey
+      ? "Application key accepted and protected by the operating system."
+      : "No personal application key is stored.";
+    return true;
+  } catch (error) {
+    if (request !== identityPreferencesRequest) return false;
+    const message = desktopErrorMessage(
+      error,
+      "External identity preferences could not be saved.",
+    );
+    identityPreferencesMessage.value = message;
+    if (requestedKey || acoustIdEnabled.value) {
+      acoustIdValidationState.value = "error";
+      acoustIdValidationMessage.value = message;
+    }
+    return false;
+  } finally {
+    if (request === identityPreferencesRequest) {
+      identityPreferencesSaving.value = false;
+    }
+  }
+}
 
 onUnmounted(() => {
   removeScanProgressListener?.();
@@ -1492,6 +1578,7 @@ async function scanSource(source: AudioSourceSelection): Promise<void> {
         acoustIdValidationState.value = "valid";
         acoustIdValidationMessage.value =
           "Application key accepted · external lookup is ready for this audit.";
+        await saveExternalIdentityPreferences();
       } catch (error) {
         activeWorkspace.value = "settings";
         acoustIdValidationState.value = "error";
@@ -4523,11 +4610,15 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
           <article class="resource-controls external-service-card">
             <span>External identity services · recognition</span>
             <strong>AcoustID acoustic matching</strong>
-            <p>AcoustID compares the local Chromaprint to its recognition database and returns candidate recording IDs. Official builds can include Audio-V's client identity. A personal application key remains an optional override for source builds and forks; it is validated before discovery and never saved in audit evidence.</p>
-            <label><input v-model="acoustIdEnabled" type="checkbox" :disabled="isDiscovering"> Recognize files with AcoustID on next audit</label>
+            <p>AcoustID compares the local Chromaprint to its recognition database and returns candidate recording IDs. A personal application key is validated, encrypted with macOS Keychain or Windows credential protection, and stored only in this user profile. It is never placed in audit evidence.</p>
+            <label><input v-model="acoustIdEnabled" type="checkbox" :disabled="isDiscovering || identityPreferencesSaving" @change="saveExternalIdentityPreferences()"> Recognize files with AcoustID on future audits</label>
             <label>AcoustID API key · optional override
-              <input v-model="acoustIdApiKey" type="password" autocomplete="off" :disabled="isDiscovering || !acoustIdEnabled" @input="acoustIdValidationState = 'idle'; acoustIdValidationMessage = 'The application key will be checked before discovery begins.'">
+              <input v-model="acoustIdApiKey" type="password" autocomplete="off" :disabled="isDiscovering || !acoustIdEnabled || identityPreferencesSaving" @input="acoustIdValidationState = 'idle'; acoustIdValidationMessage = 'Save to validate and protect this application key.'" @change="saveExternalIdentityPreferences()">
             </label>
+            <div class="external-service-actions">
+              <button :disabled="isDiscovering || identityPreferencesSaving" @click="saveExternalIdentityPreferences()">{{ identityPreferencesSaving ? "Saving…" : "Save identity settings" }}</button>
+              <button class="secondary-action" :disabled="isDiscovering || identityPreferencesSaving || !acoustIdApiKey" @click="saveExternalIdentityPreferences(true)">Clear stored key</button>
+            </div>
             <small
               class="credential-validation"
               :class="acoustIdValidationState"
@@ -4537,15 +4628,17 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
             <small class="credential-validation idle">
               {{ externalIdentityStatus?.explanation ?? "Checking whether this build includes an official Audio-V client identity…" }}
             </small>
+            <small class="credential-validation idle" role="status" aria-live="polite">{{ identityPreferencesMessage }}</small>
           </article>
           <article class="resource-controls external-service-card">
             <span>External identity services · enrichment</span>
             <strong>MusicBrainz recording details</strong>
             <p>MusicBrainz adds credited artists, ISRCs, first-release dates, and release-group context to an embedded MusicBrainz recording ID or the strongest AcoustID candidate. It needs no API key, obeys the public one-request-per-second limit, caches repeated IDs, and never changes the Oracle quality verdict.</p>
-            <label><input v-model="musicBrainzEnabled" type="checkbox" :disabled="isDiscovering"> Enrich identified recordings on next audit</label>
+            <label><input v-model="musicBrainzEnabled" type="checkbox" :disabled="isDiscovering || identityPreferencesSaving" @change="saveExternalIdentityPreferences()"> Enrich identified recordings on future audits</label>
             <small class="credential-validation idle">
               Opt-in network lookup · one bounded recording request per unique file identity. Very large libraries can take substantially longer.
             </small>
+            <small class="credential-validation idle">{{ identityPreferencesMessage }}</small>
           </article>
           <article class="validation-disclosure">
             <span>Oracle validation basis</span>

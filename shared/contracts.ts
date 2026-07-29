@@ -959,6 +959,10 @@ export interface AudioVDesktopApi {
   selectCompareFile(): Promise<AudioSourceSelection | null>;
   selectFolder(): Promise<AudioSourceSelection | null>;
   validateAcoustIdApiKey(apiKey: string): Promise<boolean>;
+  loadExternalIdentityPreferences(): Promise<ExternalIdentityPreferences>;
+  saveExternalIdentityPreferences(
+    preferences: ExternalIdentityPreferencesUpdate,
+  ): Promise<ExternalIdentityPreferences>;
   scanSelection(source: AudioSourceSelection): Promise<ScanSelectionResult>;
   listAuditSessions(): Promise<AuditSessionSummary[]>;
   clearAuditHistory(): Promise<AuditHistoryClearResult>;
@@ -1037,4 +1041,18 @@ export interface AudioVDesktopApi {
     targetBitDepth: 16 | 24,
   ): Promise<RepairCopyResult>;
   platform(): Promise<DesktopPlatform>;
+}
+
+export interface ExternalIdentityPreferences {
+  acoustIdEnabled: boolean;
+  musicBrainzEnabled: boolean;
+  acoustIdApiKey: string;
+  hasStoredAcoustIdApiKey: boolean;
+  protection: "os-encrypted" | "unavailable";
+}
+
+export interface ExternalIdentityPreferencesUpdate {
+  acoustIdEnabled: boolean;
+  musicBrainzEnabled: boolean;
+  acoustIdApiKey: string | null;
 }

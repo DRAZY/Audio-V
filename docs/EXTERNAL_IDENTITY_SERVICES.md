@@ -37,8 +37,10 @@ fingerprints.
 5. Open **Settings** in Audio-V.
 6. Turn on **AcoustID recognition**.
 7. Paste the key into **AcoustID API key · optional override**.
-8. Start an audit. Audio-V trims accidental spaces and validates the key before
-   it begins scanning files.
+8. Choose **Save identity settings**. Audio-V trims accidental spaces,
+   validates the key, and protects it with the operating system.
+9. Start an audit. Audio-V checks the stored key again before it begins
+   scanning files.
 
 You can revisit [your registered AcoustID
 applications](https://acoustid.org/my-applications) later. Do not copy the user
@@ -108,11 +110,15 @@ based on the decoded file and disclosed integrity and signal evidence.
 | AcoustID | The locally calculated Chromaprint fingerprint, rounded duration, and application key | The audio file, local path, filename, or file hash |
 | MusicBrainz | One MusicBrainz recording ID | The audio file, fingerprint, local path, filename, or file hash |
 
-A key entered in Settings stays in application memory for the current session.
-An official client identity, when present, is packaged as a release resource
-rather than stored in source control. Audio-V does not save either value in
-history, reports, diagnostics, or source records. Returned identity details are
-saved with the audit evidence so the report remains understandable later.
+A personal key saved in Settings is encrypted through Electron's operating
+system credential protection (macOS Keychain or Windows DPAPI) and stored in
+the current user's Audio-V application-data directory. The AcoustID and
+MusicBrainz enable switches are restored on the next launch. **Clear stored
+key** deletes the encrypted credential and disables personal-key recognition.
+Audio-V never stores the key in history, reports, diagnostics, audit source
+records, source control, or release packages. An official client identity,
+when present, remains a packaged release resource. Returned identity details
+are saved with the audit evidence so the report remains understandable later.
 
 For the complete data-handling contract, read [Privacy and
 security](PRIVACY_SECURITY.md).

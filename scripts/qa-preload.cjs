@@ -15,9 +15,17 @@ const {
   result,
   comparison,
   comparisonFiles = result?.files ?? [],
+  externalIdentityPreferences = {
+    acoustIdEnabled: false,
+    musicBrainzEnabled: false,
+    acoustIdApiKey: "",
+    hasStoredAcoustIdApiKey: false,
+    protection: "os-encrypted",
+  },
   spectrograms = {},
 } =
   JSON.parse(serializedPayload);
+let savedExternalIdentityPreferences = externalIdentityPreferences;
 
 contextBridge.exposeInMainWorld("audioV", {
   selectFiles: async () => source,
@@ -38,6 +46,18 @@ contextBridge.exposeInMainWorld("audioV", {
     customClientRequired: true,
     explanation: "QA build",
   }),
+  validateAcoustIdApiKey: async () => true,
+  loadExternalIdentityPreferences: async () =>
+    savedExternalIdentityPreferences,
+  saveExternalIdentityPreferences: async (preferences) => {
+    savedExternalIdentityPreferences = {
+      ...preferences,
+      acoustIdApiKey: preferences.acoustIdApiKey ?? "",
+      hasStoredAcoustIdApiKey: Boolean(preferences.acoustIdApiKey),
+      protection: "os-encrypted",
+    };
+    return savedExternalIdentityPreferences;
+  },
   onIdentityProgress: () => () => undefined,
   listFingerprintLibrary: async () => [],
   rebuildFingerprintLibrary: async () => ({ affected: 0, remaining: 0 }),
