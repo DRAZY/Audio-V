@@ -4,6 +4,7 @@ import {
   calculateChromaprint,
   inspectContentCredentials,
   lookupAcoustId,
+  lookupMusicBrainzRecording,
   metadataProvenanceIndicators,
   normalizeAcoustIdApiKey,
   validateAcoustIdApiKey,
@@ -151,5 +152,108 @@ describe("provenance and fingerprint tools", () => {
     } finally {
       fetchMock.mockRestore();
     }
+  });
+
+  it("directly enriches one MusicBrainz recording and caches repeated IDs", async () => {
+    const recordingId = "b10bbbfc-cf9e-42e0-be17-e2c3e1d2600d";
+    const responseBody = JSON.stringify({
+      id: recordingId,
+      title: "Love Me Do",
+      "first-release-date": "1962-10-05",
+      isrcs: ["GBAYE0601408"],
+      "artist-credit": [{
+        artist: {
+          id: "b10bbbfc-cf9e-42e0-be17-e2c3e1d2600a",
+          name: "The Beatles",
+        },
+      }],
+      releases: [{
+        "release-group": {
+          id: "b10bbbfc-cf9e-42e0-be17-e2c3e1d2600b",
+          title: "Love Me Do",
+          "primary-type": "Single",
+          "first-release-date": "1962-10-05",
+        },
+      }],
+    });
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(responseBody, {
+        status: 200,
+        headers: { "content-length": String(Buffer.byteLength(responseBody)) },
+      }),
+    );
+    try {
+      const first = await lookupMusicBrainzRecording(
+        [recordingId],
+        {
+          status: "not-requested",
+          acoustId: null,
+          score: null,
+          recordingIds: [],
+          recordingTitles: [],
+          error: null,
+        },
+      );
+      const second = await lookupMusicBrainzRecording(
+        [],
+        {
+          status: "matched",
+          acoustId: "acoustid-result",
+          score: 0.99,
+          recordingIds: [recordingId],
+          recordingTitles: ["Love Me Do"],
+          error: null,
+        },
+      );
+      expect(first).toMatchObject({
+        status: "matched",
+        source: "embedded-mbid",
+        recordingId,
+        title: "Love Me Do",
+        artists: [{ name: "The Beatles" }],
+        isrcs: ["GBAYE0601408"],
+        firstReleaseDate: "1962-10-05",
+      });
+      expect(second).toEqual({
+        ...first,
+        source: "acoustid-match",
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const requestedUrl = fetchMock.mock.calls[0][0] as URL;
+      expect(requestedUrl.pathname).toBe(`/ws/2/recording/${recordingId}`);
+      expect(requestedUrl.searchParams.get("inc")).toBe(
+        "artist-credits+isrcs+releases+release-groups",
+      );
+      expect(fetchMock.mock.calls[0][1]).toEqual(
+        expect.objectContaining({
+          method: "GET",
+          headers: expect.objectContaining({
+            "User-Agent": expect.stringContaining("github.com/DRAZY/Audio-V"),
+          }),
+        }),
+      );
+    } finally {
+      fetchMock.mockRestore();
+    }
+  });
+
+  it("keeps MusicBrainz enrichment neutral without a valid recording ID", async () => {
+    await expect(
+      lookupMusicBrainzRecording(
+        ["not-an-mbid"],
+        {
+          status: "matched",
+          acoustId: "candidate",
+          score: 0.5,
+          recordingIds: ["also-not-an-mbid"],
+          recordingTitles: ["Ambiguous"],
+          error: null,
+        },
+      ),
+    ).resolves.toMatchObject({
+      status: "no-identifier",
+      source: null,
+      recordingId: null,
+    });
   });
 });

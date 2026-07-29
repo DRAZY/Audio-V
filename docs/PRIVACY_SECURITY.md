@@ -30,9 +30,11 @@ During a full audit of a mounted or non-system source, one active file may be co
 
 ## Optional external identity lookup
 
-AcoustID lookup is disabled by default and runs only when the user enables it for the next audit and supplies an AcoustID application API key. Audio-V sends the locally calculated Chromaprint fingerprint and rounded duration to `https://api.acoustid.org`; it does not send the audio file. The returned AcoustID and linked MusicBrainz recording identifiers are evidence leads, not proof of ownership, mastering provenance, or byte identity.
+AcoustID recognition is disabled by default and runs only when the user enables it for the next audit and supplies an AcoustID application API key. Audio-V sends the locally calculated Chromaprint fingerprint and rounded duration to `https://api.acoustid.org`; it does not send the audio file. The returned AcoustID and linked MusicBrainz recording identifiers are evidence leads, not proof of ownership, mastering provenance, or byte identity.
 
 The API key remains in renderer/main-process memory for the application session and is used only for explicitly enabled audits. It is removed from persisted sessions, reports, and returned source records. Audio-V does not currently store external-service credentials.
+
+MusicBrainz enrichment is a separate opt-in. It sends one MusicBrainz recording identifier—not the fingerprint or audio—to `https://musicbrainz.org` and receives community-maintained recording, artist, ISRC, date, and release-group fields. Audio-V prefers a valid recording ID embedded in the file, otherwise it can use the strongest AcoustID candidate. Unique IDs are cached in application memory and public requests are globally limited to one per second. The returned fields are saved as advisory identity evidence and never change the Oracle verdict.
 
 ## Unsigned distribution
 

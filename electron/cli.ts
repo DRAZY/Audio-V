@@ -164,8 +164,9 @@ async function main(): Promise<void> {
       ? {
           acoustIdEnabled: true,
           acoustIdApiKey: options.acoustIdApiKey,
+          musicBrainzEnabled: false,
         }
-      : { acoustIdEnabled: false },
+      : { acoustIdEnabled: false, musicBrainzEnabled: false },
   };
   const pool = new OracleWorkerPool(
     path.join(__dirname, "oracle", "oracle-worker.js"),
@@ -182,7 +183,10 @@ async function main(): Promise<void> {
   }).finally(() => pool.close());
   const publicSource: AudioSourceSelection = {
     ...source,
-    externalLookup: { acoustIdEnabled: Boolean(options.acoustIdApiKey) },
+    externalLookup: {
+      acoustIdEnabled: Boolean(options.acoustIdApiKey),
+      musicBrainzEnabled: false,
+    },
   };
   const document = {
     schema: "Audio-V Oracle CLI evidence v1",

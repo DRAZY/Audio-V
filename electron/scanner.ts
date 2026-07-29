@@ -33,6 +33,7 @@ import {
 } from "./metadata-inventory";
 import {
   lookupAcoustId,
+  lookupMusicBrainzRecording,
   metadataProvenanceIndicators,
 } from "./oracle/analysis-tools";
 import { analyzeCueTracks } from "./oracle/cue-track-analyzer";
@@ -573,6 +574,48 @@ function restoreOracleSourcePath(
       ...entry,
       summary: restore(entry.summary),
     })),
+  };
+}
+
+async function attachExternalIdentityEvidence(
+  file: AudioFileRecord,
+  source: AudioSourceSelection,
+  signal?: AbortSignal,
+): Promise<AudioFileRecord> {
+  const technical = file.oracle.technical;
+  if (!technical) return file;
+  let acoustIdLookup = technical.fingerprint.acoustIdLookup;
+  if (
+    source.externalLookup?.acoustIdEnabled &&
+    source.externalLookup.acoustIdApiKey
+  ) {
+    acoustIdLookup = await lookupAcoustId(
+      technical.fingerprint,
+      source.externalLookup.acoustIdApiKey,
+      signal,
+      file.path,
+    );
+  }
+  const musicBrainzEnrichment = source.externalLookup?.musicBrainzEnabled
+    ? await lookupMusicBrainzRecording(
+        file.metadata.musicBrainzRecordingIds,
+        acoustIdLookup,
+        signal,
+      )
+    : undefined;
+  return {
+    ...file,
+    oracle: {
+      ...file.oracle,
+      technical: {
+        ...technical,
+        fingerprint: {
+          ...technical.fingerprint,
+          acoustIdLookup,
+        },
+        ...(musicBrainzEnrichment ? { musicBrainzEnrichment } : {}),
+      },
+    },
   };
 }
 
@@ -1190,19 +1233,11 @@ export async function scanSources(
           let restored = attachMetadataProvenance(
             normalizeAudioRecordFormat(cached),
           );
-          if (
-            source.externalLookup?.acoustIdEnabled &&
-            source.externalLookup.acoustIdApiKey &&
-            restored.oracle.technical
-          ) {
-            restored.oracle.technical.fingerprint.acoustIdLookup =
-              await lookupAcoustId(
-                restored.oracle.technical.fingerprint,
-                source.externalLookup.acoustIdApiKey,
-                options?.signal,
-                restored.path,
-              );
-          }
+          restored = await attachExternalIdentityEvidence(
+            restored,
+            source,
+            options?.signal,
+          );
           restored = discloseDeferredAlbumReplayGain(
             restored,
             filePaths.length,
@@ -1339,19 +1374,11 @@ export async function scanSources(
             filePaths.length,
             automaticAlbumReplayGainFileLimit,
           );
-          if (
-            source.externalLookup?.acoustIdEnabled &&
-            source.externalLookup.acoustIdApiKey &&
-            file.oracle.technical
-          ) {
-            file.oracle.technical.fingerprint.acoustIdLookup =
-              await lookupAcoustId(
-                file.oracle.technical.fingerprint,
-                source.externalLookup.acoustIdApiKey,
-                options?.signal,
-                file.path,
-              );
-          }
+          file = await attachExternalIdentityEvidence(
+            file,
+            source,
+            options?.signal,
+          );
           await abortable(
             Promise.resolve(options?.cache?.set(file)),
             options?.signal,

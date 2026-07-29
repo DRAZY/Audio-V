@@ -175,7 +175,9 @@ approximately megabyte-sized visual payloads from being duplicated across
 Electron processes without discarding the evidence that determined the
 verdict.
 
-**AcoustID / MusicBrainz lookup** is off by default. It requires the 10-character key from a registered AcoustID application, not the separate user submission key. Audio-V trims copied whitespace, checks the key format, and asks AcoustID to validate the application credential before file discovery begins. A rejected key stops the audit before repeated lookups and displays the service explanation. When enabled, Audio-V sends the local Chromaprint value and rounded duration—not the audio—to AcoustID using bounded POST requests. The key remains only in application memory and is removed from saved sessions and reports. Matches are identity leads, not proof of ownership or mastering provenance.
+**AcoustID recognition** is off by default. It requires the 10-character key from a registered AcoustID application, not the separate user submission key. Audio-V trims copied whitespace, checks the key format, and asks AcoustID to validate the application credential before file discovery begins. A rejected key stops the audit before repeated lookups and displays the service explanation. When enabled, Audio-V sends the local Chromaprint value and rounded duration—not the audio—to AcoustID using bounded POST requests. The key remains only in application memory and is removed from saved sessions and reports.
+
+**MusicBrainz enrichment** has its own switch and needs no API key. It looks up one valid recording ID per file, preferring an ID already embedded in the metadata and otherwise using the strongest AcoustID candidate. The result can add credited artists, ISRCs, a first-release date, and up to eight release groups. Audio-V caches repeated IDs and never makes more than one MusicBrainz request per second, so enabling it for a large library can significantly extend the audit. Service errors and missing IDs stay visible and neutral. AcoustID and MusicBrainz results are identity leads, not proof of ownership, mastering provenance, integrity, or sound quality.
 
 ## Headless folder automation
 

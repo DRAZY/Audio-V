@@ -419,6 +419,8 @@ function isSourceSelection(value: unknown): value is AudioSourceSelection {
         [256, 512, 1024, 2048].includes(source.resourceLimits.nativeProcessMemoryMb))) &&
     (source.externalLookup === undefined ||
       (typeof source.externalLookup.acoustIdEnabled === "boolean" &&
+        (source.externalLookup.musicBrainzEnabled === undefined ||
+          typeof source.externalLookup.musicBrainzEnabled === "boolean") &&
         (source.externalLookup.acoustIdApiKey === undefined ||
           (typeof source.externalLookup.acoustIdApiKey === "string" &&
             source.externalLookup.acoustIdApiKey.length <= 128))))
@@ -983,6 +985,8 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
     externalLookup: source.externalLookup
       ? {
           acoustIdEnabled: source.externalLookup.acoustIdEnabled,
+          musicBrainzEnabled:
+            source.externalLookup.musicBrainzEnabled === true,
         }
       : undefined,
   };

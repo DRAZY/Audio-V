@@ -173,8 +173,11 @@ Oracle keeps provenance separate from sound quality:
 - Generator names and known identifier strings are inventoried.
 - Chromaprint creates a local acoustic fingerprint for duplicate and
   similarity leads.
-- Optional AcoustID lookup can connect a fingerprint to MusicBrainz-related
-  identity information.
+- Optional AcoustID recognition can connect a fingerprint to candidate
+  MusicBrainz recording IDs.
+- Independently optional MusicBrainz enrichment can describe one embedded or
+  AcoustID-supplied recording ID with credited artists, ISRCs, release date,
+  and release-group context.
 
 A valid Content Credential means a signed statement is correctly attached to
 the asset. It does not prove that every statement is true, that the audio is
@@ -182,6 +185,11 @@ high quality, or that the signer owns the recording.
 
 A Chromaprint match means recordings are acoustically related. It does not mean
 their file bytes, mastering, loudness, or provenance are identical.
+
+A MusicBrainz match means the supplied recording ID exists in a
+community-maintained catalog. It does not prove that an editable embedded ID or
+an AcoustID candidate names the exact edition in hand, and it never changes the
+Oracle verdict.
 
 Audio-V deliberately does not show a universal “AI: Yes/No” badge. The current
 evidence cannot responsibly support that claim.

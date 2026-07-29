@@ -313,6 +313,37 @@ export function audioFileReportRow(file: AudioFileRecord): ReportRow {
         technical?.fingerprint?.acoustIdLookup.recordingIds.join(" | ") ?? "",
       "AcoustID-linked recording titles":
         technical?.fingerprint?.acoustIdLookup.recordingTitles.join(" | ") ?? "",
+      "MusicBrainz enrichment status": display(
+        technical?.musicBrainzEnrichment?.status,
+      ),
+      "MusicBrainz enrichment source": display(
+        technical?.musicBrainzEnrichment?.source,
+      ),
+      "MusicBrainz recording ID": display(
+        technical?.musicBrainzEnrichment?.recordingId,
+      ),
+      "MusicBrainz recording title": display(
+        technical?.musicBrainzEnrichment?.title,
+      ),
+      "MusicBrainz credited artists":
+        technical?.musicBrainzEnrichment?.artists
+          .map((artist) => artist.name)
+          .join(" | ") ?? "",
+      "MusicBrainz ISRCs":
+        technical?.musicBrainzEnrichment?.isrcs.join(" | ") ?? "",
+      "MusicBrainz first release": display(
+        technical?.musicBrainzEnrichment?.firstReleaseDate,
+      ),
+      "MusicBrainz release groups":
+        technical?.musicBrainzEnrichment?.releaseGroups
+          .map(
+            (group) =>
+              `${group.title}:${group.primaryType ?? "unknown"}:${group.firstReleaseDate ?? "unknown"}`,
+          )
+          .join(" | ") ?? "",
+      "MusicBrainz limitation": display(
+        technical?.musicBrainzEnrichment?.limitation,
+      ),
       "Origin confidence type": display(file.oracle.fidelity?.confidenceType),
       "Origin validation basis": file.oracle.fidelity
         ? "Versioned rule strength; not a probability-calibrated provenance claim"

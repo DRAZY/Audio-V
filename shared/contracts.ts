@@ -297,6 +297,30 @@ export interface AcoustIdLookup {
   error: string | null;
 }
 
+export interface MusicBrainzEnrichment {
+  status:
+    | "not-requested"
+    | "no-identifier"
+    | "matched"
+    | "not-found"
+    | "service-error";
+  source: "embedded-mbid" | "acoustid-match" | null;
+  recordingId: string | null;
+  title: string | null;
+  disambiguation: string | null;
+  artists: Array<{ id: string; name: string }>;
+  isrcs: string[];
+  firstReleaseDate: string | null;
+  releaseGroups: Array<{
+    id: string;
+    title: string;
+    primaryType: string | null;
+    firstReleaseDate: string | null;
+  }>;
+  error: string | null;
+  limitation: string;
+}
+
 export interface ChromaprintAssessment {
   status: "measured" | "unavailable" | "error";
   algorithm: "Chromaprint 1.6.0";
@@ -442,6 +466,7 @@ export interface StreamTechnicalAnalysis {
   contentCredentials: ContentCredentialsAssessment;
   provenanceIndicators: ProvenanceIndicator[];
   fingerprint: ChromaprintAssessment;
+  musicBrainzEnrichment?: MusicBrainzEnrichment;
   repairProvenance: {
     action: "true_peak_safe_copy";
     targetDbtp: number;
@@ -606,6 +631,7 @@ export interface AudioSourceSelection {
   externalLookup?: {
     acoustIdEnabled: boolean;
     acoustIdApiKey?: string;
+    musicBrainzEnabled?: boolean;
   };
 }
 

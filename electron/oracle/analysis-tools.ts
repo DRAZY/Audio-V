@@ -5,12 +5,23 @@ import type {
   AcoustIdLookup,
   ChromaprintAssessment,
   ContentCredentialsAssessment,
+  MusicBrainzEnrichment,
   ProvenanceIndicator,
 } from "../../shared/contracts";
 
 const maxOutputBytes = 16 * 1024 * 1024;
 const maxAcoustIdResponseBytes = 1024 * 1024;
+const maxMusicBrainzResponseBytes = 1024 * 1024;
 const acoustIdApplicationKeyPattern = /^[A-Za-z0-9]{10}$/u;
+const musicBrainzRecordingIdPattern =
+  /^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/iu;
+const musicBrainzRequestIntervalMilliseconds = 1_100;
+const musicBrainzRecordingCache = new Map<
+  string,
+  Promise<MusicBrainzEnrichment>
+>();
+let musicBrainzRequestQueue: Promise<void> = Promise.resolve();
+let lastMusicBrainzRequestAt = 0;
 
 interface AcoustIdResponseBody {
   status?: string;
@@ -23,6 +34,228 @@ interface AcoustIdResponseBody {
     score?: number;
     recordings?: Array<{ id?: string; title?: string }>;
   }>;
+}
+
+interface MusicBrainzRecordingBody {
+  id?: string;
+  title?: string;
+  disambiguation?: string;
+  isrcs?: string[];
+  "first-release-date"?: string;
+  "artist-credit"?: Array<{
+    artist?: { id?: string; name?: string };
+  }>;
+  releases?: Array<{
+    "release-group"?: {
+      id?: string;
+      title?: string;
+      "primary-type"?: string;
+      "first-release-date"?: string;
+    };
+  }>;
+  error?: string;
+}
+
+const musicBrainzLimitation =
+  "MusicBrainz supplies community-maintained identity metadata. A match does not prove ownership, mastering provenance, file integrity, or audio quality and never changes the Oracle verdict.";
+
+function emptyMusicBrainzEnrichment(
+  status: MusicBrainzEnrichment["status"],
+  error: string | null = null,
+): MusicBrainzEnrichment {
+  return {
+    status,
+    source: null,
+    recordingId: null,
+    title: null,
+    disambiguation: null,
+    artists: [],
+    isrcs: [],
+    firstReleaseDate: null,
+    releaseGroups: [],
+    error,
+    limitation: musicBrainzLimitation,
+  };
+}
+
+async function waitForMusicBrainzTurn(signal?: AbortSignal): Promise<void> {
+  const previous = musicBrainzRequestQueue;
+  let release!: () => void;
+  musicBrainzRequestQueue = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await previous;
+  try {
+    if (signal?.aborted) throw new Error("MusicBrainz lookup canceled.");
+    const waitMilliseconds = Math.max(
+      0,
+      musicBrainzRequestIntervalMilliseconds -
+        (Date.now() - lastMusicBrainzRequestAt),
+    );
+    if (waitMilliseconds > 0) {
+      await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(resolve, waitMilliseconds);
+        const cancel = () => {
+          clearTimeout(timer);
+          reject(new Error("MusicBrainz lookup canceled."));
+        };
+        signal?.addEventListener("abort", cancel, { once: true });
+      });
+    }
+    lastMusicBrainzRequestAt = Date.now();
+  } finally {
+    release();
+  }
+}
+
+async function requestMusicBrainzRecording(
+  recordingId: string,
+  source: NonNullable<MusicBrainzEnrichment["source"]>,
+  signal?: AbortSignal,
+): Promise<MusicBrainzEnrichment> {
+  await waitForMusicBrainzTurn(signal);
+  const requestSignal = signal
+    ? AbortSignal.any([signal, AbortSignal.timeout(15_000)])
+    : AbortSignal.timeout(15_000);
+  const url = new URL(
+    `https://musicbrainz.org/ws/2/recording/${recordingId}`,
+  );
+  url.searchParams.set(
+    "inc",
+    "artist-credits+isrcs+releases+release-groups",
+  );
+  url.searchParams.set("fmt", "json");
+  const response = await fetch(url, {
+    method: "GET",
+    signal: requestSignal,
+    headers: {
+      Accept: "application/json",
+      "User-Agent": "Audio-V/0.4 (https://github.com/DRAZY/Audio-V)",
+    },
+  });
+  const declaredBytes = Number(response.headers.get("content-length"));
+  if (
+    Number.isFinite(declaredBytes) &&
+    declaredBytes > maxMusicBrainzResponseBytes
+  ) {
+    throw new Error("MusicBrainz response exceeded the 1 MB safety limit.");
+  }
+  const responseText = await response.text();
+  if (Buffer.byteLength(responseText) > maxMusicBrainzResponseBytes) {
+    throw new Error("MusicBrainz response exceeded the 1 MB safety limit.");
+  }
+  let body: MusicBrainzRecordingBody;
+  try {
+    body = JSON.parse(responseText) as MusicBrainzRecordingBody;
+  } catch {
+    throw new Error(
+      `MusicBrainz returned an unreadable response (HTTP ${response.status}).`,
+    );
+  }
+  if (response.status === 404) {
+    return {
+      ...emptyMusicBrainzEnrichment("not-found"),
+      source,
+      recordingId,
+    };
+  }
+  if (!response.ok || !body.id) {
+    throw new Error(
+      body.error ??
+        (response.status === 503
+          ? "MusicBrainz is rate limiting or temporarily unavailable. Try again later."
+          : `MusicBrainz rejected the lookup (HTTP ${response.status}).`),
+    );
+  }
+  const releaseGroups = new Map<
+    string,
+    MusicBrainzEnrichment["releaseGroups"][number]
+  >();
+  for (const release of body.releases ?? []) {
+    const group = release["release-group"];
+    if (!group?.id || !group.title || releaseGroups.has(group.id)) continue;
+    releaseGroups.set(group.id, {
+      id: group.id,
+      title: group.title,
+      primaryType: group["primary-type"] ?? null,
+      firstReleaseDate: group["first-release-date"] ?? null,
+    });
+    if (releaseGroups.size >= 8) break;
+  }
+  return {
+    status: "matched",
+    source,
+    recordingId: body.id,
+    title: body.title ?? null,
+    disambiguation: body.disambiguation || null,
+    artists: (body["artist-credit"] ?? [])
+      .map((credit) => credit.artist)
+      .filter(
+        (artist): artist is { id: string; name: string } =>
+          Boolean(artist?.id && artist.name),
+      )
+      .slice(0, 12),
+    isrcs: [...new Set(body.isrcs ?? [])].slice(0, 20),
+    firstReleaseDate:
+      body["first-release-date"] ??
+      [...releaseGroups.values()]
+        .map((group) => group.firstReleaseDate)
+        .filter((date): date is string => Boolean(date))
+        .sort()[0] ??
+      null,
+    releaseGroups: [...releaseGroups.values()],
+    error: null,
+    limitation: musicBrainzLimitation,
+  };
+}
+
+export async function lookupMusicBrainzRecording(
+  embeddedRecordingIds: string[],
+  acoustIdLookup: AcoustIdLookup,
+  signal?: AbortSignal,
+): Promise<MusicBrainzEnrichment> {
+  const embeddedId = embeddedRecordingIds.find((id) =>
+    musicBrainzRecordingIdPattern.test(id.trim()),
+  )?.trim();
+  const acoustIdRecordingId = acoustIdLookup.recordingIds.find((id) =>
+    musicBrainzRecordingIdPattern.test(id.trim()),
+  )?.trim();
+  const recordingId = embeddedId ?? acoustIdRecordingId;
+  const source: NonNullable<MusicBrainzEnrichment["source"]> | null = embeddedId
+    ? "embedded-mbid"
+    : acoustIdRecordingId
+      ? "acoustid-match"
+      : null;
+  if (!recordingId || !source) {
+    return emptyMusicBrainzEnrichment("no-identifier");
+  }
+  const cacheKey = recordingId.toLowerCase();
+  const cached = musicBrainzRecordingCache.get(cacheKey);
+  if (cached) {
+    return {
+      ...(await cached),
+      source,
+    };
+  }
+  const lookup = requestMusicBrainzRecording(recordingId, source, signal)
+    .catch(
+      (error): MusicBrainzEnrichment => ({
+        ...emptyMusicBrainzEnrichment(
+          "service-error",
+          error instanceof Error ? error.message : "MusicBrainz lookup failed.",
+        ),
+        source,
+        recordingId,
+      }),
+    )
+    .then((result) => {
+      if (result.status === "service-error") {
+        musicBrainzRecordingCache.delete(cacheKey);
+      }
+      return result;
+    });
+  musicBrainzRecordingCache.set(cacheKey, lookup);
+  return lookup;
 }
 
 export function normalizeAcoustIdApiKey(apiKey: string): string {

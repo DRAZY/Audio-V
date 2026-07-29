@@ -78,6 +78,7 @@ const effectiveResourceLimits = ref<AnalysisResourceLimits | null>(null);
 const recoveryStatus = ref("");
 const acoustIdEnabled = ref(false);
 const acoustIdApiKey = ref("");
+const musicBrainzEnabled = ref(false);
 const acoustIdValidationState = ref<"idle" | "checking" | "valid" | "error">(
   "idle",
 );
@@ -1269,6 +1270,7 @@ async function scanSource(source: AudioSourceSelection): Promise<void> {
     resourceLimits: requestedLimits,
     externalLookup: {
       acoustIdEnabled: acoustIdEnabled.value,
+      musicBrainzEnabled: musicBrainzEnabled.value,
       ...(acoustIdEnabled.value && acoustIdApiKey.value
         ? { acoustIdApiKey: acoustIdApiKey.value }
         : {}),
@@ -3299,6 +3301,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
               <div><dt>Chromaprint</dt><dd>{{ selected.oracle.technical?.fingerprint?.status ?? "Not measured" }}</dd></div>
               <div><dt>Acoustic matches</dt><dd>{{ selected.oracle.technical?.fingerprint?.matches.length ?? 0 }}</dd></div>
               <div><dt>AcoustID</dt><dd>{{ selected.oracle.technical?.fingerprint?.acoustIdLookup.status?.replaceAll("-", " ") ?? "Not requested" }}</dd></div>
+              <div><dt>MusicBrainz</dt><dd>{{ selected.oracle.technical?.musicBrainzEnrichment?.status?.replaceAll("-", " ") ?? "Not requested" }}</dd></div>
               <div><dt>ReplayGain</dt><dd>{{ selected.metadata?.replayGain.trackGainDb === null || selected.metadata?.replayGain.trackGainDb === undefined ? "Not tagged" : `${selected.metadata.replayGain.trackGainDb.toFixed(2)} dB track gain` }}</dd></div>
               <div><dt>Calculated ReplayGain</dt><dd>{{ selected.oracle.measurements?.replayGain?.trackGainDb === null || selected.oracle.measurements?.replayGain?.trackGainDb === undefined ? "Not measured" : `${selected.oracle.measurements.replayGain.trackGainDb.toFixed(2)} dB track${selected.oracle.measurements.replayGain.albumGainDb === null ? "" : ` · ${selected.oracle.measurements.replayGain.albumGainDb.toFixed(2)} dB album`}` }}</dd></div>
               <div v-if="selected.oracle.measurements?.replayGain"><dt>Album ReplayGain status</dt><dd>{{ selected.oracle.measurements.replayGain.albumReason ?? "Eligibility explanation unavailable for this earlier result" }}</dd></div>
@@ -3413,6 +3416,21 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
                   AcoustID {{ selected.oracle.technical.fingerprint.acoustIdLookup.score === null ? "match" : `${(selected.oracle.technical.fingerprint.acoustIdLookup.score * 100).toFixed(1)}%` }} · {{ selected.oracle.technical.fingerprint.acoustIdLookup.recordingTitles[index] || "Untitled recording" }} · MusicBrainz {{ recordingId }}
                 </li>
               </ul>
+              <dl v-if="selected.oracle.technical.musicBrainzEnrichment?.status === 'matched'">
+                <div><dt>MusicBrainz recording</dt><dd>{{ selected.oracle.technical.musicBrainzEnrichment.title ?? "Untitled recording" }}</dd></div>
+                <div><dt>Credited artists</dt><dd>{{ selected.oracle.technical.musicBrainzEnrichment.artists.map((artist) => artist.name).join(", ") || "Not listed" }}</dd></div>
+                <div><dt>First release</dt><dd>{{ selected.oracle.technical.musicBrainzEnrichment.firstReleaseDate ?? "Not listed" }}</dd></div>
+                <div><dt>ISRCs</dt><dd>{{ selected.oracle.technical.musicBrainzEnrichment.isrcs.join(", ") || "Not listed" }}</dd></div>
+                <div><dt>Identity source</dt><dd>{{ selected.oracle.technical.musicBrainzEnrichment.source === "embedded-mbid" ? "Embedded MusicBrainz ID" : "AcoustID match candidate" }}</dd></div>
+              </dl>
+              <ul v-if="selected.oracle.technical.musicBrainzEnrichment?.releaseGroups.length">
+                <li v-for="releaseGroup in selected.oracle.technical.musicBrainzEnrichment.releaseGroups" :key="releaseGroup.id">
+                  {{ releaseGroup.title }} · {{ releaseGroup.primaryType ?? "Release group" }} · {{ releaseGroup.firstReleaseDate ?? "Date unknown" }}
+                </li>
+              </ul>
+              <small v-if="selected.oracle.technical.musicBrainzEnrichment">
+                {{ selected.oracle.technical.musicBrainzEnrichment.error ?? selected.oracle.technical.musicBrainzEnrichment.limitation }}
+              </small>
             </section>
             <section v-if="selected.oracle.cueTracks?.length" class="origin-assessment-card">
               <header>
@@ -3957,11 +3975,11 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
             <strong>Single-transfer local staging</strong>
             <p>On macOS /Volumes sources and Windows UNC, mapped, or non-system drives, Audio-V uses up to four bounded 4 MB sequential transfer streams. Each active file is copied once to protected temporary storage, repeatedly decoded locally, then removed. Eight-way directory discovery reduces share latency without changing Oracle evidence.</p>
           </article>
-          <article class="resource-controls">
-            <span>External identity service</span>
-            <strong>Optional AcoustID / MusicBrainz</strong>
-            <p>Enter the 10-character key from your registered AcoustID application. Audio-V trims copied whitespace and validates the key before discovery. User submission keys do not work for lookup. The key remains in memory for this app session and is removed from saved audit-source records and exports.</p>
-            <label><input v-model="acoustIdEnabled" type="checkbox" :disabled="isDiscovering"> Enable lookup on next audit</label>
+          <article class="resource-controls external-service-card">
+            <span>External identity services · recognition</span>
+            <strong>AcoustID acoustic matching</strong>
+            <p>AcoustID compares the local Chromaprint to its recognition database and returns candidate recording IDs. Enter the 10-character key from your registered application; Audio-V validates it before discovery and never saves it in audit evidence.</p>
+            <label><input v-model="acoustIdEnabled" type="checkbox" :disabled="isDiscovering"> Recognize files with AcoustID on next audit</label>
             <label>AcoustID API key
               <input v-model="acoustIdApiKey" type="password" autocomplete="off" :disabled="isDiscovering || !acoustIdEnabled" @input="acoustIdValidationState = 'idle'; acoustIdValidationMessage = 'The application key will be checked before discovery begins.'">
             </label>
@@ -3971,6 +3989,15 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
               role="status"
               aria-live="polite"
             >{{ acoustIdValidationMessage }}</small>
+          </article>
+          <article class="resource-controls external-service-card">
+            <span>External identity services · enrichment</span>
+            <strong>MusicBrainz recording details</strong>
+            <p>MusicBrainz adds credited artists, ISRCs, first-release dates, and release-group context to an embedded MusicBrainz recording ID or the strongest AcoustID candidate. It needs no API key, obeys the public one-request-per-second limit, caches repeated IDs, and never changes the Oracle quality verdict.</p>
+            <label><input v-model="musicBrainzEnabled" type="checkbox" :disabled="isDiscovering"> Enrich identified recordings on next audit</label>
+            <small class="credential-validation idle">
+              Opt-in network lookup · one bounded recording request per unique file identity. Very large libraries can take substantially longer.
+            </small>
           </article>
           <article class="validation-disclosure">
             <span>Oracle validation basis</span>
