@@ -38,6 +38,11 @@ MusicBrainz enrichment is a separate opt-in. It sends one MusicBrainz recording 
 
 The parallel identity result is calculated locally from the returned identity and the file's existing recording ID, title, and artist declarations. No additional network request is made for this comparison.
 
+The [external identity services setup
+guide](EXTERNAL_IDENTITY_SERVICES.md) explains how to enable either service,
+which AcoustID credential is accepted, and how to interpret service failures
+without confusing them with Oracle verdicts.
+
 ## Unsigned distribution
 
 Official macOS development app bundles use an ad-hoc integrity signature without an Apple Developer ID identity or notarization; official Windows development artifacts are unsigned. Users must verify the complete SHA-256 digest against the official release before approving an operating-system warning. Audio-V does not recommend disabling Gatekeeper, SmartScreen, Smart App Control, or organization policy globally.

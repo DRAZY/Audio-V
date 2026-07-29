@@ -204,6 +204,11 @@ This is not a sixth Oracle verdict lane. It is a separate identity workflow
 shown beside the immutable five-lane quality verdict. A recognized recording
 can still be clipped, corrupted, transcoded, or incorrectly mastered.
 
+The [AcoustID and MusicBrainz setup
+guide](EXTERNAL_IDENTITY_SERVICES.md) explains how to enable these optional
+services, what information they receive, and how to troubleshoot a neutral or
+failed lookup.
+
 Audio-V deliberately does not show a universal “AI: Yes/No” badge. The current
 evidence cannot responsibly support that claim.
 

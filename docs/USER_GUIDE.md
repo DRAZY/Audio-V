@@ -181,6 +181,10 @@ verdict.
 
 **Parallel identity result** appears in the evidence inspector and exported reports after external lookup. Metadata corroborated means all comparable ID, title, and artist declarations agree. Identity matched means an acoustic match exists but local tags are insufficient. Metadata conflict identifies the exact declared and external values that disagree. Inconclusive means there was no usable external identity. These labels help review catalog information; they never promote Review to Clear, demote Clear to Review, or override Failed.
 
+For account creation, the correct AcoustID key type, step-by-step Settings
+instructions, privacy details, and service-error help, use the dedicated
+[AcoustID and MusicBrainz setup guide](EXTERNAL_IDENTITY_SERVICES.md).
+
 ## Headless folder automation
 
 Source and CI users can audit files or recursive folders without opening the desktop:

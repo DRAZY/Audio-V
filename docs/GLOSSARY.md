@@ -6,6 +6,8 @@ they affect a verdict.
 
 | Term | Plain-language meaning |
 |---|---|
+| **AcoustID** | An optional external service that compares a locally calculated acoustic fingerprint with a community database. A match is an identity lead, not an audio-quality verdict. |
+| **AcoustID application key** | The client key issued after registering an application with AcoustID. It is different from the user key used to submit new fingerprints. |
 | **Acoustic fingerprint** | A compact description of how a recording sounds. It can find related recordings even when their file bytes differ. |
 | **Advisory** | An observation worth showing that is not strong enough to change Clear to Review. |
 | **Analysis error** | Audio-V could not finish a processing stage. It is not proof that the file is damaged. |
@@ -30,12 +32,18 @@ they affect a verdict.
 | **Full scale** | The maximum digital sample level, commonly written as 0 dBFS. |
 | **Hash / checksum** | A value calculated from data to help detect changes. SHA-256 identifies exact file bytes; FLAC audio MD5 identifies decoded samples. |
 | **Heuristic** | A disclosed pattern-based rule. It provides a clue, not absolute proof. |
+| **Identity matched** | An external service found a likely recording, but the file does not contain enough comparable metadata to call it corroborated. |
+| **Identity result** | Audio-V’s separate summary of external catalog evidence: Metadata corroborated, Identity matched, Metadata conflict, or Inconclusive. It is not an Oracle audio verdict. |
+| **Inconclusive identity** | No usable external identity was available. This is neutral, not a failure or quality concern. |
 | **Integrated LUFS** | A standardized estimate of average perceived loudness over the whole track. |
 | **Lossless** | A codec can reproduce the stored audio samples exactly, such as FLAC or ALAC. It does not prove the source was always lossless. |
 | **Lossy** | A codec removes information to reduce size, such as MP3 or AAC. |
 | **Loudness range (LRA)** | A standardized description of loudness variation across a program. |
 | **Manifest** | A separate file listing expected hashes for one or more files. |
 | **Metadata** | Editable information such as title, artist, album, codec label, or identifiers. |
+| **Metadata conflict** | The external identity and at least one comparable recording ID, title, or artist stored in the file disagree. It does not change the Oracle verdict. |
+| **Metadata corroborated** | The usable external identity agrees with all comparable recording ID, title, and artist values stored in the file. |
+| **MusicBrainz** | A community-maintained music database. Audio-V can optionally use a recording ID to add artist, ISRC, date, and release-group context without changing the Oracle verdict. |
 | **Near mono / dual mono** | Stereo channels contain nearly or exactly the same signal. This can be intentional and is not damage. |
 | **Not analyzed** | Audio-V inventoried metadata but did not decode and assess the signal. |
 | **Null test** | Align two decoded signals and subtract one from the other. A quiet residual suggests similarity; it does not prove provenance. |
@@ -52,4 +60,3 @@ they affect a verdict.
 | **Upsample** | Raise the sample-rate label or processing rate. Upsampling does not recreate missing source detail. |
 | **Verdict** | Oracle’s scoped result: Clear, Review, or Failed. Analysis error and Not analyzed are separate workflow states. |
 | **Waveform** | A view of signal level over time. |
-

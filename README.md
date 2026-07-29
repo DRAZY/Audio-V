@@ -17,6 +17,7 @@
     <a href="#meet-the-oracle-engine">Oracle Engine</a> ·
     <a href="#understanding-the-verdict">Verdicts</a> ·
     <a href="#take-a-tour">Feature tour</a> ·
+    <a href="docs/EXTERNAL_IDENTITY_SERVICES.md">Identity setup</a> ·
     <a href="docs/USER_GUIDE.md">User guide</a>
   </p>
 </div>
@@ -308,6 +309,11 @@ Audio-V then produces a parallel identity result: **Metadata corroborated**,
 shows which declared fields agree with the external identity, but neither
 service changes the Oracle audio-quality verdict.
 
+Want to use these optional services? Follow the beginner-friendly
+[AcoustID and MusicBrainz setup guide](docs/EXTERNAL_IDENTITY_SERVICES.md). It
+explains which key to create, what each switch does, what data leaves the
+computer, and how to interpret or troubleshoot a match.
+
 ### Compare: inspect two independent files
 
 Load File A and File B directly from disk or from the current audit. Audio-V
@@ -424,6 +430,7 @@ Read the complete [privacy and security model](docs/PRIVACY_SECURITY.md).
 | Start here when… | Document |
 |---|---|
 | You want normal step-by-step operation | [User guide](docs/USER_GUIDE.md) |
+| You want to enable AcoustID or MusicBrainz | [External identity services setup](docs/EXTERNAL_IDENTITY_SERVICES.md) |
 | You want to understand Oracle and every verdict | [Oracle Engine guide](docs/ORACLE_ENGINE.md) |
 | A technical word is unfamiliar | [Plain-language glossary](docs/GLOSSARY.md) |
 | You want formulas, standards, and limitations | [Methodology](docs/METHODOLOGY.md) |
