@@ -3302,6 +3302,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
               <div><dt>Acoustic matches</dt><dd>{{ selected.oracle.technical?.fingerprint?.matches.length ?? 0 }}</dd></div>
               <div><dt>AcoustID</dt><dd>{{ selected.oracle.technical?.fingerprint?.acoustIdLookup.status?.replaceAll("-", " ") ?? "Not requested" }}</dd></div>
               <div><dt>MusicBrainz</dt><dd>{{ selected.oracle.technical?.musicBrainzEnrichment?.status?.replaceAll("-", " ") ?? "Not requested" }}</dd></div>
+              <div><dt>Identity result</dt><dd>{{ selected.oracle.technical?.identityAssessment?.status?.replaceAll("-", " ") ?? "Not assessed" }}</dd></div>
               <div><dt>ReplayGain</dt><dd>{{ selected.metadata?.replayGain.trackGainDb === null || selected.metadata?.replayGain.trackGainDb === undefined ? "Not tagged" : `${selected.metadata.replayGain.trackGainDb.toFixed(2)} dB track gain` }}</dd></div>
               <div><dt>Calculated ReplayGain</dt><dd>{{ selected.oracle.measurements?.replayGain?.trackGainDb === null || selected.oracle.measurements?.replayGain?.trackGainDb === undefined ? "Not measured" : `${selected.oracle.measurements.replayGain.trackGainDb.toFixed(2)} dB track${selected.oracle.measurements.replayGain.albumGainDb === null ? "" : ` · ${selected.oracle.measurements.replayGain.albumGainDb.toFixed(2)} dB album`}` }}</dd></div>
               <div v-if="selected.oracle.measurements?.replayGain"><dt>Album ReplayGain status</dt><dd>{{ selected.oracle.measurements.replayGain.albumReason ?? "Eligibility explanation unavailable for this earlier result" }}</dd></div>
@@ -3431,6 +3432,34 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
               <small v-if="selected.oracle.technical.musicBrainzEnrichment">
                 {{ selected.oracle.technical.musicBrainzEnrichment.error ?? selected.oracle.technical.musicBrainzEnrichment.limitation }}
               </small>
+            </section>
+            <section
+              v-if="selected.oracle.technical?.identityAssessment"
+              class="origin-assessment-card identity-assessment-card"
+              :class="selected.oracle.technical.identityAssessment.status"
+            >
+              <header>
+                <span class="eyebrow">Parallel identity result</span>
+                <strong>{{ selected.oracle.technical.identityAssessment.status.replaceAll("-", " ") }}</strong>
+                <em>Independent of the Oracle quality verdict</em>
+              </header>
+              <p>{{ selected.oracle.technical.identityAssessment.summary }}</p>
+              <dl>
+                <div><dt>Evidence basis</dt><dd>{{ selected.oracle.technical.identityAssessment.basis?.replaceAll("-", " ") ?? "No external match" }}</dd></div>
+                <div><dt>Providers</dt><dd>{{ selected.oracle.technical.identityAssessment.providers.join(", ") || "None" }}</dd></div>
+                <div><dt>Recording ID</dt><dd class="hash-value" :title="selected.oracle.technical.identityAssessment.recordingId ?? undefined">{{ selected.oracle.technical.identityAssessment.recordingId ?? "Not identified" }}</dd></div>
+                <div><dt>Identified title</dt><dd>{{ selected.oracle.technical.identityAssessment.title ?? "Not identified" }}</dd></div>
+                <div><dt>Identified artists</dt><dd>{{ selected.oracle.technical.identityAssessment.artists.join(", ") || "Not identified" }}</dd></div>
+              </dl>
+              <ul v-if="selected.oracle.technical.identityAssessment.comparisons.length">
+                <li
+                  v-for="comparison in selected.oracle.technical.identityAssessment.comparisons"
+                  :key="comparison.field"
+                >
+                  {{ comparison.field.replaceAll("-", " ") }} · {{ comparison.result }} · declared “{{ comparison.declared.join(", ") }}” · identified “{{ comparison.identified.join(", ") }}”
+                </li>
+              </ul>
+              <small>{{ selected.oracle.technical.identityAssessment.limitation }}</small>
             </section>
             <section v-if="selected.oracle.cueTracks?.length" class="origin-assessment-card">
               <header>

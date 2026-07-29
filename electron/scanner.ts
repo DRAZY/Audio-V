@@ -4,6 +4,7 @@ import path from "node:path";
 import { parseFile } from "music-metadata";
 import {
   AUDIO_EXTENSIONS,
+  type AcoustIdLookup,
   type AudioSourceSelection,
   type AudioFileRecord,
   type OracleResult,
@@ -12,6 +13,7 @@ import {
   type FingerprintIndexCandidate,
 } from "../shared/contracts";
 import { compactAudioFileRecord } from "../shared/compact-audio-record";
+import { assessExternalIdentity } from "../shared/external-identity-assessment";
 import {
   analyzeAudioFile,
   engineVersion as currentOracleEngineVersion,
@@ -584,7 +586,14 @@ async function attachExternalIdentityEvidence(
 ): Promise<AudioFileRecord> {
   const technical = file.oracle.technical;
   if (!technical) return file;
-  let acoustIdLookup = technical.fingerprint.acoustIdLookup;
+  let acoustIdLookup: AcoustIdLookup = {
+    status: "not-requested",
+    acoustId: null,
+    score: null,
+    recordingIds: [],
+    recordingTitles: [],
+    error: null,
+  };
   if (
     source.externalLookup?.acoustIdEnabled &&
     source.externalLookup.acoustIdApiKey
@@ -603,6 +612,11 @@ async function attachExternalIdentityEvidence(
         signal,
       )
     : undefined;
+  const identityAssessment = assessExternalIdentity(
+    file.metadata,
+    acoustIdLookup,
+    musicBrainzEnrichment,
+  );
   return {
     ...file,
     oracle: {
@@ -613,7 +627,8 @@ async function attachExternalIdentityEvidence(
           ...technical.fingerprint,
           acoustIdLookup,
         },
-        ...(musicBrainzEnrichment ? { musicBrainzEnrichment } : {}),
+        musicBrainzEnrichment,
+        identityAssessment,
       },
     },
   };

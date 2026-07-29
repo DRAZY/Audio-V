@@ -321,6 +321,27 @@ export interface MusicBrainzEnrichment {
   limitation: string;
 }
 
+export interface ExternalIdentityAssessment {
+  status:
+    | "metadata-corroborated"
+    | "identity-matched"
+    | "metadata-conflict"
+    | "inconclusive";
+  basis: "acoustic-match" | "embedded-id-lookup" | null;
+  providers: Array<"acoustid" | "musicbrainz">;
+  recordingId: string | null;
+  title: string | null;
+  artists: string[];
+  comparisons: Array<{
+    field: "recording-id" | "title" | "artist";
+    declared: string[];
+    identified: string[];
+    result: "agrees" | "conflicts";
+  }>;
+  summary: string;
+  limitation: string;
+}
+
 export interface ChromaprintAssessment {
   status: "measured" | "unavailable" | "error";
   algorithm: "Chromaprint 1.6.0";
@@ -467,6 +488,7 @@ export interface StreamTechnicalAnalysis {
   provenanceIndicators: ProvenanceIndicator[];
   fingerprint: ChromaprintAssessment;
   musicBrainzEnrichment?: MusicBrainzEnrichment;
+  identityAssessment?: ExternalIdentityAssessment;
   repairProvenance: {
     action: "true_peak_safe_copy";
     targetDbtp: number;

@@ -3026,6 +3026,24 @@ button:focus-visible {
   line-height: 1.5;
 }
 
+.identity-assessment-card {
+  border-color: color-mix(in srgb, var(--accent), transparent 50%);
+}
+
+.identity-assessment-card.metadata-corroborated {
+  border-color: color-mix(in srgb, var(--green), transparent 40%);
+  background: color-mix(in srgb, var(--green), transparent 96%);
+}
+
+.identity-assessment-card.metadata-conflict {
+  border-color: color-mix(in srgb, var(--amber), transparent 35%);
+  background: color-mix(in srgb, var(--amber), transparent 96%);
+}
+
+.identity-assessment-card > header strong {
+  text-transform: capitalize;
+}
+
 .origin-assessment-card > p {
   margin: 12px 0;
 }

@@ -179,6 +179,8 @@ verdict.
 
 **MusicBrainz enrichment** has its own switch and needs no API key. It looks up one valid recording ID per file, preferring an ID already embedded in the metadata and otherwise using the strongest AcoustID candidate. The result can add credited artists, ISRCs, a first-release date, and up to eight release groups. Audio-V caches repeated IDs and never makes more than one MusicBrainz request per second, so enabling it for a large library can significantly extend the audit. Service errors and missing IDs stay visible and neutral. AcoustID and MusicBrainz results are identity leads, not proof of ownership, mastering provenance, integrity, or sound quality.
 
+**Parallel identity result** appears in the evidence inspector and exported reports after external lookup. Metadata corroborated means all comparable ID, title, and artist declarations agree. Identity matched means an acoustic match exists but local tags are insufficient. Metadata conflict identifies the exact declared and external values that disagree. Inconclusive means there was no usable external identity. These labels help review catalog information; they never promote Review to Clear, demote Clear to Review, or override Failed.
+
 ## Headless folder automation
 
 Source and CI users can audit files or recursive folders without opening the desktop:

@@ -344,6 +344,35 @@ export function audioFileReportRow(file: AudioFileRecord): ReportRow {
       "MusicBrainz limitation": display(
         technical?.musicBrainzEnrichment?.limitation,
       ),
+      "Parallel identity result": display(
+        technical?.identityAssessment?.status,
+      ),
+      "Identity evidence basis": display(
+        technical?.identityAssessment?.basis,
+      ),
+      "Identity providers":
+        technical?.identityAssessment?.providers.join(" | ") ?? "",
+      "Identity recording ID": display(
+        technical?.identityAssessment?.recordingId,
+      ),
+      "Identity recording title": display(
+        technical?.identityAssessment?.title,
+      ),
+      "Identity artists":
+        technical?.identityAssessment?.artists.join(" | ") ?? "",
+      "Identity metadata comparisons":
+        technical?.identityAssessment?.comparisons
+          .map(
+            (comparison) =>
+              `${comparison.field}:${comparison.result}:declared=${comparison.declared.join(";")}:identified=${comparison.identified.join(";")}`,
+          )
+          .join(" | ") ?? "",
+      "Identity result summary": display(
+        technical?.identityAssessment?.summary,
+      ),
+      "Identity result limitation": display(
+        technical?.identityAssessment?.limitation,
+      ),
       "Origin confidence type": display(file.oracle.fidelity?.confidenceType),
       "Origin validation basis": file.oracle.fidelity
         ? "Versioned rule strength; not a probability-calibrated provenance claim"

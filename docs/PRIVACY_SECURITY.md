@@ -36,6 +36,8 @@ The API key remains in renderer/main-process memory for the application session 
 
 MusicBrainz enrichment is a separate opt-in. It sends one MusicBrainz recording identifier—not the fingerprint or audio—to `https://musicbrainz.org` and receives community-maintained recording, artist, ISRC, date, and release-group fields. Audio-V prefers a valid recording ID embedded in the file, otherwise it can use the strongest AcoustID candidate. Unique IDs are cached in application memory and public requests are globally limited to one per second. The returned fields are saved as advisory identity evidence and never change the Oracle verdict.
 
+The parallel identity result is calculated locally from the returned identity and the file's existing recording ID, title, and artist declarations. No additional network request is made for this comparison.
+
 ## Unsigned distribution
 
 Official macOS development app bundles use an ad-hoc integrity signature without an Apple Developer ID identity or notarization; official Windows development artifacts are unsigned. Users must verify the complete SHA-256 digest against the official release before approving an operating-system warning. Audio-V does not recommend disabling Gatekeeper, SmartScreen, Smart App Control, or organization policy globally.

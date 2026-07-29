@@ -191,6 +191,19 @@ community-maintained catalog. It does not prove that an editable embedded ID or
 an AcoustID candidate names the exact edition in hand, and it never changes the
 Oracle verdict.
 
+Audio-V summarizes those external clues in a parallel identity result:
+
+| Identity result | Meaning |
+| --- | --- |
+| **Metadata corroborated** | The external identity agrees with every comparable declared recording ID, title, and artist field |
+| **Identity matched** | AcoustID found a recording, but the file has too little comparable metadata |
+| **Metadata conflict** | At least one comparable declared field disagrees with the external identity |
+| **Inconclusive** | No enabled service returned a usable recording identity |
+
+This is not a sixth Oracle verdict lane. It is a separate identity workflow
+shown beside the immutable five-lane quality verdict. A recognized recording
+can still be clipped, corrupted, transcoded, or incorrectly mastered.
+
 Audio-V deliberately does not show a universal “AI: Yes/No” badge. The current
 evidence cannot responsibly support that claim.
 
