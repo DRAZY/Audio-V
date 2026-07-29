@@ -867,6 +867,7 @@ export interface AudioVDesktopApi {
   selectFiles(): Promise<AudioSourceSelection | null>;
   selectCompareFile(): Promise<AudioSourceSelection | null>;
   selectFolder(): Promise<AudioSourceSelection | null>;
+  validateAcoustIdApiKey(apiKey: string): Promise<boolean>;
   scanSelection(source: AudioSourceSelection): Promise<ScanSelectionResult>;
   listAuditSessions(): Promise<AuditSessionSummary[]>;
   clearAuditHistory(): Promise<AuditHistoryClearResult>;

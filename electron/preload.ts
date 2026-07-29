@@ -12,6 +12,8 @@ const api: AudioVDesktopApi = {
   selectFiles: () => ipcRenderer.invoke("library:select-files"),
   selectCompareFile: () => ipcRenderer.invoke("comparison:select-file"),
   selectFolder: () => ipcRenderer.invoke("library:select-folder"),
+  validateAcoustIdApiKey: (apiKey) =>
+    ipcRenderer.invoke("acoustid:validate-api-key", apiKey),
   scanSelection: (source) => ipcRenderer.invoke("library:scan-selection", source),
   onScanProgress: (listener) => {
     const handler = (

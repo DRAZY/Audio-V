@@ -40,6 +40,10 @@ import {
   safeRecoveryResourceLimits,
 } from "../shared/audit-recovery";
 import { ApplicationLogger } from "./application-logger";
+import {
+  normalizeAcoustIdApiKey,
+  validateAcoustIdApiKey,
+} from "./oracle/analysis-tools";
 
 const approvedSelections = new Map<string, AudioSourceSelection>();
 const approvedAudioFiles = new Set<string>();
@@ -91,6 +95,7 @@ const defaultResourceLimits = resolveAnalysisResourcePolicy(
 ).limits;
 let currentResourceLimits = defaultResourceLimits;
 let applicationLogger: ApplicationLogger | null = null;
+const validatedAcoustIdApiKeys = new Set<string>();
 
 function logApplication(
   level: "debug" | "info" | "warn" | "error",
@@ -98,6 +103,22 @@ function logApplication(
   data?: Record<string, unknown>,
 ): void {
   applicationLogger?.log(level, event, data);
+}
+
+async function ensureValidatedAcoustIdApiKey(
+  requestedKey: string,
+): Promise<string> {
+  const normalized = normalizeAcoustIdApiKey(requestedKey);
+  if (validatedAcoustIdApiKeys.has(normalized)) return normalized;
+  try {
+    await validateAcoustIdApiKey(normalized);
+    validatedAcoustIdApiKeys.add(normalized);
+    logApplication("info", "acoustid.preflight-succeeded");
+    return normalized;
+  } catch (error) {
+    logApplication("warn", "acoustid.preflight-failed", { error });
+    throw error;
+  }
 }
 
 function logOracleWorkerEvent(event: OracleWorkerEvent): void {
@@ -897,6 +918,14 @@ ipcMain.handle(
   },
 );
 
+ipcMain.handle("acoustid:validate-api-key", async (_event, requestedKey: unknown) => {
+  if (typeof requestedKey !== "string") {
+    throw new TypeError("An AcoustID application API key is required.");
+  }
+  await ensureValidatedAcoustIdApiKey(requestedKey);
+  return true;
+});
+
 ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown) => {
   if (!isSourceSelection(requestedSource)) {
     throw new TypeError("A valid file or folder selection is required.");
@@ -912,12 +941,25 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
     totalmem(),
     availableParallelism(),
   );
+  let externalLookup = requestedSource.externalLookup;
+  if (
+    externalLookup?.acoustIdEnabled &&
+    typeof externalLookup.acoustIdApiKey === "string"
+  ) {
+    const normalized = await ensureValidatedAcoustIdApiKey(
+      externalLookup.acoustIdApiKey,
+    );
+    externalLookup = {
+      ...externalLookup,
+      acoustIdApiKey: normalized,
+    };
+  }
   const source: AudioSourceSelection = {
     ...approved,
     mode: requestedSource.mode ?? "full-audit",
     resourceLimits: resourcePolicy.limits,
     recovery: approved.recovery,
-    externalLookup: requestedSource.externalLookup,
+    externalLookup,
   };
   const requestedLimits = source.resourceLimits ?? defaultResourceLimits;
   const recoveryQuarantine = new Map(

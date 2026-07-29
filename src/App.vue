@@ -1216,11 +1216,25 @@ async function optimizeAuditStorage(): Promise<void> {
 }
 
 async function scanSource(source: AudioSourceSelection): Promise<void> {
-  if (acoustIdEnabled.value && !acoustIdApiKey.value.trim()) {
-    activeWorkspace.value = "settings";
+  if (acoustIdEnabled.value) {
+    if (!window.audioV) return;
+    const normalizedApiKey = acoustIdApiKey.value.trim();
+    isDiscovering.value = true;
     scanMessage.value =
-      "AcoustID lookup is enabled, but an API key is required before the audit can start.";
-    return;
+      "Validating the AcoustID application key before the audit starts…";
+    try {
+      await window.audioV.validateAcoustIdApiKey(normalizedApiKey);
+      acoustIdApiKey.value = normalizedApiKey;
+    } catch (error) {
+      activeWorkspace.value = "settings";
+      scanMessage.value =
+        error instanceof Error
+          ? error.message
+          : "The AcoustID application key could not be validated.";
+      return;
+    } finally {
+      isDiscovering.value = false;
+    }
   }
   const mode = source.mode ?? scanMode.value;
   scanMode.value = mode;
@@ -3931,7 +3945,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
           <article class="resource-controls">
             <span>External identity service</span>
             <strong>Optional AcoustID / MusicBrainz</strong>
-            <p>The API key remains in memory for this app session and is removed from saved audit-source records and exports.</p>
+            <p>Enter the 10-character key from your registered AcoustID application. Audio-V trims copied whitespace and validates the key before discovery. User submission keys do not work for lookup. The key remains in memory for this app session and is removed from saved audit-source records and exports.</p>
             <label><input v-model="acoustIdEnabled" type="checkbox" :disabled="isDiscovering"> Enable lookup on next audit</label>
             <label>AcoustID API key
               <input v-model="acoustIdApiKey" type="password" autocomplete="off" :disabled="isDiscovering || !acoustIdEnabled">

@@ -175,7 +175,7 @@ approximately megabyte-sized visual payloads from being duplicated across
 Electron processes without discarding the evidence that determined the
 verdict.
 
-**AcoustID / MusicBrainz lookup** is off by default. When enabled with an AcoustID application key, Audio-V sends the local Chromaprint value and rounded duration—not the audio—to AcoustID. The key remains only in application memory and is removed from saved sessions and reports. Matches are identity leads, not proof of ownership or mastering provenance.
+**AcoustID / MusicBrainz lookup** is off by default. It requires the 10-character key from a registered AcoustID application, not the separate user submission key. Audio-V trims copied whitespace, checks the key format, and asks AcoustID to validate the application credential before file discovery begins. A rejected key stops the audit before repeated lookups and displays the service explanation. When enabled, Audio-V sends the local Chromaprint value and rounded duration—not the audio—to AcoustID using bounded POST requests. The key remains only in application memory and is removed from saved sessions and reports. Matches are identity leads, not proof of ownership or mastering provenance.
 
 ## Headless folder automation
 

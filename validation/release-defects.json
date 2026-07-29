@@ -1,7 +1,7 @@
 {
   "schema": "Audio-V release defect register v1",
-  "releaseVersion": "0.4.26",
-  "auditedAt": "2026-07-29T00:45:00.000Z",
+  "releaseVersion": "0.4.27",
+  "auditedAt": "2026-07-29T02:00:00.000Z",
   "repositoryIssueCountAtAudit": 0,
   "defects": [
     {
@@ -17,6 +17,13 @@
       "status": "fixed",
       "summary": "Saved storage information and its maintenance action were vertically compressed into the lower-left corner of the Settings card.",
       "verification": "scripts/verify-responsive-layout.cjs enforces dedicated wide right-side and snapped full-width storage-maintenance compositions without overflow."
+    },
+    {
+      "id": "AV-2026-003",
+      "severity": "P1",
+      "status": "fixed",
+      "summary": "AcoustID application keys were not normalized or validated before discovery, causing large audits to repeat opaque HTTP 400 lookup failures.",
+      "verification": "tests/analysis-tools.test.ts verifies whitespace trimming, the 10-character application-key contract, service-backed preflight, precise invalid-key errors, and bounded POST lookup construction."
     }
   ],
   "limitations": [

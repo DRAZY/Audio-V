@@ -9,6 +9,109 @@ import type {
 } from "../../shared/contracts";
 
 const maxOutputBytes = 16 * 1024 * 1024;
+const maxAcoustIdResponseBytes = 1024 * 1024;
+const acoustIdApplicationKeyPattern = /^[A-Za-z0-9]{10}$/u;
+
+interface AcoustIdResponseBody {
+  status?: string;
+  error?: {
+    code?: number;
+    message?: string;
+  };
+  results?: Array<{
+    id?: string;
+    score?: number;
+    recordings?: Array<{ id?: string; title?: string }>;
+  }>;
+}
+
+export function normalizeAcoustIdApiKey(apiKey: string): string {
+  const normalized = apiKey.trim();
+  if (!acoustIdApplicationKeyPattern.test(normalized)) {
+    throw new Error(
+      "Enter the 10-character application API key from your registered AcoustID application. User submission keys are not accepted for lookup.",
+    );
+  }
+  return normalized;
+}
+
+async function requestAcoustId(
+  parameters: URLSearchParams,
+  signal?: AbortSignal,
+): Promise<{ response: Response; body: AcoustIdResponseBody }> {
+  const requestSignal = signal
+    ? AbortSignal.any([signal, AbortSignal.timeout(15_000)])
+    : AbortSignal.timeout(15_000);
+  const response = await fetch("https://api.acoustid.org/v2/lookup", {
+    method: "POST",
+    signal: requestSignal,
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "User-Agent": "Audio-V (https://github.com/DRAZY/Audio-V)",
+    },
+    body: parameters.toString(),
+  });
+  const declaredBytes = Number(response.headers.get("content-length"));
+  if (
+    Number.isFinite(declaredBytes) &&
+    declaredBytes > maxAcoustIdResponseBytes
+  ) {
+    throw new Error("AcoustID response exceeded the 1 MB safety limit.");
+  }
+  const responseText = await response.text();
+  if (Buffer.byteLength(responseText) > maxAcoustIdResponseBytes) {
+    throw new Error("AcoustID response exceeded the 1 MB safety limit.");
+  }
+  try {
+    return {
+      response,
+      body: JSON.parse(responseText) as AcoustIdResponseBody,
+    };
+  } catch {
+    throw new Error(
+      `AcoustID returned an unreadable response (HTTP ${response.status}).`,
+    );
+  }
+}
+
+function acoustIdServiceError(
+  response: Response,
+  body: AcoustIdResponseBody,
+): Error {
+  if (body.error?.code === 4) {
+    return new Error(
+      "AcoustID rejected the application API key. Copy the key from the registered application—not the user submission key—and try again.",
+    );
+  }
+  if (response.status === 429 || body.error?.code === 14) {
+    return new Error(
+      body.error?.message ??
+        "AcoustID rate limiting is active. Wait briefly and try again.",
+    );
+  }
+  return new Error(
+    body.error?.message ??
+      `AcoustID rejected the lookup (HTTP ${response.status}).`,
+  );
+}
+
+export async function validateAcoustIdApiKey(
+  apiKey: string,
+  signal?: AbortSignal,
+): Promise<string> {
+  const normalized = normalizeAcoustIdApiKey(apiKey);
+  const { response, body } = await requestAcoustId(
+    new URLSearchParams({
+      client: normalized,
+      format: "json",
+    }),
+    signal,
+  );
+  // AcoustID validates `client` before the required fingerprint. Error 2
+  // therefore confirms that the application key was accepted.
+  if (body.status === "ok" || body.error?.code === 2) return normalized;
+  throw acoustIdServiceError(response, body);
+}
 
 function platformDirectory(): string {
   if (process.platform === "darwin") return `mac-${process.arch}`;
@@ -311,6 +414,7 @@ export async function lookupAcoustId(
     };
   }
   try {
+    const normalizedApiKey = normalizeAcoustIdApiKey(apiKey);
     let encodedFingerprint = fingerprint.fingerprint;
     if (!encodedFingerprint && filePath) {
       const encodedResult = await runTool(
@@ -329,42 +433,15 @@ export async function lookupAcoustId(
       throw new Error("No encoded Chromaprint value is available.");
     }
     const parameters = new URLSearchParams({
-      client: apiKey,
+      client: normalizedApiKey,
       meta: "recordings",
       duration: String(Math.round(fingerprint.durationSeconds)),
       fingerprint: encodedFingerprint,
       format: "json",
     });
-    const requestSignal = signal
-      ? AbortSignal.any([signal, AbortSignal.timeout(15_000)])
-      : AbortSignal.timeout(15_000);
-    const response = await fetch(
-      `https://api.acoustid.org/v2/lookup?${parameters}`,
-      {
-        signal: requestSignal,
-        headers: { "User-Agent": "Audio-V/0.2.0" },
-      },
-    );
-    if (!response.ok) throw new Error(`AcoustID returned HTTP ${response.status}.`);
-    const declaredBytes = Number(response.headers.get("content-length"));
-    if (Number.isFinite(declaredBytes) && declaredBytes > 1024 * 1024) {
-      throw new Error("AcoustID response exceeded the 1 MB safety limit.");
-    }
-    const responseText = await response.text();
-    if (Buffer.byteLength(responseText) > 1024 * 1024) {
-      throw new Error("AcoustID response exceeded the 1 MB safety limit.");
-    }
-    const body = JSON.parse(responseText) as {
-      status?: string;
-      error?: { message?: string };
-      results?: Array<{
-        id?: string;
-        score?: number;
-        recordings?: Array<{ id?: string; title?: string }>;
-      }>;
-    };
-    if (body.status !== "ok") {
-      throw new Error(body.error?.message ?? "AcoustID rejected the lookup.");
+    const { response, body } = await requestAcoustId(parameters, signal);
+    if (!response.ok || body.status !== "ok") {
+      throw acoustIdServiceError(response, body);
     }
     const match = body.results?.[0];
     if (!match) {
