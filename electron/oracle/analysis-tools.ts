@@ -13,6 +13,11 @@ const maxOutputBytes = 16 * 1024 * 1024;
 const maxAcoustIdResponseBytes = 1024 * 1024;
 const maxMusicBrainzResponseBytes = 1024 * 1024;
 const acoustIdApplicationKeyPattern = /^[A-Za-z0-9]{10}$/u;
+const acoustIdRequestIntervalMilliseconds = 375;
+const acoustIdMaximumAttempts = 3;
+const acoustIdLookupCache = new Map<string, Promise<AcoustIdLookup>>();
+let acoustIdRequestQueue: Promise<void> = Promise.resolve();
+let lastAcoustIdRequestAt = 0;
 const musicBrainzRecordingIdPattern =
   /^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/iu;
 const musicBrainzRequestIntervalMilliseconds = 1_100;
@@ -272,18 +277,52 @@ async function requestAcoustId(
   parameters: URLSearchParams,
   signal?: AbortSignal,
 ): Promise<{ response: Response; body: AcoustIdResponseBody }> {
-  const requestSignal = signal
-    ? AbortSignal.any([signal, AbortSignal.timeout(15_000)])
-    : AbortSignal.timeout(15_000);
-  const response = await fetch("https://api.acoustid.org/v2/lookup", {
-    method: "POST",
-    signal: requestSignal,
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      "User-Agent": "Audio-V (https://github.com/DRAZY/Audio-V)",
-    },
-    body: parameters.toString(),
+  const previous = acoustIdRequestQueue;
+  let releaseQueue!: () => void;
+  acoustIdRequestQueue = new Promise<void>((resolve) => {
+    releaseQueue = resolve;
   });
+  await previous;
+  let response!: Response;
+  try {
+    const intervalDelay = Math.max(
+      0,
+      acoustIdRequestIntervalMilliseconds -
+        (Date.now() - lastAcoustIdRequestAt),
+    );
+    if (intervalDelay > 0) {
+      await waitForAcoustIdRetry(intervalDelay, signal);
+    }
+    for (let attempt = 1; attempt <= acoustIdMaximumAttempts; attempt += 1) {
+      const requestSignal = signal
+        ? AbortSignal.any([signal, AbortSignal.timeout(15_000)])
+        : AbortSignal.timeout(15_000);
+      response = await fetch("https://api.acoustid.org/v2/lookup", {
+        method: "POST",
+        signal: requestSignal,
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "User-Agent": "Audio-V (https://github.com/DRAZY/Audio-V)",
+        },
+        body: parameters.toString(),
+      });
+      lastAcoustIdRequestAt = Date.now();
+      if (
+        ![429, 502, 503, 504].includes(response.status) ||
+        attempt === acoustIdMaximumAttempts
+      ) {
+        break;
+      }
+      await response.body?.cancel();
+      const retryAfterSeconds = Number(response.headers.get("retry-after"));
+      const retryDelay = Number.isFinite(retryAfterSeconds)
+        ? Math.min(10_000, Math.max(375, retryAfterSeconds * 1_000))
+        : 375 * 2 ** (attempt - 1);
+      await waitForAcoustIdRetry(retryDelay, signal);
+    }
+  } finally {
+    releaseQueue();
+  }
   const declaredBytes = Number(response.headers.get("content-length"));
   if (
     Number.isFinite(declaredBytes) &&
@@ -305,6 +344,26 @@ async function requestAcoustId(
       `AcoustID returned an unreadable response (HTTP ${response.status}).`,
     );
   }
+}
+
+async function waitForAcoustIdRetry(
+  milliseconds: number,
+  signal?: AbortSignal,
+): Promise<void> {
+  if (signal?.aborted) throw new Error("AcoustID lookup canceled.");
+  await new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(done, milliseconds);
+    const abort = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", abort);
+      reject(new Error("AcoustID lookup canceled."));
+    };
+    function done(): void {
+      signal?.removeEventListener("abort", abort);
+      resolve();
+    }
+    signal?.addEventListener("abort", abort, { once: true });
+  });
 }
 
 function acoustIdServiceError(
@@ -646,6 +705,13 @@ export async function lookupAcoustId(
       error: "No measured Chromaprint fingerprint is available.",
     };
   }
+  const durationSeconds = fingerprint.durationSeconds;
+  const cacheKey =
+    fingerprint.fingerprintSha256 ??
+    `${durationSeconds}:${fingerprint.fingerprint ?? fingerprint.rawFingerprint.join(",")}`;
+  const cached = acoustIdLookupCache.get(cacheKey);
+  if (cached) return cached;
+  const lookup = (async (): Promise<AcoustIdLookup> => {
   try {
     const normalizedApiKey = normalizeAcoustIdApiKey(apiKey);
     let encodedFingerprint = fingerprint.fingerprint;
@@ -668,7 +734,7 @@ export async function lookupAcoustId(
     const parameters = new URLSearchParams({
       client: normalizedApiKey,
       meta: "recordings",
-      duration: String(Math.round(fingerprint.durationSeconds)),
+      duration: String(Math.round(durationSeconds)),
       fingerprint: encodedFingerprint,
       format: "json",
     });
@@ -708,6 +774,14 @@ export async function lookupAcoustId(
       error: error instanceof Error ? error.message : "AcoustID lookup failed.",
     };
   }
+  })().then((result) => {
+    if (result.status === "service-error") {
+      acoustIdLookupCache.delete(cacheKey);
+    }
+    return result;
+  });
+  acoustIdLookupCache.set(cacheKey, lookup);
+  return lookup;
 }
 
 const generatorPatterns = [

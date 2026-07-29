@@ -8,7 +8,9 @@ import type {
   AuditResumeStrategy,
   AuditSessionSummary,
   AuditStorageStatus,
+  ComparisonRegion,
   DecodedSignalComparison,
+  ExternalIdentityServiceStatus,
   FingerprintLibraryEntry,
   OracleValidationStatus,
   OracleVerdict,
@@ -100,6 +102,16 @@ const comparisonChannelMappings = ref<
 const signalComparison = ref<DecodedSignalComparison | null>(null);
 const signalComparisonLoading = ref(false);
 const signalComparisonError = ref("");
+const comparisonVisualMode = ref<
+  "stacked" | "overlay" | "wipe" | "blink"
+>("stacked");
+const comparisonOpacity = ref(0.5);
+const comparisonWipe = ref(0.5);
+const comparisonZoom = ref(1);
+const comparisonPan = ref(0);
+const comparisonBlinkFrame = ref<"a" | "b">("a");
+const comparisonRegionStart = ref(0);
+const comparisonRegionEnd = ref(0);
 const reportSelectedId = ref("");
 const reportExportFormat = ref<ReportExportFormat>("pdf");
 const reportDetail = ref<HTMLElement | null>(null);
@@ -107,6 +119,15 @@ const spectrogramCanvas = ref<HTMLCanvasElement | null>(null);
 const compareSpectrogramA = ref<HTMLCanvasElement | null>(null);
 const compareSpectrogramB = ref<HTMLCanvasElement | null>(null);
 const compareSpectrogramDifference = ref<HTMLCanvasElement | null>(null);
+const compareSpectrogramComposite = ref<HTMLCanvasElement | null>(null);
+const compareResidualSpectrogram = ref<HTMLCanvasElement | null>(null);
+const externalIdentityStatus = ref<ExternalIdentityServiceStatus | null>(null);
+const identityBatchRunning = ref(false);
+const identityBatchMessage = ref(
+  "Choose Identify current audit to recognize and enrich already measured files.",
+);
+const identityBatchCompleted = ref(0);
+const identityBatchTotal = ref(0);
 const spectrogramScale = ref<"linear" | "log">("linear");
 const spectrogramFloor = ref<-120 | -100 | -80>(-120);
 const spectrogramFftSize = ref<512 | 2048 | 4096 | 16384>(512);
@@ -371,6 +392,15 @@ const comparisonMappingError = computed(() => {
     return "Each File A and File B channel can appear only once.";
   }
   return "";
+});
+const comparisonRegionMaximum = computed(() =>
+  Math.max(0, signalComparison.value?.analyzedSeconds ?? 0),
+);
+const comparisonRegionSelection = computed<ComparisonRegion | undefined>(() => {
+  const maximum = comparisonRegionMaximum.value;
+  const start = Math.max(0, Math.min(maximum, comparisonRegionStart.value));
+  const end = Math.max(0, Math.min(maximum, comparisonRegionEnd.value));
+  return end > start ? { startSeconds: start, endSeconds: end } : undefined;
 });
 const attentionItems = computed(() =>
   files.value.filter(
@@ -642,23 +672,50 @@ async function renderSpectrogram(): Promise<void> {
   context.putImageData(pixels, 0, 0);
 }
 
-function waveformPath(file: AudioFileRecord | undefined): string {
-  const points = file?.oracle.measurements?.waveform?.points;
+function waveformPointsPath(
+  points:
+    | NonNullable<
+        NonNullable<AudioFileRecord["oracle"]["measurements"]>["waveform"]
+      >["points"]
+    | undefined,
+): string {
   if (!points?.length) return "";
+  const visibleFraction = 1 / comparisonZoom.value;
+  const startFraction =
+    comparisonPan.value * Math.max(0, 1 - visibleFraction);
+  const startIndex = Math.floor(startFraction * points.length);
+  const endIndex = Math.min(
+    points.length,
+    Math.max(
+      startIndex + 1,
+      Math.ceil((startFraction + visibleFraction) * points.length),
+    ),
+  );
+  const visiblePoints = points.slice(startIndex, endIndex);
   const x = (index: number) =>
-    (index / Math.max(1, points.length - 1)) * 1_000;
+    (index / Math.max(1, visiblePoints.length - 1)) * 1_000;
   const y = (sample: number) => 60 - Math.max(-1, Math.min(1, sample)) * 54;
-  const upper = points
+  const upper = visiblePoints
     .map((point, index) => `${x(index).toFixed(2)},${y(point.maximum).toFixed(2)}`)
     .join(" L ");
-  const lower = [...points]
+  const lower = [...visiblePoints]
     .reverse()
     .map((point, reverseIndex) => {
-      const index = points.length - 1 - reverseIndex;
+      const index = visiblePoints.length - 1 - reverseIndex;
       return `${x(index).toFixed(2)},${y(point.minimum).toFixed(2)}`;
     })
     .join(" L ");
   return `M ${upper} L ${lower} Z`;
+}
+
+function waveformPath(file: AudioFileRecord | undefined): string {
+  return waveformPointsPath(file?.oracle.measurements?.waveform?.points);
+}
+
+function residualWaveformPath(): string {
+  return waveformPointsPath(
+    signalComparison.value?.residualVisual.waveform.points,
+  );
 }
 
 function drawComparisonSpectrum(
@@ -666,10 +723,29 @@ function drawComparisonSpectrum(
   file: AudioFileRecord | undefined,
 ): void {
   const spectral = file?.oracle.measurements?.spectrogram;
+  drawSpectrumMeasurements(canvas, spectral);
+}
+
+function drawSpectrumMeasurements(
+  canvas: HTMLCanvasElement | null,
+  spectral: SpectrogramMeasurements | null | undefined,
+): void {
   if (!canvas || !spectral?.slices.length) return;
   const bins = spectral.slices[0]?.levelsDbfs.length ?? 0;
   if (!bins) return;
-  canvas.width = spectral.slices.length;
+  const visibleFraction = 1 / comparisonZoom.value;
+  const startFraction =
+    comparisonPan.value * Math.max(0, 1 - visibleFraction);
+  const startIndex = Math.floor(startFraction * spectral.slices.length);
+  const endIndex = Math.min(
+    spectral.slices.length,
+    Math.max(
+      startIndex + 1,
+      Math.ceil((startFraction + visibleFraction) * spectral.slices.length),
+    ),
+  );
+  const visibleSlices = spectral.slices.slice(startIndex, endIndex);
+  canvas.width = visibleSlices.length;
   canvas.height = bins;
   const context = canvas.getContext("2d");
   if (!context) return;
@@ -677,7 +753,7 @@ function drawComparisonSpectrum(
   for (let x = 0; x < canvas.width; x += 1) {
     for (let bin = 0; bin < bins; bin += 1) {
       const color = spectralColor(
-        spectral.slices[x].levelsDbfs[bin],
+        visibleSlices[x].levelsDbfs[bin],
         -120,
       )
         .match(/\d+/g)!
@@ -690,6 +766,46 @@ function drawComparisonSpectrum(
     }
   }
   context.putImageData(pixels, 0, 0);
+}
+
+function drawComparisonComposite(): void {
+  const canvas = compareSpectrogramComposite.value;
+  const sourceA = compareSpectrogramA.value;
+  const sourceB = compareSpectrogramB.value;
+  if (!canvas || !sourceA || !sourceB || !sourceA.width || !sourceB.width) {
+    return;
+  }
+  canvas.width = Math.min(sourceA.width, sourceB.width);
+  canvas.height = Math.min(sourceA.height, sourceB.height);
+  const context = canvas.getContext("2d");
+  if (!context) return;
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  if (comparisonVisualMode.value === "blink") {
+    context.drawImage(
+      comparisonBlinkFrame.value === "a" ? sourceA : sourceB,
+      0,
+      0,
+      canvas.width,
+      canvas.height,
+    );
+    return;
+  }
+  context.drawImage(sourceA, 0, 0, canvas.width, canvas.height);
+  if (comparisonVisualMode.value === "wipe") {
+    const split = Math.round(canvas.width * comparisonWipe.value);
+    context.save();
+    context.beginPath();
+    context.rect(split, 0, canvas.width - split, canvas.height);
+    context.clip();
+    context.drawImage(sourceB, 0, 0, canvas.width, canvas.height);
+    context.restore();
+    context.fillStyle = "rgba(255,255,255,0.9)";
+    context.fillRect(Math.max(0, split - 1), 0, 2, canvas.height);
+    return;
+  }
+  context.globalAlpha = comparisonOpacity.value;
+  context.drawImage(sourceB, 0, 0, canvas.width, canvas.height);
+  context.globalAlpha = 1;
 }
 
 function drawComparisonDifference(): void {
@@ -750,6 +866,11 @@ async function renderComparisonVisuals(): Promise<void> {
   drawComparisonSpectrum(compareSpectrogramA.value, compareA.value);
   drawComparisonSpectrum(compareSpectrogramB.value, compareB.value);
   drawComparisonDifference();
+  drawSpectrumMeasurements(
+    compareResidualSpectrogram.value,
+    signalComparison.value?.residualVisual.spectrogram,
+  );
+  drawComparisonComposite();
 }
 
 function resetComparisonChannelMappings(): void {
@@ -814,8 +935,16 @@ async function analyzeComparisonSignals(): Promise<void> {
       comparisonMappingMode.value === "explicit"
         ? comparisonChannelMappings.value
         : undefined,
+      comparisonRegionSelection.value,
     );
-    if (request === comparisonRequest) signalComparison.value = result;
+    if (request === comparisonRequest) {
+      signalComparison.value = result;
+      if (comparisonRegionEnd.value <= comparisonRegionStart.value) {
+        comparisonRegionStart.value = 0;
+        comparisonRegionEnd.value = result.analyzedSeconds;
+      }
+      void renderComparisonVisuals();
+    }
   } catch (error) {
     if (request === comparisonRequest) {
       signalComparison.value = null;
@@ -827,6 +956,15 @@ async function analyzeComparisonSignals(): Promise<void> {
   } finally {
     if (request === comparisonRequest) signalComparisonLoading.value = false;
   }
+}
+
+function measureComparisonRegion(): void {
+  if (!comparisonRegionSelection.value) {
+    signalComparisonError.value =
+      "Choose a region whose end is later than its start.";
+    return;
+  }
+  void analyzeComparisonSignals();
 }
 
 watch(
@@ -889,7 +1027,24 @@ watch(
 );
 watch(
   () => [compareA.value?.id, compareB.value?.id],
-  () => resetComparisonChannelMappings(),
+  () => {
+    resetComparisonChannelMappings();
+    comparisonRegionStart.value = 0;
+    comparisonRegionEnd.value = 0;
+    comparisonZoom.value = 1;
+    comparisonPan.value = 0;
+  },
+);
+watch(
+  () => [
+    comparisonVisualMode.value,
+    comparisonOpacity.value,
+    comparisonWipe.value,
+    comparisonZoom.value,
+    comparisonPan.value,
+    comparisonBlinkFrame.value,
+  ],
+  () => void renderComparisonVisuals(),
 );
 let tableResizeObserver: ResizeObserver | null = null;
 let tableViewportFrame: number | null = null;
@@ -944,6 +1099,8 @@ watch(() => visibleFiles.value.length, () => {
 });
 let removeScanProgressListener: (() => void) | null = null;
 let removeHistoryCleanupListener: (() => void) | null = null;
+let removeIdentityProgressListener: (() => void) | null = null;
+let comparisonBlinkTimer: ReturnType<typeof setInterval> | null = null;
 let progressFrame: number | null = null;
 let queuedProgressFiles: AudioFileRecord[] = [];
 let progressFileIndexById = new Map<string, number>();
@@ -1032,6 +1189,13 @@ onMounted(() => {
   void refreshAuditSessions();
   void refreshFingerprintLibrary();
   void refreshAuditStorageStatus();
+  void window.audioV?.externalIdentityServiceStatus().then((status) => {
+    externalIdentityStatus.value = status;
+    if (status.officialClientConfigured) {
+      acoustIdValidationMessage.value =
+        "Official Audio-V client identity available · no personal application key is required.";
+    }
+  });
   void window.audioV
     ?.validationStatus()
     .then((status) => {
@@ -1111,6 +1275,27 @@ onMounted(() => {
           ? `${progress.explanation} · ${progress.deletedFiles.toLocaleString()} file record${progress.deletedFiles === 1 ? "" : "s"} reclaimed`
           : progress.explanation;
     }) ?? null;
+  removeIdentityProgressListener =
+    window.audioV?.onIdentityProgress((progress) => {
+      identityBatchCompleted.value = progress.completed;
+      identityBatchTotal.value = progress.total;
+      identityBatchMessage.value =
+        `${progress.completed.toLocaleString()} of ${progress.total.toLocaleString()} identified · ${progress.currentFile ?? "Preparing file"}`;
+      if (progress.file) {
+        files.value = files.value.map((file) =>
+          file.id === progress.file!.id ? progress.file! : file,
+        );
+      }
+    }) ?? null;
+  comparisonBlinkTimer = setInterval(() => {
+    if (
+      activeWorkspace.value === "compare" &&
+      comparisonVisualMode.value === "blink"
+    ) {
+      comparisonBlinkFrame.value =
+        comparisonBlinkFrame.value === "a" ? "b" : "a";
+    }
+  }, 650);
   void window.audioV?.qaLoadConfiguredSource?.().then((source) => {
     if (source) void scanSource(source);
   });
@@ -1121,6 +1306,8 @@ onMounted(() => {
 onUnmounted(() => {
   removeScanProgressListener?.();
   removeHistoryCleanupListener?.();
+  removeIdentityProgressListener?.();
+  if (comparisonBlinkTimer) clearInterval(comparisonBlinkTimer);
   if (progressFrame !== null) cancelAnimationFrame(progressFrame);
   if (tableViewportFrame !== null) cancelAnimationFrame(tableViewportFrame);
   tableResizeObserver?.disconnect();
@@ -1227,29 +1414,35 @@ async function scanSource(source: AudioSourceSelection): Promise<void> {
   if (acoustIdEnabled.value) {
     if (!window.audioV) return;
     const normalizedApiKey = acoustIdApiKey.value.trim();
-    isDiscovering.value = true;
-    acoustIdValidationState.value = "checking";
-    acoustIdValidationMessage.value =
-      "Checking this application key with AcoustID…";
-    scanMessage.value =
-      "Validating the AcoustID application key before the audit starts…";
-    try {
-      await window.audioV.validateAcoustIdApiKey(normalizedApiKey);
-      acoustIdApiKey.value = normalizedApiKey;
+    if (!normalizedApiKey && externalIdentityStatus.value?.officialClientConfigured) {
       acoustIdValidationState.value = "valid";
       acoustIdValidationMessage.value =
-        "Application key accepted · external lookup is ready for this audit.";
-    } catch (error) {
-      activeWorkspace.value = "settings";
-      acoustIdValidationState.value = "error";
-      acoustIdValidationMessage.value = desktopErrorMessage(
-        error,
-        "The AcoustID application key could not be validated.",
-      );
-      scanMessage.value = "AcoustID key needs attention in Settings";
-      return;
-    } finally {
-      isDiscovering.value = false;
+        "Official Audio-V client identity selected · recognition is ready.";
+    } else {
+      isDiscovering.value = true;
+      acoustIdValidationState.value = "checking";
+      acoustIdValidationMessage.value =
+        "Checking this application key with AcoustID…";
+      scanMessage.value =
+        "Validating the AcoustID application key before the audit starts…";
+      try {
+        await window.audioV.validateAcoustIdApiKey(normalizedApiKey);
+        acoustIdApiKey.value = normalizedApiKey;
+        acoustIdValidationState.value = "valid";
+        acoustIdValidationMessage.value =
+          "Application key accepted · external lookup is ready for this audit.";
+      } catch (error) {
+        activeWorkspace.value = "settings";
+        acoustIdValidationState.value = "error";
+        acoustIdValidationMessage.value = desktopErrorMessage(
+          error,
+          "The AcoustID application key could not be validated.",
+        );
+        scanMessage.value = "AcoustID key needs attention in Settings";
+        return;
+      } finally {
+        isDiscovering.value = false;
+      }
     }
   }
   const mode = source.mode ?? scanMode.value;
@@ -1443,6 +1636,43 @@ async function refreshFingerprintLibrary(): Promise<void> {
       error instanceof Error ? error.message : "Fingerprint index could not be loaded.";
   } finally {
     fingerprintLibraryLoading.value = false;
+  }
+}
+
+async function identifyCurrentAudit(): Promise<void> {
+  if (
+    !window.audioV ||
+    identityBatchRunning.value ||
+    isDiscovering.value ||
+    files.value.length === 0
+  ) return;
+  identityBatchRunning.value = true;
+  identityBatchCompleted.value = 0;
+  identityBatchTotal.value = files.value.length;
+  identityBatchMessage.value =
+    "Preparing bounded AcoustID recognition and MusicBrainz enrichment…";
+  try {
+    const result = await window.audioV.identifyFiles(
+      files.value.map((file) => file.path),
+      activeSessionId.value || undefined,
+      acoustIdApiKey.value.trim() || undefined,
+      true,
+    );
+    const updatedById = new Map(result.files.map((file) => [file.id, file]));
+    files.value = files.value.map((file) => updatedById.get(file.id) ?? file);
+    musicBrainzEnabled.value = true;
+    identityBatchMessage.value =
+      `Identity pass complete · ${result.matched.toLocaleString()} matched or corroborated · ${result.conflicts.toLocaleString()} metadata conflict${result.conflicts === 1 ? "" : "s"} · ${result.inconclusive.toLocaleString()} inconclusive` +
+      (result.serviceErrors
+        ? ` · ${result.serviceErrors.toLocaleString()} service error${result.serviceErrors === 1 ? "" : "s"}`
+        : "");
+  } catch (error) {
+    identityBatchMessage.value = desktopErrorMessage(
+      error,
+      "The current audit could not be identified.",
+    );
+  } finally {
+    identityBatchRunning.value = false;
   }
 }
 
@@ -3499,6 +3729,35 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
           <div><span class="eyebrow">Historical identity library</span><h1>Fingerprint index</h1></div>
           <p>Browse acoustic identities retained from completed audits. This index stores Chromaprint evidence and source paths—not audio—and can be rebuilt from saved audit sessions.</p>
         </header>
+        <section class="identity-batch-card">
+          <div>
+            <span class="eyebrow">Automatic recognition</span>
+            <strong>Identify and enrich the current audit</strong>
+            <p>Audio-V already bundles Chromaprint. This action sends each measured fingerprint and rounded duration to AcoustID, then asks MusicBrainz for readable recording details. Audio files are never uploaded, and the parallel identity result never changes the Oracle quality verdict.</p>
+          </div>
+          <button
+            class="primary-action"
+            :disabled="identityBatchRunning || isDiscovering || files.length === 0"
+            @click="identifyCurrentAudit"
+          >
+            {{ identityBatchRunning ? "Identifying…" : "Identify current audit" }}
+          </button>
+          <div
+            v-if="identityBatchRunning || identityBatchCompleted"
+            class="identity-batch-progress"
+            role="progressbar"
+            aria-label="External identity lookup progress"
+            :aria-valuenow="identityBatchCompleted"
+            aria-valuemin="0"
+            :aria-valuemax="Math.max(1, identityBatchTotal)"
+          >
+            <i :style="{ width: `${identityBatchTotal ? (identityBatchCompleted / identityBatchTotal) * 100 : 0}%` }"></i>
+          </div>
+          <small role="status" aria-live="polite">
+            {{ identityBatchMessage }}
+            {{ externalIdentityStatus?.explanation }}
+          </small>
+        </section>
         <div class="fingerprint-library-summary">
           <article><span>Indexed sources</span><strong>{{ fingerprintLibrarySummary.indexed.toLocaleString() }}</strong></article>
           <article><span>Exact duplicate members</span><strong>{{ fingerprintLibrarySummary.duplicateMembers.toLocaleString() }}</strong></article>
@@ -3663,11 +3922,34 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
           <header>
             <div>
               <span class="eyebrow">Measured visual comparison</span>
-              <h2>Waveform envelope and spectral difference</h2>
+              <h2>Synchronized waveform, spectrum, and residual</h2>
             </div>
-            <p>The heatmap remains a normalized full-track overview. Offset, gain, polarity, and correlation are measured separately by the decoded-signal alignment stage above.</p>
+            <p>Every mode shares one zoom and horizontal position. Visual compositing never changes the decoded null evidence or Oracle verdict.</p>
           </header>
-          <div class="waveform-stack">
+          <div class="comparison-view-controls">
+            <div role="group" aria-label="Comparison visual mode">
+              <button v-for="mode in (['stacked', 'overlay', 'wipe', 'blink'] as const)" :key="mode" :class="{ active: comparisonVisualMode === mode }" @click="comparisonVisualMode = mode">
+                {{ mode }}
+              </button>
+            </div>
+            <label>Zoom
+              <input v-model.number="comparisonZoom" type="range" min="1" max="20" step="1">
+              <b>{{ comparisonZoom }}×</b>
+            </label>
+            <label>Position
+              <input v-model.number="comparisonPan" type="range" min="0" max="1" step="0.01" :disabled="comparisonZoom === 1">
+            </label>
+            <label v-if="comparisonVisualMode === 'overlay'">File B opacity
+              <input v-model.number="comparisonOpacity" type="range" min="0" max="1" step="0.01">
+              <b>{{ Math.round(comparisonOpacity * 100) }}%</b>
+            </label>
+            <label v-if="comparisonVisualMode === 'wipe'">Wipe position
+              <input v-model.number="comparisonWipe" type="range" min="0" max="1" step="0.01">
+              <b>{{ Math.round(comparisonWipe * 100) }}%</b>
+            </label>
+            <span v-if="comparisonVisualMode === 'blink'" class="blink-state">Showing File {{ comparisonBlinkFrame.toUpperCase() }} · alternates every 650 ms</span>
+          </div>
+          <div v-if="comparisonVisualMode === 'stacked'" class="waveform-stack">
             <article>
               <span>File A · {{ compareA.name }}</span>
               <svg viewBox="0 0 1000 120" preserveAspectRatio="none" role="img" :aria-label="`Waveform envelope for ${compareA.name}`">
@@ -3683,15 +3965,74 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
               </svg>
             </article>
           </div>
+          <article v-else class="comparison-waveform-composite">
+            <span>{{ comparisonVisualMode }} waveform · A aqua / B violet</span>
+            <svg viewBox="0 0 1000 120" preserveAspectRatio="none" role="img" :aria-label="`${comparisonVisualMode} waveform comparison`">
+              <defs>
+                <clipPath id="comparison-wipe-clip">
+                  <rect :x="comparisonWipe * 1000" y="0" :width="(1 - comparisonWipe) * 1000" height="120" />
+                </clipPath>
+              </defs>
+              <line x1="0" y1="60" x2="1000" y2="60" />
+              <path v-show="comparisonVisualMode !== 'blink' || comparisonBlinkFrame === 'a'" class="waveform-a" :d="waveformPath(compareA)" />
+              <path
+                v-show="comparisonVisualMode !== 'blink' || comparisonBlinkFrame === 'b'"
+                class="waveform-b"
+                :clip-path="comparisonVisualMode === 'wipe' ? 'url(#comparison-wipe-clip)' : undefined"
+                :opacity="comparisonVisualMode === 'overlay' ? comparisonOpacity : 1"
+                :d="waveformPath(compareB)"
+              />
+              <line v-if="comparisonVisualMode === 'wipe'" class="wipe-marker" :x1="comparisonWipe * 1000" y1="0" :x2="comparisonWipe * 1000" y2="120" />
+            </svg>
+          </article>
           <div class="spectrum-compare-grid">
-            <article><span>File A spectrum</span><canvas ref="compareSpectrogramA" role="img" aria-label="Measured spectrum for comparison file A">Measured spectrum for comparison file A.</canvas></article>
-            <article><span>File B spectrum</span><canvas ref="compareSpectrogramB" role="img" aria-label="Measured spectrum for comparison file B">Measured spectrum for comparison file B.</canvas></article>
+            <article v-show="comparisonVisualMode === 'stacked'"><span>File A spectrum</span><canvas ref="compareSpectrogramA" role="img" aria-label="Measured spectrum for comparison file A">Measured spectrum for comparison file A.</canvas></article>
+            <article v-show="comparisonVisualMode === 'stacked'"><span>File B spectrum</span><canvas ref="compareSpectrogramB" role="img" aria-label="Measured spectrum for comparison file B">Measured spectrum for comparison file B.</canvas></article>
+            <article v-show="comparisonVisualMode !== 'stacked'" class="comparison-composite-spectrum">
+              <span>{{ comparisonVisualMode }} spectrum · File A / File B</span>
+              <canvas ref="compareSpectrogramComposite" role="img" :aria-label="`${comparisonVisualMode} spectrogram comparison`">Composite measured spectrum.</canvas>
+            </article>
             <article class="difference-spectrum">
               <span>Difference · B − A</span>
               <canvas ref="compareSpectrogramDifference" role="img" aria-label="Normalized spectral difference between comparison files">Normalized spectral difference between comparison files.</canvas>
               <small><i></i>More energy in A <b></b>Matched <em></em>More energy in B</small>
             </article>
+            <article class="residual-spectrum">
+              <span>Aligned residual · B − adjusted A</span>
+              <canvas ref="compareResidualSpectrogram" role="img" aria-label="Spectrogram of the aligned residual signal">Measured residual spectrum.</canvas>
+              <small>{{ signalComparison?.residualVisual.limitation ?? "Residual visualization is generated after decoded alignment completes." }}</small>
+            </article>
           </div>
+          <article v-if="signalComparison" class="residual-waveform">
+            <span>Residual waveform · {{ signalComparison.residualVisual.peakDbfs === null ? "silent" : `${signalComparison.residualVisual.peakDbfs.toFixed(2)} dBFS peak` }}</span>
+            <svg viewBox="0 0 1000 120" preserveAspectRatio="none" role="img" aria-label="Aligned residual waveform">
+              <line x1="0" y1="60" x2="1000" y2="60" />
+              <path :d="residualWaveformPath()" />
+            </svg>
+          </article>
+          <section v-if="signalComparison" class="comparison-region-panel">
+            <header>
+              <div><span class="eyebrow">Selected-region evidence</span><strong>Measure a specific aligned passage</strong></div>
+              <button :disabled="signalComparisonLoading || !comparisonRegionSelection" @click="measureComparisonRegion">Measure selected region</button>
+            </header>
+            <div class="comparison-region-controls">
+              <label>Start
+                <input v-model.number="comparisonRegionStart" type="range" min="0" :max="comparisonRegionMaximum" step="0.1">
+                <b>{{ comparisonRegionStart.toFixed(1) }} s</b>
+              </label>
+              <label>End
+                <input v-model.number="comparisonRegionEnd" type="range" min="0" :max="comparisonRegionMaximum" step="0.1">
+                <b>{{ comparisonRegionEnd.toFixed(1) }} s</b>
+              </label>
+            </div>
+            <dl>
+              <div><dt>Measured passage</dt><dd>{{ signalComparison.region.startSeconds.toFixed(2) }}–{{ signalComparison.region.endSeconds.toFixed(2) }} s</dd></div>
+              <div><dt>Correlation</dt><dd>{{ signalComparison.region.sampleCorrelation.toFixed(6) }}</dd></div>
+              <div><dt>Residual</dt><dd>{{ signalComparison.region.residualRmsDb.toFixed(2) }} dB</dd></div>
+              <div><dt>Residual peak</dt><dd>{{ signalComparison.region.peakResidualDbfs === null ? "Silent" : `${signalComparison.region.peakResidualDbfs.toFixed(2)} dBFS` }}</dd></div>
+            </dl>
+            <small>{{ signalComparison.region.limitation }}</small>
+          </section>
         </section>
         <div v-if="compareA && compareB" class="comparison-grid">
           <span>Property</span><strong>{{ compareA.name }}</strong><strong>{{ compareB.name }}</strong>
@@ -4007,9 +4348,9 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
           <article class="resource-controls external-service-card">
             <span>External identity services · recognition</span>
             <strong>AcoustID acoustic matching</strong>
-            <p>AcoustID compares the local Chromaprint to its recognition database and returns candidate recording IDs. Enter the 10-character key from your registered application; Audio-V validates it before discovery and never saves it in audit evidence.</p>
+            <p>AcoustID compares the local Chromaprint to its recognition database and returns candidate recording IDs. Official builds can include Audio-V's client identity. A personal application key remains an optional override for source builds and forks; it is validated before discovery and never saved in audit evidence.</p>
             <label><input v-model="acoustIdEnabled" type="checkbox" :disabled="isDiscovering"> Recognize files with AcoustID on next audit</label>
-            <label>AcoustID API key
+            <label>AcoustID API key · optional override
               <input v-model="acoustIdApiKey" type="password" autocomplete="off" :disabled="isDiscovering || !acoustIdEnabled" @input="acoustIdValidationState = 'idle'; acoustIdValidationMessage = 'The application key will be checked before discovery begins.'">
             </label>
             <small
@@ -4018,6 +4359,9 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
               role="status"
               aria-live="polite"
             >{{ acoustIdValidationMessage }}</small>
+            <small class="credential-validation idle">
+              {{ externalIdentityStatus?.explanation ?? "Checking whether this build includes an official Audio-V client identity…" }}
+            </small>
           </article>
           <article class="resource-controls external-service-card">
             <span>External identity services · enrichment</span>

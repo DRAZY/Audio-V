@@ -579,7 +579,7 @@ function restoreOracleSourcePath(
   };
 }
 
-async function attachExternalIdentityEvidence(
+export async function attachExternalIdentityEvidence(
   file: AudioFileRecord,
   source: AudioSourceSelection,
   signal?: AbortSignal,

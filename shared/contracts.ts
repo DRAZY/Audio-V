@@ -769,6 +769,23 @@ export interface DecodedSignalComparison {
     peakResidualDbfs: number | null;
     nullDepthDb: number;
   }>;
+  residualVisual: {
+    source: "aligned-8khz-mono-preview";
+    waveform: WaveformMeasurements;
+    spectrogram: SpectrogramMeasurements;
+    peakDbfs: number | null;
+    limitation: string;
+  };
+  region: {
+    startSeconds: number;
+    endSeconds: number;
+    durationSeconds: number;
+    sampleCorrelation: number;
+    gainDifferenceDb: number | null;
+    residualRmsDb: number;
+    peakResidualDbfs: number | null;
+    limitation: string;
+  };
   relationship:
     | "aligned-equivalent"
     | "strongly-related"
@@ -780,6 +797,32 @@ export interface DecodedSignalComparison {
 export interface ComparisonChannelMapping {
   leftChannel: number;
   rightChannel: number;
+}
+
+export interface ComparisonRegion {
+  startSeconds: number;
+  endSeconds: number;
+}
+
+export interface ExternalIdentityBatchProgress {
+  completed: number;
+  total: number;
+  currentFile: string | null;
+  file: AudioFileRecord | null;
+}
+
+export interface ExternalIdentityBatchResult {
+  files: AudioFileRecord[];
+  matched: number;
+  conflicts: number;
+  inconclusive: number;
+  serviceErrors: number;
+}
+
+export interface ExternalIdentityServiceStatus {
+  officialClientConfigured: boolean;
+  customClientRequired: boolean;
+  explanation: string;
 }
 
 export interface ScanSelectionResult {
@@ -944,7 +987,18 @@ export interface AudioVDesktopApi {
     leftPath: string,
     rightPath: string,
     channelMapping?: ComparisonChannelMapping[],
+    region?: ComparisonRegion,
   ): Promise<DecodedSignalComparison>;
+  externalIdentityServiceStatus(): Promise<ExternalIdentityServiceStatus>;
+  identifyFiles(
+    filePaths: string[],
+    sessionId?: string,
+    acoustIdApiKey?: string,
+    musicBrainzEnabled?: boolean,
+  ): Promise<ExternalIdentityBatchResult>;
+  onIdentityProgress(
+    listener: (progress: ExternalIdentityBatchProgress) => void,
+  ): () => void;
   listFingerprintLibrary(): Promise<FingerprintLibraryEntry[]>;
   rebuildFingerprintLibrary(): Promise<FingerprintLibraryMutationResult>;
   pruneFingerprintLibrary(): Promise<FingerprintLibraryMutationResult>;

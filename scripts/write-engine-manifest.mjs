@@ -54,7 +54,7 @@ const manifest = {
       metadataProvenance:
         "implemented-generator-tag-and-raw-identifier-inventory-not-ai-verdict",
       acousticFingerprint:
-        "implemented-chromaprint-1.6.0-current-and-manageable-persistent-library-duplicates-with-opt-in-acoustid",
+        "implemented-chromaprint-1.6.0-persistent-library-batch-acoustid-queue-cache-retry-and-musicbrainz-enrichment",
       metadataDepth:
         "implemented-declared-tags-calculated-rg2-track-album-cue-segments-bpm-isrc-musicbrainz",
       bitUtilization:
@@ -75,7 +75,7 @@ const manifest = {
       batchCancellation: "implemented-active-process-termination",
       scopedVerdictRules: "implemented-for-oracle-integrity-forensics-v11",
       compareWorkflow:
-        "implemented-independent-files-preview-alignment-full-track-null-and-explicit-channel-mapping",
+        "implemented-independent-files-stacked-overlay-wipe-blink-residual-region-full-track-null-and-explicit-channel-mapping",
       repairTriage: "implemented-actions-evidence-reveal-acknowledge",
       truePeakSafeCopy:
         "implemented-source-depth-default-explicit-16-24-dither-artwork-and-reaudit",

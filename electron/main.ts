@@ -18,7 +18,7 @@ import {
 } from "../shared/user-review";
 import { AUDIO_EXTENSIONS } from "../shared/contracts";
 import { createTruePeakSafeCopy } from "./repair-engine";
-import { scanSources } from "./scanner";
+import { attachExternalIdentityEvidence, scanSources } from "./scanner";
 import type { OracleRecordCache } from "./scanner";
 import { compactReportFile, writeAuditReport } from "./report-exporter";
 import type { ReportExportFormat } from "../shared/contracts";
@@ -76,6 +76,7 @@ let oracleCache: OracleRecordCache;
 let oracleWorkers: OracleWorkerPool;
 let auditSessions: AuditStorageClient;
 let activeComparisonController: AbortController | null = null;
+let activeIdentityController: AbortController | null = null;
 let historyCleanupTimer: NodeJS.Timeout | null = null;
 let historyCleanupRunning = false;
 let historyCleanupDeletedFiles = 0;
@@ -96,6 +97,41 @@ const defaultResourceLimits = resolveAnalysisResourcePolicy(
 let currentResourceLimits = defaultResourceLimits;
 let applicationLogger: ApplicationLogger | null = null;
 const validatedAcoustIdApiKeys = new Set<string>();
+let officialAcoustIdClientKey: string | null | undefined;
+
+async function loadOfficialAcoustIdClientKey(): Promise<string | null> {
+  if (officialAcoustIdClientKey !== undefined) {
+    return officialAcoustIdClientKey;
+  }
+  const configurationPath = app.isPackaged
+    ? path.join(process.resourcesPath, "external-services.json")
+    : path.join(app.getAppPath(), "build", "external-services.json");
+  try {
+    const parsed = JSON.parse(
+      await fs.readFile(configurationPath, "utf8"),
+    ) as { acoustIdClientKey?: unknown };
+    officialAcoustIdClientKey =
+      typeof parsed.acoustIdClientKey === "string"
+        ? normalizeAcoustIdApiKey(parsed.acoustIdClientKey)
+        : null;
+  } catch {
+    officialAcoustIdClientKey = null;
+  }
+  return officialAcoustIdClientKey;
+}
+
+async function resolveAcoustIdClientKey(
+  requestedKey?: string,
+): Promise<string> {
+  const customKey = requestedKey?.trim();
+  const candidate = customKey || (await loadOfficialAcoustIdClientKey());
+  if (!candidate) {
+    throw new Error(
+      "This build does not contain the official Audio-V AcoustID client identity. Add your registered application key in Settings and try again.",
+    );
+  }
+  return ensureValidatedAcoustIdApiKey(candidate);
+}
 
 function logApplication(
   level: "debug" | "info" | "warn" | "error",
@@ -862,6 +898,7 @@ ipcMain.handle(
     requestedLeft: unknown,
     requestedRight: unknown,
     requestedMapping: unknown,
+    requestedRegion: unknown,
   ) => {
     if (
       typeof requestedLeft !== "string" ||
@@ -900,6 +937,31 @@ ipcMain.handle(
     if (channelMapping === null) {
       throw new TypeError("Comparison channel mappings must use integer channel indexes.");
     }
+    const region =
+      requestedRegion === undefined
+        ? undefined
+        : typeof requestedRegion === "object" &&
+            requestedRegion !== null &&
+            Number.isFinite(
+              (requestedRegion as { startSeconds?: unknown }).startSeconds,
+            ) &&
+            Number.isFinite(
+              (requestedRegion as { endSeconds?: unknown }).endSeconds,
+            ) &&
+            Number(
+              (requestedRegion as { startSeconds: number }).startSeconds,
+            ) >= 0 &&
+            Number((requestedRegion as { endSeconds: number }).endSeconds) >
+              Number(
+                (requestedRegion as { startSeconds: number }).startSeconds,
+              )
+          ? (requestedRegion as { startSeconds: number; endSeconds: number })
+          : null;
+    if (region === null) {
+      throw new TypeError(
+        "A comparison region must have a non-negative start and a later end.",
+      );
+    }
     activeComparisonController?.abort();
     const controller = new AbortController();
     activeComparisonController = controller;
@@ -911,10 +973,155 @@ ipcMain.handle(
         currentResourceLimits,
         controller.signal,
         channelMapping,
+        region,
       );
     } finally {
       if (activeComparisonController === controller) {
         activeComparisonController = null;
+      }
+    }
+  },
+);
+
+ipcMain.handle("identity:service-status", async () => {
+  const configured = Boolean(await loadOfficialAcoustIdClientKey());
+  return {
+    officialClientConfigured: configured,
+    customClientRequired: !configured,
+    explanation: configured
+      ? "This official build contains the registered Audio-V AcoustID client identity. Recognition still runs only after explicit user action."
+      : "This development build needs the application key from a registered AcoustID application. The key remains session-only.",
+  };
+});
+
+ipcMain.handle(
+  "identity:identify-files",
+  async (
+    event,
+    requestedPaths: unknown,
+    requestedSessionId: unknown,
+    requestedKey: unknown,
+    requestedMusicBrainz: unknown,
+  ) => {
+    if (
+      !Array.isArray(requestedPaths) ||
+      requestedPaths.length === 0 ||
+      requestedPaths.length > 10_000 ||
+      !requestedPaths.every((filePath) => typeof filePath === "string")
+    ) {
+      throw new TypeError(
+        "Choose between 1 and 10,000 audited files for identity lookup.",
+      );
+    }
+    if (
+      requestedSessionId !== undefined &&
+      (typeof requestedSessionId !== "string" ||
+        !/^[a-f0-9-]{36}$/iu.test(requestedSessionId))
+    ) {
+      throw new TypeError("A valid audit session is required.");
+    }
+    if (
+      requestedKey !== undefined &&
+      typeof requestedKey !== "string"
+    ) {
+      throw new TypeError("The AcoustID application key must be text.");
+    }
+    if (
+      requestedMusicBrainz !== undefined &&
+      typeof requestedMusicBrainz !== "boolean"
+    ) {
+      throw new TypeError("MusicBrainz enrichment must be enabled or disabled.");
+    }
+    const filePaths = [...new Set(
+      requestedPaths.map((filePath) => path.resolve(filePath)),
+    )];
+    if (filePaths.some((filePath) => !approvedAudioFiles.has(filePath))) {
+      throw new Error(
+        "Every identity candidate must come from the current user-selected audit.",
+      );
+    }
+    const apiKey = await resolveAcoustIdClientKey(
+      typeof requestedKey === "string" ? requestedKey : undefined,
+    );
+    activeIdentityController?.abort();
+    const controller = new AbortController();
+    activeIdentityController = controller;
+    const files: AudioFileRecord[] = [];
+    let matched = 0;
+    let conflicts = 0;
+    let inconclusive = 0;
+    let serviceErrors = 0;
+    try {
+      for (let index = 0; index < filePaths.length; index += 1) {
+        if (controller.signal.aborted) {
+          throw new Error("Identity lookup canceled.");
+        }
+        const filePath = filePaths[index];
+        const existing =
+          authoritativeRecords.get(filePath) ??
+          (typeof requestedSessionId === "string"
+            ? await auditSessions.getSessionFile(requestedSessionId, filePath)
+            : null) ??
+          (await auditSessions.getCached(filePath));
+        if (!existing?.oracle.technical) {
+          serviceErrors += 1;
+          event.sender.send("identity:progress", {
+            completed: index + 1,
+            total: filePaths.length,
+            currentFile: path.basename(filePath),
+            file: null,
+          });
+          continue;
+        }
+        const updated = await attachExternalIdentityEvidence(
+          existing,
+          {
+            kind: "files",
+            paths: [filePath],
+            label: "Current audit identity lookup",
+            mode: "full-audit",
+            externalLookup: {
+              acoustIdEnabled: true,
+              acoustIdApiKey: apiKey,
+              musicBrainzEnabled: requestedMusicBrainz !== false,
+            },
+          },
+          controller.signal,
+        );
+        files.push(updated);
+        rememberAuthoritativeRecord(updated);
+        await auditSessions.setCached(updated);
+        if (typeof requestedSessionId === "string") {
+          await auditSessions.updateSessionFile(
+            requestedSessionId,
+            filePath,
+            updated,
+          );
+        }
+        const updatedTechnical = updated.oracle.technical;
+        const lookup = updatedTechnical?.fingerprint?.acoustIdLookup;
+        const assessment = updatedTechnical?.identityAssessment;
+        if (lookup?.status === "service-error") serviceErrors += 1;
+        if (assessment?.status === "metadata-conflict") conflicts += 1;
+        else if (
+          assessment?.status === "metadata-corroborated" ||
+          assessment?.status === "identity-matched"
+        ) {
+          matched += 1;
+        } else {
+          inconclusive += 1;
+        }
+        event.sender.send("identity:progress", {
+          completed: index + 1,
+          total: filePaths.length,
+          currentFile: updated.name,
+          file: updated,
+        });
+      }
+      return { files, matched, conflicts, inconclusive, serviceErrors };
+    } finally {
+      if (activeIdentityController === controller) {
+        activeIdentityController = null;
       }
     }
   },
@@ -944,11 +1151,8 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
     availableParallelism(),
   );
   let externalLookup = requestedSource.externalLookup;
-  if (
-    externalLookup?.acoustIdEnabled &&
-    typeof externalLookup.acoustIdApiKey === "string"
-  ) {
-    const normalized = await ensureValidatedAcoustIdApiKey(
+  if (externalLookup?.acoustIdEnabled) {
+    const normalized = await resolveAcoustIdClientKey(
       externalLookup.acoustIdApiKey,
     );
     externalLookup = {

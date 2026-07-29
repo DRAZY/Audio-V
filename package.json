@@ -1,6 +1,6 @@
 {
   "name": "audio-v",
-  "version": "0.4.30",
+  "version": "0.4.31",
   "private": true,
   "license": "AGPL-3.0-only",
   "engines": {
@@ -56,7 +56,8 @@
     "provision:engines": "node scripts/provision-engines.mjs && node scripts/provision-analysis-tools.mjs",
     "provision:analysis-tools": "node scripts/provision-analysis-tools.mjs",
     "prepare:engines": "node scripts/verify-ffmpeg.mjs && node scripts/verify-analysis-tools.mjs",
-    "prepare:release": "npm run prepare:engines && npm run prepare:notices && npm run prepare:manifest && npm run validate:real-world",
+    "prepare:services": "node scripts/write-external-service-config.mjs",
+    "prepare:release": "npm run prepare:engines && npm run prepare:notices && npm run prepare:manifest && npm run prepare:services && npm run validate:real-world",
     "dist:mac": "npm run prepare:release && npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --publish never --mac dmg --arm64 --universal -c.mac.identity=- -c.mac.hardenedRuntime=false -c.mac.notarize=false",
     "dist:mac:signed": "npm run prepare:release && npm run build && electron-builder --publish never --mac dmg --arm64 --universal",
     "dist:win": "npm run prepare:release && npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --publish never --win nsis portable --x64 -c.win.signExecutable=false",
@@ -114,6 +115,10 @@
       {
         "from": "build/engine-manifest.json",
         "to": "engine-manifest.json"
+      },
+      {
+        "from": "build/external-services.json",
+        "to": "external-services.json"
       },
       {
         "from": "LICENSE",

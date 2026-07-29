@@ -11,7 +11,7 @@ Both integrations are off by default. Audio analysis still works without them.
 
 | Service | What it adds | What setup is needed? |
 |---|---|---|
-| **AcoustID** | Tries to recognize a recording from a locally calculated acoustic fingerprint | A free registered-application key |
+| **AcoustID** | Tries to recognize a recording from a locally calculated acoustic fingerprint | Official client identity in a configured Audio-V build, or a free registered-application key for source builds and forks |
 | **MusicBrainz** | Adds recording title, credited artists, ISRCs, first-release date, and release-group context | No key; enable its separate switch |
 
 For the fullest identity result, enable both. AcoustID can suggest a
@@ -20,8 +20,15 @@ MusicBrainz can then add readable catalog details.
 
 ## Set up AcoustID
 
-Audio-V needs an **application API key**, sometimes called a client key. It
-does not use the separate user API key intended for submitting fingerprints.
+Open Settings first. Audio-V reports whether the installed build contains the
+official registered client identity. Recognition remains off until you enable
+it or choose the batch action; bundling the identity does not silently contact
+the service.
+
+A source build or fork needs an **application API key**, sometimes called a
+client key. A user can also type one as an override in an official build.
+Audio-V does not use the separate user API key intended for submitting
+fingerprints.
 
 1. Visit [AcoustID](https://acoustid.org/) and sign in.
 2. Open [Register your application](https://acoustid.org/new-application).
@@ -29,7 +36,7 @@ does not use the separate user API key intended for submitting fingerprints.
 4. Copy the application API key shown by AcoustID.
 5. Open **Settings** in Audio-V.
 6. Turn on **AcoustID recognition**.
-7. Paste the key into **AcoustID application API key**.
+7. Paste the key into **AcoustID API key · optional override**.
 8. Start an audit. Audio-V trims accidental spaces and validates the key before
    it begins scanning files.
 
@@ -37,6 +44,19 @@ You can revisit [your registered AcoustID
 applications](https://acoustid.org/my-applications) later. Do not copy the user
 submission key from the AcoustID user page; it serves a different purpose.
 Temporary keys shown in API examples also expire and should not be used.
+
+## Identify an audit that already finished
+
+1. Open an audit or finish a new local audit.
+2. Open **Identity**.
+3. Choose **Identify current audit**.
+
+Audio-V reuses the Chromaprint evidence already measured for each file. It
+shows progress, stores each completed result as it arrives, and asks
+MusicBrainz for readable details. No second audio decode is required. AcoustID
+calls are serialized below three requests per second, identical fingerprints
+share a cached result, and temporary HTTP 429/502/503/504 responses are retried
+at most three times with bounded backoff.
 
 > [!NOTE]
 > AcoustID provides its public service for non-commercial use and asks clients
@@ -88,10 +108,11 @@ based on the decoded file and disclosed integrity and signal evidence.
 | AcoustID | The locally calculated Chromaprint fingerprint, rounded duration, and application key | The audio file, local path, filename, or file hash |
 | MusicBrainz | One MusicBrainz recording ID | The audio file, fingerprint, local path, filename, or file hash |
 
-The AcoustID key stays in application memory for the current session. Audio-V
-does not save it in history, reports, diagnostics, or source records. Returned
-identity details are saved with the audit evidence so the report remains
-understandable later.
+A key entered in Settings stays in application memory for the current session.
+An official client identity, when present, is packaged as a release resource
+rather than stored in source control. Audio-V does not save either value in
+history, reports, diagnostics, or source records. Returned identity details are
+saved with the audit evidence so the report remains understandable later.
 
 For the complete data-handling contract, read [Privacy and
 security](PRIVACY_SECURITY.md).

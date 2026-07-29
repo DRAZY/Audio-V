@@ -1,7 +1,10 @@
 import { parentPort, workerData } from "node:worker_threads";
 import { compareAudioFiles } from "./signal-comparison";
 import { configureEngineResourcePolicy } from "./ffmpeg-runtime";
-import type { ComparisonChannelMapping } from "../../shared/contracts";
+import type {
+  ComparisonChannelMapping,
+  ComparisonRegion,
+} from "../../shared/contracts";
 
 const port = parentPort;
 if (!port) throw new Error("The comparison worker requires a parent port.");
@@ -23,6 +26,7 @@ port.once(
           leftPath: string;
           rightPath: string;
           channelMapping?: ComparisonChannelMapping[];
+          region?: ComparisonRegion;
         }
       | { cancel: true },
   ) => {
@@ -35,6 +39,7 @@ port.once(
       request.rightPath,
       controller.signal,
       request.channelMapping,
+      request.region,
     )
       .then((result) => port.postMessage({ ok: true, result }))
       .catch((error: unknown) =>

@@ -51,13 +51,37 @@ const api: AudioVDesktopApi = {
     ),
   prepareAuditSessionResume: (sessionId, strategy) =>
     ipcRenderer.invoke("sessions:prepare-resume", sessionId, strategy),
-  compareSignals: (leftPath, rightPath, channelMapping) =>
+  compareSignals: (leftPath, rightPath, channelMapping, region) =>
     ipcRenderer.invoke(
       "comparison:analyze-signals",
       leftPath,
       rightPath,
       channelMapping,
+      region,
     ),
+  externalIdentityServiceStatus: () =>
+    ipcRenderer.invoke("identity:service-status"),
+  identifyFiles: (
+    filePaths,
+    sessionId,
+    acoustIdApiKey,
+    musicBrainzEnabled,
+  ) =>
+    ipcRenderer.invoke(
+      "identity:identify-files",
+      filePaths,
+      sessionId,
+      acoustIdApiKey,
+      musicBrainzEnabled,
+    ),
+  onIdentityProgress: (listener) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      progress: Parameters<typeof listener>[0],
+    ) => listener(progress);
+    ipcRenderer.on("identity:progress", handler);
+    return () => ipcRenderer.removeListener("identity:progress", handler);
+  },
   listFingerprintLibrary: () =>
     ipcRenderer.invoke("fingerprints:list"),
   rebuildFingerprintLibrary: () =>

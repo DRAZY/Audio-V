@@ -105,6 +105,50 @@ describe("provenance and fingerprint tools", () => {
     }
   });
 
+  it("serializes transient AcoustID failures through a bounded retry", async () => {
+    const fingerprint = {
+      ...(await calculateChromaprint(fixture)),
+      fingerprint: "synthetic-encoded-fingerprint",
+      fingerprintSha256: "b".repeat(64),
+    };
+    const successBody = JSON.stringify({
+      status: "ok",
+      results: [{
+        id: "retry-result",
+        score: 0.91,
+        recordings: [{ id: "musicbrainz-retry", title: "Retry title" }],
+      }],
+    });
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({
+          status: "error",
+          error: { code: 14, message: "temporarily unavailable" },
+        }), {
+          status: 503,
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(successBody, {
+          status: 200,
+          headers: {
+            "content-length": String(Buffer.byteLength(successBody)),
+          },
+        }),
+      );
+    try {
+      await expect(
+        lookupAcoustId(fingerprint, "Abcdef1234"),
+      ).resolves.toMatchObject({
+        status: "matched",
+        acoustId: "retry-result",
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      fetchMock.mockRestore();
+    }
+  });
+
   it("trims and locally validates AcoustID application keys", () => {
     expect(normalizeAcoustIdApiKey(" Abcdef1234\n")).toBe("Abcdef1234");
     expect(() => normalizeAcoustIdApiKey("user-key-with-symbols")).toThrow(

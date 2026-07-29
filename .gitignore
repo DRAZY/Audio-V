@@ -4,6 +4,7 @@ dist-electron/
 release/
 build/THIRD_PARTY_NOTICES.txt
 build/engine-manifest.json
+build/external-services.json
 build/*-latest.json
 build/platform-validation-*.json
 build/format-validation-*.json

@@ -1,8 +1,11 @@
 import type {
   ComparisonChannelMapping,
+  ComparisonRegion,
   DecodedSignalComparison,
 } from "../../shared/contracts";
 import { runEngine } from "./ffmpeg-runtime";
+import { SpectrogramAccumulator } from "./spectrogram";
+import { WaveformEnvelopeAccumulator } from "./waveform-envelope";
 
 const comparisonSampleRate = 8_000;
 const maximumComparisonSeconds = 120;
@@ -109,13 +112,15 @@ function correlationAtLag(
 export function compareDecodedSignals(
   left: Float32Array,
   right: Float32Array,
+  requestedRegion?: ComparisonRegion,
 ): DecodedSignalComparison {
-  return alignDecodedSignals(left, right).result;
+  return alignDecodedSignals(left, right, requestedRegion).result;
 }
 
 function alignDecodedSignals(
   left: Float32Array,
   right: Float32Array,
+  requestedRegion?: ComparisonRegion,
 ): { result: DecodedSignalComparison; signedGain: number; sampleLag: number } {
   const leftEnvelope = energyEnvelope(left);
   const rightEnvelope = energyEnvelope(right);
@@ -153,11 +158,15 @@ function alignDecodedSignals(
     sumProducts /
     Math.sqrt(Math.max(sumLeftSquares * sumRightSquares, 1e-24));
   const gain = sumProducts / Math.max(sumLeftSquares, 1e-24);
+  const residual = new Float32Array(count);
   let residualPower = 0;
+  let residualPeak = 0;
   for (let index = 0; index < count; index += 1) {
     const difference =
       right[startRight + index] - gain * left[startLeft + index];
+    residual[index] = difference;
     residualPower += difference * difference;
+    residualPeak = Math.max(residualPeak, Math.abs(difference));
   }
   const residualRmsDb = 10 * Math.log10(
     Math.max(residualPower, 1e-24) / Math.max(sumRightSquares, 1e-24),
@@ -171,43 +180,121 @@ function alignDecodedSignals(
         : absoluteCorrelation >= 0.5
           ? "possibly-related"
           : "distinct";
+  const waveform = new WaveformEnvelopeAccumulator(
+    comparisonSampleRate,
+    1,
+    residual.length,
+  );
+  waveform.pushInterleaved(residual);
+  const spectrum = new SpectrogramAccumulator(
+    comparisonSampleRate,
+    1,
+    residual.length,
+    { fftSize: 512, maxSlices: 180 },
+  );
+  spectrum.pushInterleaved(residual);
+  const maximumSeconds = count / comparisonSampleRate;
+  const requestedStart = requestedRegion?.startSeconds ?? 0;
+  const requestedEnd = requestedRegion?.endSeconds ?? maximumSeconds;
+  const regionStartSeconds = Math.max(
+    0,
+    Math.min(maximumSeconds, requestedStart),
+  );
+  const regionEndSeconds = Math.max(
+    regionStartSeconds + 1 / comparisonSampleRate,
+    Math.min(maximumSeconds, requestedEnd),
+  );
+  const regionStart = Math.min(
+    count - 1,
+    Math.floor(regionStartSeconds * comparisonSampleRate),
+  );
+  const regionEnd = Math.min(
+    count,
+    Math.max(regionStart + 1, Math.ceil(regionEndSeconds * comparisonSampleRate)),
+  );
+  let regionLeftPower = 0;
+  let regionRightPower = 0;
+  let regionProduct = 0;
+  let regionResidualPower = 0;
+  let regionResidualPeak = 0;
+  for (let index = regionStart; index < regionEnd; index += 1) {
+    const leftSample = left[startLeft + index];
+    const rightSample = right[startRight + index];
+    const difference = rightSample - gain * leftSample;
+    regionLeftPower += leftSample * leftSample;
+    regionRightPower += rightSample * rightSample;
+    regionProduct += leftSample * rightSample;
+    regionResidualPower += difference * difference;
+    regionResidualPeak = Math.max(regionResidualPeak, Math.abs(difference));
+  }
+  const regionCorrelation =
+    regionProduct /
+    Math.sqrt(Math.max(regionLeftPower * regionRightPower, 1e-24));
+  const regionResidualRmsDb = 10 * Math.log10(
+    Math.max(regionResidualPower, 1e-24) /
+      Math.max(regionRightPower, 1e-24),
+  );
 
   return {
     signedGain: gain,
     sampleLag,
     result: {
-    method: "Audio-V aligned PCM preview v1",
-    sampleRate: comparisonSampleRate,
-    analyzedSeconds: count / comparisonSampleRate,
-    offsetSeconds: sampleLag / comparisonSampleRate,
-    envelopeCorrelation: bestEnvelopeCorrelation,
-    sampleCorrelation: correlation,
-    polarity:
-      absoluteCorrelation < 0.2
-        ? "inconclusive"
-        : correlation < 0
-          ? "inverted"
-          : "same",
-    gainDifferenceDb:
-      Math.abs(gain) <= 1e-12 ? null : 20 * Math.log10(Math.abs(gain)),
-    residualRmsDb,
-    fullTrack: false,
-    comparedChannels: 1,
-    comparedFrames: count,
-    durationCoveragePercent:
-      (count / Math.max(left.length, right.length)) * 100,
-    perChannel: [{
-      channel: 0,
-      leftChannel: 0,
-      rightChannel: 0,
+      method: "Audio-V aligned PCM preview v1",
+      sampleRate: comparisonSampleRate,
+      analyzedSeconds: count / comparisonSampleRate,
+      offsetSeconds: sampleLag / comparisonSampleRate,
+      envelopeCorrelation: bestEnvelopeCorrelation,
       sampleCorrelation: correlation,
+      polarity:
+        absoluteCorrelation < 0.2
+          ? "inconclusive"
+          : correlation < 0
+            ? "inverted"
+            : "same",
+      gainDifferenceDb:
+        Math.abs(gain) <= 1e-12 ? null : 20 * Math.log10(Math.abs(gain)),
       residualRmsDb,
-      peakResidualDbfs: null,
-      nullDepthDb: -residualRmsDb,
-    }],
-    relationship,
-    limitation:
-      "Alignment uses the first 120 seconds, resampled to an 8 kHz mono analysis preview. It is decoded-signal evidence, not byte identity or a full-track null test.",
+      fullTrack: false,
+      comparedChannels: 1,
+      comparedFrames: count,
+      durationCoveragePercent:
+        (count / Math.max(left.length, right.length)) * 100,
+      perChannel: [{
+        channel: 0,
+        leftChannel: 0,
+        rightChannel: 0,
+        sampleCorrelation: correlation,
+        residualRmsDb,
+        peakResidualDbfs: null,
+        nullDepthDb: -residualRmsDb,
+      }],
+      residualVisual: {
+        source: "aligned-8khz-mono-preview",
+        waveform: waveform.finish(),
+        spectrogram: spectrum.finish(),
+        peakDbfs:
+          residualPeak <= 0 ? null : 20 * Math.log10(residualPeak),
+        limitation:
+          "The residual visualization is a bounded 8 kHz mono alignment preview. Full-track per-channel null depth remains the authoritative quantitative comparison.",
+      },
+      region: {
+        startSeconds: regionStart / comparisonSampleRate,
+        endSeconds: regionEnd / comparisonSampleRate,
+        durationSeconds: (regionEnd - regionStart) / comparisonSampleRate,
+        sampleCorrelation: regionCorrelation,
+        gainDifferenceDb:
+          Math.abs(gain) <= 1e-12 ? null : 20 * Math.log10(Math.abs(gain)),
+        residualRmsDb: regionResidualRmsDb,
+        peakResidualDbfs:
+          regionResidualPeak <= 0
+            ? null
+            : 20 * Math.log10(regionResidualPeak),
+        limitation:
+          "Region evidence is measured from the aligned 8 kHz mono preview and does not replace the complete per-channel null test.",
+      },
+      relationship,
+      limitation:
+        "Alignment uses the first 120 seconds, resampled to an 8 kHz mono analysis preview. It is decoded-signal evidence, not byte identity or a full-track null test.",
     },
   };
 }
@@ -269,6 +356,7 @@ export async function compareAudioFiles(
   rightPath: string,
   signal?: AbortSignal,
   requestedMapping?: ComparisonChannelMapping[],
+  requestedRegion?: ComparisonRegion,
 ): Promise<DecodedSignalComparison> {
   const [left, right] = await Promise.all([
     decodePreview(leftPath, signal),
@@ -282,7 +370,7 @@ export async function compareAudioFiles(
       "At least 250 milliseconds of decoded audio is required to align files.",
     );
   }
-  const aligned = alignDecodedSignals(left, right);
+  const aligned = alignDecodedSignals(left, right, requestedRegion);
   const [leftProbe, rightProbe] = await Promise.all([
     probeComparison(leftPath, signal),
     probeComparison(rightPath, signal),

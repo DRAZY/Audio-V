@@ -33,6 +33,9 @@ npm run verify:release-policy
 ## Local macOS packages
 
 ```bash
+# Optional: inject the registered Audio-V application client identity without
+# writing it to source control.
+export AUDIO_V_ACOUSTID_CLIENT_KEY="XXXXXXXXXX"
 npm run dist:mac
 ```
 
@@ -48,12 +51,20 @@ Run on Windows:
 
 ```powershell
 npm ci
+$env:AUDIO_V_ACOUSTID_CLIENT_KEY = "XXXXXXXXXX" # optional official client identity
 npm run dist:win
 ```
 
 This produces an intentionally unsigned x64 NSIS installer and x64 portable executable. `signExecutable=false` is explicit, so the unsigned status is reproducible rather than dependent on missing credentials. `npm run verify:artifacts:win` checks PE signatures, package size, the unpacked application, and required engine resources. On a Windows runner it also confirms that Authenticode status is `NotSigned`.
 
 Build and launch-test Windows packages on a maintainer-controlled Windows installation or VM before publication. Cross-building from macOS is acceptable when the local Electron Builder toolchain succeeds, but structural inspection on macOS does not replace first-launch and packaged-runtime acceptance on Windows.
+
+`prepare:release` writes the optional client identity to the ignored
+`build/external-services.json` resource. The value must be the 10-character key
+for the registered Audio-V AcoustID application. It is never committed. Omit
+the environment variable for a development/fork package that should require a
+session-only user key. Artifact verification must confirm the Settings service
+status matches the intended release configuration.
 
 ## Version and publish
 

@@ -866,6 +866,105 @@ app.whenReady().then(async () => {
       stackedReportPanesIndependent,
   });
 
+  window.setContentSize(900, 720);
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  const comparisonLayout = await window.webContents.executeJavaScript(`
+    (() => {
+      const host = document.createElement("section");
+      host.className = "comparison-visuals qa-comparison-visuals";
+      host.style.position = "fixed";
+      host.style.inset = "18px";
+      host.style.zIndex = "10000";
+      host.style.overflow = "auto";
+      host.style.background = "var(--raised)";
+      host.innerHTML = \`
+        <header>
+          <div><span class="eyebrow">Measured visual comparison</span><h2>Synchronized waveform, spectrum, and residual</h2></div>
+          <p>Every mode shares one zoom and horizontal position. Visual compositing never changes decoded evidence.</p>
+        </header>
+        <div class="comparison-view-controls">
+          <div><button>stacked</button><button class="active">overlay</button><button>wipe</button><button>blink</button></div>
+          <label>Zoom<input type="range"><b>12×</b></label>
+          <label>Position<input type="range"><b>84%</b></label>
+          <label>File B opacity<input type="range"><b>50%</b></label>
+        </div>
+        <article class="comparison-waveform-composite"><span>Overlay waveform · A aqua / B violet</span><svg viewBox="0 0 1000 120"><line x1="0" y1="60" x2="1000" y2="60"></line><path class="waveform-a" d="M0 60 L1000 20 L1000 100 Z"></path><path class="waveform-b" d="M0 80 L1000 40 L1000 90 Z"></path></svg></article>
+        <div class="spectrum-compare-grid">
+          <article class="comparison-composite-spectrum"><span>Overlay spectrum</span><canvas width="500" height="120"></canvas></article>
+          <article class="difference-spectrum"><span>Difference · B − A</span><canvas width="500" height="120"></canvas></article>
+          <article class="residual-spectrum"><span>Aligned residual</span><canvas width="500" height="120"></canvas><small>Bounded preview limitation remains readable.</small></article>
+        </div>
+        <article class="residual-waveform"><span>Residual waveform</span><svg viewBox="0 0 1000 120"><path d="M0 60 L1000 58 L1000 62 Z"></path></svg></article>
+        <section class="comparison-region-panel">
+          <header><div><span class="eyebrow">Selected-region evidence</span><strong>Measure a specific aligned passage</strong></div><button>Measure selected region</button></header>
+          <div class="comparison-region-controls"><label>Start<input type="range"><b>18.0 s</b></label><label>End<input type="range"><b>42.0 s</b></label></div>
+          <dl><div><dt>Measured passage</dt><dd>18.00–42.00 s</dd></div><div><dt>Correlation</dt><dd>0.998721</dd></div><div><dt>Residual</dt><dd>−54.20 dB</dd></div><div><dt>Residual peak</dt><dd>−21.04 dBFS</dd></div></dl>
+        </section>
+      \`;
+      document.body.append(host);
+      const rectangle = (element) => {
+        const value = element.getBoundingClientRect();
+        return {
+          left: value.left, right: value.right, top: value.top,
+          bottom: value.bottom, width: value.width, height: value.height,
+        };
+      };
+      const children = [
+        ...host.querySelectorAll(
+          ".comparison-view-controls, .comparison-waveform-composite, .spectrum-compare-grid > article, .residual-waveform, .comparison-region-panel",
+        ),
+      ].map((element) => ({
+        rect: rectangle(element),
+        scrollWidth: element.scrollWidth,
+        clientWidth: element.clientWidth,
+      }));
+      const controls = [...host.querySelectorAll(".comparison-view-controls > label")]
+        .map((element) => rectangle(element));
+      const result = {
+        host: rectangle(host),
+        children,
+        controls,
+        documentWidth: document.documentElement.scrollWidth,
+        viewportWidth: innerWidth,
+      };
+      return result;
+    })()
+  `);
+  const comparisonChildrenContained = comparisonLayout.children.every(
+    ({ rect, scrollWidth, clientWidth }) =>
+      rect.left >= comparisonLayout.host.left - tolerance &&
+      rect.right <= comparisonLayout.host.right + tolerance &&
+      scrollWidth <= clientWidth + tolerance,
+  );
+  const comparisonControlsStacked = comparisonLayout.controls.every(
+    (control, index, controls) =>
+      index === 0 || controls[index - 1].bottom <= control.top + tolerance,
+  );
+  const comparisonNoPageOverflow =
+    comparisonLayout.documentWidth <= comparisonLayout.viewportWidth;
+  results.push({
+    name: "snapped-comparison-evidence",
+    measurement: comparisonLayout,
+    checks: {
+      comparisonChildrenContained,
+      comparisonControlsStacked,
+      comparisonNoPageOverflow,
+    },
+    passed:
+      comparisonChildrenContained &&
+      comparisonControlsStacked &&
+      comparisonNoPageOverflow,
+  });
+  await new Promise((resolve) => setTimeout(resolve, 120));
+  const comparisonScreenshot = await window.webContents.capturePage();
+  await writeFile(
+    path.join(process.cwd(), "build", "layout-comparison-evidence.png"),
+    comparisonScreenshot.toPNG(),
+  );
+  await window.webContents.executeJavaScript(
+    `document.querySelector(".qa-comparison-visuals")?.remove()`,
+  );
+
   const failed = results.filter((result) => !result.passed);
   await writeFile(
     path.join(process.cwd(), "build", "responsive-layout-latest.json"),
@@ -886,7 +985,7 @@ app.whenReady().then(async () => {
     );
   } else {
     console.log(
-      "Responsive layout passed at default and minimum desktop sizes, including bounded long status messages, storage-maintenance composition, open source warnings, table gutters, active assessment separation, adaptive resource controls, dense inspector text, selected paths, scan progress, independent report evidence panes, and the loudness diagnostics grid.",
+      "Responsive layout passed at default and minimum desktop sizes, including bounded long status messages, storage-maintenance composition, open source warnings, table gutters, active assessment separation, adaptive resource controls, dense inspector text, selected paths, scan progress, independent report evidence panes, synchronized comparison evidence, and the loudness diagnostics grid.",
     );
   }
   window.destroy();

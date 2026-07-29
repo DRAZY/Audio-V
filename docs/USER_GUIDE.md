@@ -175,11 +175,35 @@ approximately megabyte-sized visual payloads from being duplicated across
 Electron processes without discarding the evidence that determined the
 verdict.
 
-**AcoustID recognition** is off by default. It requires the 10-character key from a registered AcoustID application, not the separate user submission key. Audio-V trims copied whitespace, checks the key format, and asks AcoustID to validate the application credential before file discovery begins. A rejected key stops the audit before repeated lookups and displays the service explanation. When enabled, Audio-V sends the local Chromaprint value and rounded duration—not the audio—to AcoustID using bounded POST requests. The key remains only in application memory and is removed from saved sessions and reports.
+**AcoustID recognition** is off by default. An official Audio-V package can contain the registered Audio-V client identity, while a development build or fork requires the 10-character key from its own registered AcoustID application. The Settings card says which case applies. A key typed there is a session-only override; it is not the separate user submission key. Audio-V trims copied whitespace, checks the format, and asks AcoustID to validate an override before file discovery begins. A rejected key stops the audit before repeated lookups and displays the service explanation. When enabled, Audio-V sends the local Chromaprint value and rounded duration—not the audio—to AcoustID using bounded POST requests. Calls are serialized below three requests per second, repeated fingerprints are cached, and HTTP 429/502/503/504 responses receive at most three attempts with bounded backoff. No client key is written to saved sessions or reports.
 
 **MusicBrainz enrichment** has its own switch and needs no API key. It looks up one valid recording ID per file, preferring an ID already embedded in the metadata and otherwise using the strongest AcoustID candidate. The result can add credited artists, ISRCs, a first-release date, and up to eight release groups. Audio-V caches repeated IDs and never makes more than one MusicBrainz request per second, so enabling it for a large library can significantly extend the audit. Service errors and missing IDs stay visible and neutral. AcoustID and MusicBrainz results are identity leads, not proof of ownership, mastering provenance, integrity, or sound quality.
 
 **Parallel identity result** appears in the evidence inspector and exported reports after external lookup. Metadata corroborated means all comparable ID, title, and artist declarations agree. Identity matched means an acoustic match exists but local tags are insufficient. Metadata conflict identifies the exact declared and external values that disagree. Inconclusive means there was no usable external identity. These labels help review catalog information; they never promote Review to Clear, demote Clear to Review, or override Failed.
+
+Open **Identity** and choose **Identify current audit** when an audit already
+contains measured Chromaprint evidence. Audio-V recognizes the current list in
+place, shows file-by-file progress, saves each completed result as it arrives,
+and optionally adds MusicBrainz details. It does not decode the audio again.
+This is useful when a fully local audit was completed first or when an external
+service was unavailable during the original scan.
+
+## Visual comparison modes
+
+Compare keeps File A and File B on one synchronized time axis:
+
+- **Stacked** shows both waveform and spectrum views independently.
+- **Overlay** blends File B over File A with an opacity control.
+- **Wipe** uses a movable boundary to reveal A on one side and B on the other.
+- **Blink** alternates A and B every 650 milliseconds so movement stands out.
+
+Zoom and horizontal position apply to every waveform and spectrum view. The
+Difference panel compares normalized source spectra. The Residual panels show
+the bounded aligned mono preview after Audio-V adjusts offset, polarity, and
+gain. Choose a start and end time, then select **Measure selected region** to
+calculate correlation, residual level, and residual peak for that passage.
+These visual and regional aids do not replace the complete overlapping,
+per-channel null test shown in Decoded-signal alignment.
 
 For account creation, the correct AcoustID key type, step-by-step Settings
 instructions, privacy details, and service-error help, use the dedicated
