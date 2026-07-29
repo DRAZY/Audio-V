@@ -1,0 +1,19 @@
+{
+  "schema": "Audio-V release defect register v1",
+  "releaseVersion": "0.4.25",
+  "auditedAt": "2026-07-29T00:05:00.000Z",
+  "repositoryIssueCountAtAudit": 0,
+  "defects": [
+    {
+      "id": "AV-2026-001",
+      "severity": "P1",
+      "status": "fixed",
+      "summary": "Clearing large audit history removed logical records but did not reclaim free pages from legacy SQLite databases.",
+      "verification": "tests/audit-session-store.test.ts verifies new incremental reclamation and one-time legacy compaction; Settings exposes measured live/reclaimable bytes and isolated optimization."
+    }
+  ],
+  "limitations": [
+    "This register establishes that no known P0 or P1 defect is unresolved; it cannot prove that an undiscovered defect does not exist.",
+    "Every confirmed release-affecting defect must be added here even when it is also tracked in GitHub."
+  ]
+}

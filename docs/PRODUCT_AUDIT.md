@@ -52,7 +52,7 @@ Status meanings:
 - **Planned** — specified and prioritized, but not implemented.
 - **Excluded** — intentionally outside the core product.
 
-| Capability | User value | v0.4.24 source status | Disposition |
+| Capability | User value | v0.4.25 source status | Disposition |
 | --- | --- | --- | --- |
 | File and folder ingest | Analyze one track or a full library | Implemented | Current |
 | Recursive bounded discovery | Avoid freezing on large trees | Implemented | Current |
@@ -75,6 +75,7 @@ Status meanings:
 | Human review disposition | Record how a person handled a result without rewriting machine evidence | Implemented with seven explicit outcomes, optional notes, timestamps, and report export | Current |
 | Batch queue, pause, resume, cancel | Library-scale workflow | Implemented with crash-safe checkpoints, immediate cancel acknowledgement, hard worker recycling, and conservative recovery limits | Current |
 | Saved cache and sessions | Resume audits and avoid repeated work | Implemented with SQLite persistence, startup interruption recovery, and suspect-file isolation | Current |
+| Storage reclamation | Keep large cleared histories from consuming disk indefinitely | Implemented with incremental reclamation for new databases, measured legacy free space, and isolated one-time optimization | Current |
 | PDF/XLSX/DOCX/CSV/JSON reports | Share and automate results | Implemented from a shared evidence model | Current |
 | File/edition comparison | Distinguish masters and encodes | Implemented with independent loading and full-overlap multichannel null testing | Current |
 | Duplicate fingerprints | Find identical audio across containers and sessions | Implemented with persistent SQLite index | Current |
@@ -127,6 +128,7 @@ The Oracle Engine must be an independent, versioned worker rather than renderer 
 - Renderer navigation, permission requests, and content loading use default-deny policies.
 - Spectrogram power and waveform envelopes are channel-safe and no longer erase opposite-polarity stereo material.
 - Audit history can reopen persisted evidence or clear every terminal session after an explicit confirmation. Clearing is blocked during an active audit and does not delete source audio, reusable Oracle cache, or the independent Identity index. A small foreground transaction hides terminal sessions immediately; physical saved-file records are then reclaimed in bounded 50-record background transactions with renderer progress, foreground storage interleaving, and launch-time continuation after interruption. At startup, orphaned running sessions become explicit interrupted checkpoints; the last source label is restored, adaptive resume avoids preloading the large partial result set, completed cache records are reused, and files active during interruption are validated serially before the saved worker profile is restored. A candidate that repeats the interruption is quarantined alone on the next resume. Requested and effective limits remain separately visible, and an explicit prior-limits path discloses its repeat-crash risk. Active queues can pause after current jobs finish. Cancellation rejects active work immediately, interrupts discovery/checksum/finalization stages, gives native decoders a cooperative shutdown window, then recycles any analysis worker blocked in synchronous computation. Completed records remain checkpointed, and failed records can be retried.
+- New SQLite databases enable incremental page reclamation before schema creation. Settings reports total, live, and reclaimable database bytes. A legacy database with material free space can run one isolated `VACUUM` while no audit or history cleanup is active; this preserves logical cache, fingerprint, and session records, returns free pages to the operating system, and enables bounded future reclamation.
 - The legacy 300-entry JSON cache migrates once into the unbounded SQLite Oracle cache, keyed by file size, modification time, and Oracle engine version.
 - Compare now runs a separate decoded-signal worker that measures offset, gain, polarity, correlation, residual energy, and relationship.
 - Spectrum analysis now stores a selectable 512-point overview and 2,048-point detail tier.
@@ -147,9 +149,10 @@ Gate 1 is complete at the repository level. Compare uses bounded alignment estim
 - Authoritative JSON and CSV session reports stream from paged SQLite records without a fixed payload limit. PDF, DOCX, and XLSX generation also runs outside the Electron main process and consumes compact session evidence instead of hydrating every full spectrogram.
 - Compiled-worker verification now exercises Oracle analysis, comparison, durable storage, and streamed report export.
 - Rotating JSONL application logs record lifecycle, scan/session identity, resource limits, per-file starts and outcomes, Oracle attempt/retry/timeout events, storage-worker recovery, checkpoint state, and renderer/child-process termination. Logs remain local, are size bounded, and are separate from the privacy-safe diagnostics export.
+- Successful scan completion logs now include application version, elapsed wall time, file and error counts, point-in-time main-process RSS, database size, reclaimable bytes, source kind, and run mode. The RSS field is explicitly not represented as whole-application peak memory.
 - Exhausted Oracle worker timeouts persist as per-file `Analysis error` records with the exact filename, `oracle-engine` failure stage, worker code, attempt count, and evidence. The failed worker is replaced and the remaining library continues; infrastructure-error cache entries are retried on later audits.
 - Per-file Reports use independent bounded list and evidence panes. Selecting a row anywhere in a long report keeps the evidence visible beside it, resets the new evidence report to its header, and preserves independent scrolling in both wide and stacked window layouts.
-- `npm run benchmark:scale` enforces repeatable persistence and restoration budgets for dense-evidence 100-, 1,000-, and 10,000-record sessions. The v0.4.19 benchmark persisted 10,000 records in 8.19 seconds, restored compact history in 448 ms, and occupied 435 MB across the cumulative 11,100 stored records, below the 600 MiB database budget.
+- `npm run benchmark:scale` enforces repeatable persistence and restoration budgets for dense-evidence 100-, 1,000-, and 10,000-record sessions. The v0.4.25 benchmark persisted 10,000 records in 7.67 seconds, restored compact history in 385 ms, and occupied 435.5 MB across the cumulative 11,100 stored records, below the 600 MiB database budget.
 
 These dense-evidence figures validate storage and compact state retrieval on the development Mac; they do not represent full audio decode throughput.
 

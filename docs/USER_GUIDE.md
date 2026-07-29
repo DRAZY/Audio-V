@@ -119,6 +119,14 @@ If the same file interrupts the application again during safe validation, the ne
 
 **Clear history** removes all finished, canceled, failed, and interrupted sessions from the History list immediately after confirmation. It is unavailable while an audit is active and never deletes source audio, reusable Oracle cache records, or the separate Identity fingerprint index. Large session collections are physically reclaimed in small background batches so the interface remains usable; visible status confirms when that cleanup finishes, and an interrupted cleanup resumes on the next launch. If you clear the history currently open in the workspace, Audio-V closes that saved view and returns to an empty audit workspace.
 
+New databases return freed pages to the operating system incrementally. A
+database created by an older Audio-V version may still contain substantial
+unused pages after its records are removed. Settings shows database, live, and
+reclaimable sizes. **Reclaim unused storage** performs a one-time isolated
+compaction, enables bounded future reclamation, preserves cache and Identity
+records, and is unavailable while an audit or history cleanup is active. Keep
+Audio-V open until the operation finishes.
+
 ## Keyboard commands
 
 - `Command/Ctrl+O` — choose audio files
@@ -135,6 +143,11 @@ events, scan coordination, per-file starts and outcomes, Oracle worker
 attempts, timeouts and recycling, storage recovery, checkpoints, and native
 process termination. Open **Settings → Support diagnostics → Open log folder**
 to inspect them.
+
+Every completed audit also records the Audio-V version, elapsed wall time,
+file/error counts, database and reclaimable sizes, and point-in-time main
+process memory. This makes future real-library runs evidence-bearing. It does
+not claim to be total peak memory across Electron and FFmpeg processes.
 
 - macOS: `~/Library/Application Support/audio-v/logs`
 - Windows: `%APPDATA%\audio-v\logs`

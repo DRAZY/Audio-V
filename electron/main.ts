@@ -624,6 +624,31 @@ ipcMain.handle("sessions:clear-history", async () => {
   return result;
 });
 
+ipcMain.handle("storage:status", () => auditSessions.storageStatus());
+
+ipcMain.handle("storage:optimize", async () => {
+  if (activeScanSessionId) {
+    throw new Error(
+      "Storage cannot be optimized while an audit is running.",
+    );
+  }
+  if (historyCleanupRunning || historyCleanupTimer) {
+    throw new Error(
+      "Wait for history cleanup to finish before optimizing storage.",
+    );
+  }
+  logApplication("info", "audit-storage.optimization-started");
+  const result = await auditSessions.optimizeStorage();
+  logApplication("info", "audit-storage.optimization-completed", {
+    beforeBytes: result.before.databaseBytes,
+    afterBytes: result.after.databaseBytes,
+    reclaimedBytes:
+      result.before.databaseBytes - result.after.databaseBytes,
+    elapsedMilliseconds: result.elapsedMilliseconds,
+  });
+  return result;
+});
+
 ipcMain.handle("fingerprints:list", () =>
   auditSessions.listFingerprintLibrary(),
 );
@@ -920,6 +945,7 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
       : undefined,
   };
   const sessionId = await auditSessions.create(persistedSource);
+  const scanStartedMilliseconds = Date.now();
   activeScanSessionId = sessionId;
   logApplication("info", "scan.started", {
     sessionId,
@@ -1160,6 +1186,9 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
     await persistence.flush();
     sessionWarnings = result.warnings;
     await auditSessions.finish(sessionId, "completed", sessionWarnings);
+    const completedStorageStatus = await auditSessions
+      .storageStatus()
+      .catch(() => null);
     emitProgress(
       {
         phase: "complete",
@@ -1175,11 +1204,22 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
     );
     logApplication("info", "scan.completed", {
       sessionId,
+      applicationVersion: app.getVersion(),
       discoveredCount: result.files.length,
       warningCount: sessionWarnings.length,
       analysisErrorCount: result.files.filter(
         (file) => file.oracle.analysisState === "error",
       ).length,
+      elapsedMilliseconds: Date.now() - scanStartedMilliseconds,
+      mainProcessRssBytesAtCompletion: process.memoryUsage().rss,
+      databaseBytesAtCompletion:
+        completedStorageStatus?.databaseBytes ?? null,
+      databaseReclaimableBytesAtCompletion:
+        completedStorageStatus?.reclaimableBytes ?? null,
+      sourceKind: persistedSource.kind,
+      sourceMode: persistedSource.mode ?? "full-audit",
+      performanceLimitation:
+        "Completion RSS is a point-in-time main-process value, not total application peak memory.",
     });
     for (const file of result.files) {
       const normalizedPath = path.resolve(file.path);

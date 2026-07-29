@@ -108,6 +108,10 @@ port.on("message", (request: StorageWorkerRequest) => {
         return store.clearHistory();
       case "purge-hidden-history":
         return store.purgeHiddenHistoryBatch(request.limit);
+      case "storage-status":
+        return store.storageStatus();
+      case "optimize-storage":
+        return store.optimizeStorage();
       case "get-session":
         return store.getSession(request.sessionId, request.compact);
       case "get-session-file":

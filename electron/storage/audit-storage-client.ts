@@ -4,6 +4,8 @@ import type {
   AudioFileRecord,
   AudioSourceSelection,
   AuditHistoryClearResult,
+  AuditStorageOptimizationResult,
+  AuditStorageStatus,
   AuditSessionStatus,
   AuditSessionSummary,
   ReportExportFormat,
@@ -138,6 +140,17 @@ export class AuditStorageClient {
     remainingSessions: number;
   }> {
     return this.#request({ operation: "purge-hidden-history", limit });
+  }
+
+  storageStatus(): Promise<AuditStorageStatus> {
+    return this.#request({ operation: "storage-status" });
+  }
+
+  optimizeStorage(): Promise<AuditStorageOptimizationResult> {
+    return this.#request(
+      { operation: "optimize-storage" },
+      4 * 60 * 60_000,
+    );
   }
 
   getSession(

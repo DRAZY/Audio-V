@@ -60,6 +60,21 @@ await fileCheck(
 await fileCheck("Scale benchmark result", "build/performance-latest.json", (value) =>
   JSON.parse(value).passed === true,
 );
+await fileCheck("Defect severity gate", "build/defect-register-latest.json", (value) => {
+  const report = JSON.parse(value);
+  return report.passed === true && report.unresolvedBlockingDefects === 0;
+});
+await fileCheck(
+  "Maintainer acceptance evidence",
+  "build/manual-acceptance-latest.json",
+  (value) => {
+    const report = JSON.parse(value);
+    return (
+      report.passed === true &&
+      report.largestCompletedRealLibraryAtLeast >= 6_000
+    );
+  },
+);
 await fileCheck("Headless CLI result", "build/cli-validation-latest.json", (value) =>
   JSON.parse(value).passed === true,
 );

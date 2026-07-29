@@ -23,6 +23,8 @@ const api: AudioVDesktopApi = {
   },
   listAuditSessions: () => ipcRenderer.invoke("sessions:list"),
   clearAuditHistory: () => ipcRenderer.invoke("sessions:clear-history"),
+  auditStorageStatus: () => ipcRenderer.invoke("storage:status"),
+  optimizeAuditStorage: () => ipcRenderer.invoke("storage:optimize"),
   onAuditHistoryCleanup: (listener) => {
     const handler = (
       _event: Electron.IpcRendererEvent,

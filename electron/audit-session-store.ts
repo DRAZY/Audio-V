@@ -7,6 +7,8 @@ import type {
   AudioFileRecord,
   AudioSourceSelection,
   AuditHistoryClearResult,
+  AuditStorageOptimizationResult,
+  AuditStorageStatus,
   AuditSessionStatus,
   AuditSessionSummary,
   StoredAuditSession,
@@ -41,7 +43,7 @@ interface FileRow {
   record_blob?: Uint8Array | null;
 }
 
-const schemaVersion = 8;
+const schemaVersion = 9;
 const crashRecoveryWarning =
   "Audio-V recovered this audit after the previous application process ended before the scan finished.";
 
@@ -50,6 +52,10 @@ export class AuditSessionStore {
 
   constructor(filePath: string) {
     this.#database = new DatabaseSync(filePath);
+    const initialPageCount = this.#pragmaNumber("page_count");
+    if (initialPageCount === 0) {
+      this.#database.exec("PRAGMA auto_vacuum = INCREMENTAL;");
+    }
     this.#database.exec(`
       PRAGMA journal_mode = WAL;
       PRAGMA foreign_keys = ON;
@@ -488,6 +494,12 @@ export class AuditSessionStore {
         `)
         .get() as unknown as { count: number };
       this.#database.exec("COMMIT");
+      if (
+        (deletedFiles > 0 || deletedSessions > 0) &&
+        this.#pragmaNumber("auto_vacuum") === 2
+      ) {
+        this.#database.exec("PRAGMA incremental_vacuum(250);");
+      }
       return {
         deletedFiles: Number(deletedFiles),
         deletedSessions: Number(deletedSessions),
@@ -497,6 +509,57 @@ export class AuditSessionStore {
       this.#database.exec("ROLLBACK");
       throw error;
     }
+  }
+
+  storageStatus(): AuditStorageStatus {
+    const pageSize = this.#pragmaNumber("page_size");
+    const pageCount = this.#pragmaNumber("page_count");
+    const freePages = this.#pragmaNumber("freelist_count");
+    const autoVacuumValue = this.#pragmaNumber("auto_vacuum");
+    const databaseBytes = pageSize * pageCount;
+    const reclaimableBytes = pageSize * freePages;
+    return {
+      databaseBytes,
+      reclaimableBytes,
+      liveBytes: Math.max(0, databaseBytes - reclaimableBytes),
+      autoVacuum:
+        autoVacuumValue === 2
+          ? "incremental"
+          : autoVacuumValue === 1
+            ? "full"
+            : "none",
+      optimizationRecommended:
+        reclaimableBytes >= 128 * 1024 * 1024 &&
+        reclaimableBytes >= databaseBytes * 0.15,
+    };
+  }
+
+  optimizeStorage(): AuditStorageOptimizationResult {
+    const running = this.#database
+      .prepare(`
+        SELECT COUNT(*) AS count
+        FROM audit_sessions
+        WHERE status = 'running'
+      `)
+      .get() as unknown as { count: number };
+    if (running.count > 0) {
+      throw new Error(
+        "Storage cannot be optimized while an audit is running.",
+      );
+    }
+    const before = this.storageStatus();
+    const startedAt = Date.now();
+    this.#database.exec(`
+      PRAGMA wal_checkpoint(TRUNCATE);
+      PRAGMA auto_vacuum = INCREMENTAL;
+      VACUUM;
+      PRAGMA optimize;
+    `);
+    return {
+      before,
+      after: this.storageStatus(),
+      elapsedMilliseconds: Date.now() - startedAt,
+    };
   }
 
   getSession(
@@ -950,6 +1013,14 @@ export class AuditSessionStore {
 
   close(): void {
     this.#database.close();
+  }
+
+  #pragmaNumber(name: "auto_vacuum" | "freelist_count" | "page_count" | "page_size"): number {
+    const row = this.#database.prepare(`PRAGMA ${name}`).get() as
+      | Record<string, unknown>
+      | undefined;
+    const value = row ? Object.values(row)[0] : 0;
+    return typeof value === "number" && Number.isFinite(value) ? value : 0;
   }
 
   #indexFingerprint(record: AudioFileRecord, now: string): void {

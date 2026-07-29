@@ -7,12 +7,12 @@ AudioAuditor and Spek.
 
 ## Executive rating
 
-Audio-V is **87% GA-ready** on a weighted engineering and product rubric. It is
+Audio-V is **89% GA-ready** on a weighted engineering and product rubric. It is
 already stronger than a spectrogram-only utility and is broadly competitive
 with AudioAuditor's core assessment workflow. It should remain labeled a
 development release until the external acceptance gates below are witnessed.
 
-The score is not an accuracy probability and does not mean that 87% of verdicts
+The score is not an accuracy probability and does not mean that 89% of verdicts
 are correct. It measures how much of the work required for a defensible,
 supportable general release is complete.
 
@@ -20,12 +20,12 @@ supportable general release is complete.
 | --- | ---: | ---: | --- |
 | Scientific validity and verdict semantics | 25% | 86% | Standards-based loudness and true peak, complete decode, FLAC PCM MD5, versioned five-lane rules, explicit uncertainty |
 | Functional assessment completeness | 20% | 94% | Batch audit, metadata, signal, spectral, provenance, comparison, reports, CLI, cue, ReplayGain, fingerprints |
-| Reliability, scale, recovery, and cancellation | 20% | 88% | Bounded workers, SQLite checkpoints, adaptive resume, suspect isolation, compact 10,000-file storage model |
-| Workflow, responsive UI, and accessibility | 15% | 90% | Evidence-first review, human disposition, scalable layouts, keyboard and automated accessibility gates |
+| Reliability, scale, recovery, and cancellation | 20% | 92% | Bounded workers, SQLite checkpoints, adaptive resume, suspect isolation, 10,000-record storage benchmark, witnessed 6,000-file completion, and measured page reclamation |
+| Workflow, responsive UI, and accessibility | 15% | 92% | Evidence-first review, human disposition, scalable layouts, keyboard and automated accessibility gates |
 | Cross-platform acceptance | 10% | 68% | Four package targets exist; native Windows, Intel Mac, clean-VM, assistive-technology, and display-scale witnessing remains incomplete |
-| Security, privacy, documentation, and release operations | 10% | 94% | Local-first analysis, opt-in AcoustID, bounded IPC, AGPL policy, checksums, unsigned-build disclosure, reproducible release scripts |
+| Security, privacy, documentation, and release operations | 10% | 97% | Local-first analysis, opt-in AcoustID, bounded IPC, versioned P0/P1 defect gate, AGPL policy, checksums, unsigned-build disclosure, reproducible release scripts |
 
-Weighted result: **87.1%**, rounded to **87%**.
+Weighted result: **89.0%**.
 
 ## What a verdict can and cannot mean
 
@@ -95,8 +95,9 @@ These cannot be closed honestly by more source code on the development Mac:
    displays and narrow snapped windows.
 5. Perform manual Narrator and VoiceOver journeys. Automated accessibility
    checks cannot prove assistive-technology usability.
-6. Publish measured wall time, peak memory, database size, cancellation
-   latency, and recovery behavior from representative real libraries.
+6. Repeat the completed 6,000-file real-library audit with platform/package
+   identity plus measured wall time, peak memory, final database size,
+   cancellation latency, and recovery behavior.
 
 ## Scientific limit that remains
 

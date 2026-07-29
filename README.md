@@ -6,7 +6,7 @@
 
   <p>
     <img alt="Locally verified builds" src="https://img.shields.io/badge/builds-locally%20verified-51e19b?style=for-the-badge">
-    <a href="https://github.com/DRAZY/Audio-V/releases/tag/v0.4.24"><img alt="Latest development release 0.4.24" src="https://img.shields.io/badge/latest-0.4.24-8b5cf6?style=for-the-badge"></a>
+    <a href="https://github.com/DRAZY/Audio-V/releases/tag/v0.4.25"><img alt="Latest development release 0.4.25" src="https://img.shields.io/badge/latest-0.4.25-8b5cf6?style=for-the-badge"></a>
     <a href="LICENSE"><img alt="AGPL 3.0 only" src="https://img.shields.io/badge/license-AGPL--3.0--only-8b5cf6?style=for-the-badge"></a>
     <img alt="macOS and Windows" src="https://img.shields.io/badge/platforms-macOS%20%7C%20Windows-252532?style=for-the-badge">
   </p>
@@ -66,21 +66,21 @@ but the main workflow is designed to answer three simple questions:
 ## Download Audio-V
 
 The current locally built development release is
-**[Audio-V 0.4.24](https://github.com/DRAZY/Audio-V/releases/tag/v0.4.24)**.
+**[Audio-V 0.4.25](https://github.com/DRAZY/Audio-V/releases/tag/v0.4.25)**.
 
 | Your computer | Download | What you receive |
 |---|---|---|
-| Apple Silicon Mac | [Apple Silicon DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.24/Audio-V-0.4.24-mac-arm64.dmg) | Native build for M-series Macs |
-| Any supported Mac | [Universal DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.24/Audio-V-0.4.24-mac-universal.dmg) | Apple Silicon and Intel in one package |
-| Windows | [Windows installer](https://github.com/DRAZY/Audio-V/releases/download/v0.4.24/Audio-V-0.4.24-win-x64.exe) | Guided installation |
-| Windows portable | [Portable executable](https://github.com/DRAZY/Audio-V/releases/download/v0.4.24/Audio-V-Portable-0.4.24-x64.exe) | Runs without installation |
+| Apple Silicon Mac | [Apple Silicon DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.25/Audio-V-0.4.25-mac-arm64.dmg) | Native build for M-series Macs |
+| Any supported Mac | [Universal DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.25/Audio-V-0.4.25-mac-universal.dmg) | Apple Silicon and Intel in one package |
+| Windows | [Windows installer](https://github.com/DRAZY/Audio-V/releases/download/v0.4.25/Audio-V-0.4.25-win-x64.exe) | Guided installation |
+| Windows portable | [Portable executable](https://github.com/DRAZY/Audio-V/releases/download/v0.4.25/Audio-V-Portable-0.4.25-x64.exe) | Runs without installation |
 
 These builds are not signed with paid Apple or Microsoft certificates. Verify
 the download with
-[`SHA256SUMS.txt`](https://github.com/DRAZY/Audio-V/releases/download/v0.4.24/SHA256SUMS.txt),
+[`SHA256SUMS.txt`](https://github.com/DRAZY/Audio-V/releases/download/v0.4.25/SHA256SUMS.txt),
 then follow the
 [unsigned installation guide](docs/UNSIGNED_INSTALLATION.md). The
-[`UNSIGNED_RELEASE_MANIFEST.json`](https://github.com/DRAZY/Audio-V/releases/download/v0.4.24/UNSIGNED_RELEASE_MANIFEST.json)
+[`UNSIGNED_RELEASE_MANIFEST.json`](https://github.com/DRAZY/Audio-V/releases/download/v0.4.25/UNSIGNED_RELEASE_MANIFEST.json)
 records the signing policy and artifact identities.
 
 ## Your first audit
@@ -357,6 +357,8 @@ History can also be cleared after confirmation when no audit is running. The
 list clears immediately, while large saved sessions are reclaimed in small,
 restart-safe background batches so the app stays responsive. Your audio files,
 reusable Oracle cache, and separate Identity fingerprint index are left alone.
+Settings shows live and reclaimable database space. Legacy databases can run
+one isolated compaction; new databases return free pages incrementally.
 
 ### Automation and the packaged CLI
 
@@ -419,6 +421,7 @@ Read the complete [privacy and security model](docs/PRIVACY_SECURITY.md).
 | You want formulas, standards, and limitations | [Methodology](docs/METHODOLOGY.md) |
 | You want to understand validation claims | [Validation corpus contract](docs/VALIDATION_CORPUS.md) |
 | You want the current GA score and remaining gates | [GA readiness audit](docs/GA_READINESS_AUDIT.md) |
+| You want the release-blocking defect rules | [Defect severity policy](docs/DEFECT_SEVERITY_POLICY.md) |
 | You need to install an unsigned build | [Unsigned installation](docs/UNSIGNED_INSTALLATION.md) |
 | You want the implemented capability contract | [Product audit](docs/PRODUCT_AUDIT.md) |
 | You are preparing a release | [Release workflow](docs/RELEASING.md) and [RC checklist](docs/RELEASE_CANDIDATE_CHECKLIST.md) |

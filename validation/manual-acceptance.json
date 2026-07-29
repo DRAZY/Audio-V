@@ -1,0 +1,28 @@
+{
+  "schema": "Audio-V manual acceptance evidence v1",
+  "evidence": [
+    {
+      "id": "AV-MAINTAINER-LIBRARY-6000-2026-07-28",
+      "observedAt": "2026-07-28",
+      "kind": "real-library-full-audit",
+      "observerRole": "project-maintainer",
+      "outcome": "completed",
+      "minimumFileCount": 6000,
+      "platform": "not-recorded",
+      "packageVersion": "development-build-version-not-recorded",
+      "verifiedClaims": [
+        "A real music library containing at least 6,000 files completed an Audio-V full audit."
+      ],
+      "notCaptured": [
+        "Exact file count",
+        "Operating-system and hardware profile",
+        "Exact Audio-V package version",
+        "Wall time",
+        "Peak resident memory",
+        "Final database size",
+        "Verdict distribution",
+        "Cancellation or crash-recovery timing"
+      ]
+    }
+  ]
+}

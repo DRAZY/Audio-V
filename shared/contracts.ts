@@ -662,6 +662,20 @@ export interface AuditHistoryCleanupProgress {
   explanation: string;
 }
 
+export interface AuditStorageStatus {
+  databaseBytes: number;
+  reclaimableBytes: number;
+  liveBytes: number;
+  autoVacuum: "none" | "full" | "incremental";
+  optimizationRecommended: boolean;
+}
+
+export interface AuditStorageOptimizationResult {
+  before: AuditStorageStatus;
+  after: AuditStorageStatus;
+  elapsedMilliseconds: number;
+}
+
 export interface StoredAuditSession extends AuditSessionSummary {
   warnings: string[];
   files: AudioFileRecord[];
@@ -856,6 +870,8 @@ export interface AudioVDesktopApi {
   scanSelection(source: AudioSourceSelection): Promise<ScanSelectionResult>;
   listAuditSessions(): Promise<AuditSessionSummary[]>;
   clearAuditHistory(): Promise<AuditHistoryClearResult>;
+  auditStorageStatus(): Promise<AuditStorageStatus>;
+  optimizeAuditStorage(): Promise<AuditStorageOptimizationResult>;
   onAuditHistoryCleanup(
     listener: (progress: AuditHistoryCleanupProgress) => void,
   ): () => void;

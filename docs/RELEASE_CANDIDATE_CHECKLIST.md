@@ -4,23 +4,25 @@ A release candidate is evidence-backed, not simply a successful packaging comman
 
 ## Current readiness snapshot
 
-As of source version 0.4.24:
+As of source version 0.4.25:
 
 | Area | Current evidence | RC meaning |
 |---|---|---|
-| Source regression | 133 tests passed | Automated source behavior is green |
+| Source regression | 135 tests passed | Automated source behavior is green |
 | Build and UI | Type checks, production build, responsive-layout checks, and 41 accessibility rules passed | Repository-level UI gate is green |
-| Scale storage | 10,000-record persistence completed in 8.19 seconds; restore completed in 448 ms; cumulative 11,100-record database was 435 MB | Synthetic dense-evidence storage budget is green |
+| Scale storage | 10,000-record persistence completed in 7.67 seconds; restore completed in 385 ms; cumulative 11,100-record database was 435.5 MB | Synthetic dense-evidence storage budget is green |
 | macOS packages | Apple Silicon and Universal DMGs passed structure/signature checks; native Apple Silicon packaged reference audit passed | Current development Mac evidence is green |
 | Windows packages | Installer and portable package structure and bundled resources passed macOS-side inspection | Native Windows launch and workflow acceptance remain open |
-| Release assets | Four application packages, checksums, block maps, and unsigned policy manifest prepared and locally verified for v0.4.24 | Preview distribution is reproducible after publication |
+| Real-library scale | Maintainer witnessed a completed full audit of at least 6,000 files | Completion is established; platform, version, timing, memory, and final database size were not captured |
+| Blocking defects | Versioned register contains one fixed P1 and zero unresolved P0/P1 defects | Known critical/high defects block release automatically |
+| Release assets | Four application packages, checksums, block maps, and unsigned policy manifest prepared and locally verified for v0.4.25 | Preview distribution is reproducible after publication |
 | Real-world origin calibration | Infrastructure is valid; licensed independent masters are absent | No probability-calibrated origin claim is allowed |
 
-The automated readiness command reports 15/15 repository evidence categories,
+The automated readiness command reports 17/17 repository evidence categories,
 but Audio-V is **not yet promoted as a release candidate**. Native Windows
 runtime/parity, Intel launch, clean-environment installation and upgrade,
-assistive-technology workflows, display scaling, and real-library stress
-testing remain manual acceptance work.
+assistive-technology workflows, display scaling, and instrumented real-library
+performance remain manual acceptance work.
 
 ## Automated acceptance
 
@@ -33,6 +35,8 @@ testing remain manual acceptance work.
 - [ ] Accessibility audit has no serious or critical violations.
 - [ ] Left, right, and L−R channel selections each repaint a fully populated spectrogram canvas without requiring a Floor, zoom, or color control change.
 - [ ] Scale budgets pass for 100, 1,000, and 10,000 records.
+- [ ] The defect register matches the package version and contains no unresolved P0/P1 defects.
+- [ ] Maintainer acceptance evidence validates and states every uncaptured measurement.
 - [ ] Packaged CLI folder audit emits the v11 five-lane JSON evidence model, honors evidence-policy and native resource limits, and does not persist external-service keys.
 - [ ] Production dependency audit reports zero known vulnerabilities.
 - [ ] Apple Silicon DMG, Universal DMG, Windows installer, and Windows portable artifacts pass structural inspection.

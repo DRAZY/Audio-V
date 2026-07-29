@@ -230,6 +230,53 @@ describe("AuditSessionStore", () => {
     }
   });
 
+  it("enables bounded page reclamation for new databases", async () => {
+    const directory = await fs.mkdtemp(
+      path.join(process.cwd(), "tests/.tmp-session-autovacuum-"),
+    );
+    temporaryDirectories.push(directory);
+    const store = new AuditSessionStore(
+      path.join(directory, "sessions.sqlite3"),
+    );
+    try {
+      expect(store.storageStatus().autoVacuum).toBe("incremental");
+    } finally {
+      store.close();
+    }
+  });
+
+  it("compacts a legacy database and enables future incremental reclamation", async () => {
+    const directory = await fs.mkdtemp(
+      path.join(process.cwd(), "tests/.tmp-session-legacy-vacuum-"),
+    );
+    temporaryDirectories.push(directory);
+    const databasePath = path.join(directory, "sessions.sqlite3");
+    const legacy = new DatabaseSync(databasePath);
+    legacy.exec(`
+      PRAGMA auto_vacuum = NONE;
+      CREATE TABLE legacy_padding (payload BLOB);
+      INSERT INTO legacy_padding VALUES (zeroblob(8388608));
+      DELETE FROM legacy_padding;
+    `);
+    legacy.close();
+
+    const store = new AuditSessionStore(databasePath);
+    try {
+      const before = store.storageStatus();
+      expect(before.autoVacuum).toBe("none");
+      expect(before.reclaimableBytes).toBeGreaterThan(0);
+      const result = store.optimizeStorage();
+      expect(result.before).toEqual(before);
+      expect(result.after.autoVacuum).toBe("incremental");
+      expect(result.after.databaseBytes).toBeLessThan(before.databaseBytes);
+      expect(result.after.reclaimableBytes).toBeLessThan(
+        before.reclaimableBytes,
+      );
+    } finally {
+      store.close();
+    }
+  });
+
   it("recovers an abruptly interrupted audit and isolates only in-flight files", async () => {
     const directory = await fs.mkdtemp(
       path.join(process.cwd(), "tests/.tmp-session-recovery-"),

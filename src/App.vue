@@ -7,6 +7,7 @@ import type {
   AudioSourceSelection,
   AuditResumeStrategy,
   AuditSessionSummary,
+  AuditStorageStatus,
   DecodedSignalComparison,
   FingerprintLibraryEntry,
   OracleValidationStatus,
@@ -49,6 +50,9 @@ const sourceIoNotice = ref("");
 const diagnosticsMessage = ref(
   "Diagnostics exclude filenames, paths, checksums, tags, and audio evidence.",
 );
+const auditStorageStatus = ref<AuditStorageStatus | null>(null);
+const auditStorageMessage = ref("Measuring saved audit storage…");
+const auditStorageOptimizing = ref(false);
 const validationStatus = ref<OracleValidationStatus | null>(null);
 const isDiscovering = ref(false);
 const isScanPaused = ref(false);
@@ -1011,6 +1015,7 @@ onMounted(() => {
   void renderComparisonVisuals();
   void refreshAuditSessions();
   void refreshFingerprintLibrary();
+  void refreshAuditStorageStatus();
   void window.audioV
     ?.validationStatus()
     .then((status) => {
@@ -1160,6 +1165,46 @@ async function openApplicationLogs(): Promise<void> {
   diagnosticsMessage.value = opened
     ? "Opened Audio-V's local rotating JSONL log folder."
     : "Application logs are not available yet.";
+}
+
+async function refreshAuditStorageStatus(): Promise<void> {
+  if (!window.audioV) return;
+  try {
+    auditStorageStatus.value = await window.audioV.auditStorageStatus();
+    auditStorageMessage.value = auditStorageStatus.value.optimizationRecommended
+      ? `${formatBytes(auditStorageStatus.value.reclaimableBytes)} can be safely reclaimed.`
+      : "Saved audit storage is within the compaction threshold.";
+  } catch (error) {
+    auditStorageMessage.value =
+      error instanceof Error
+        ? `Storage status unavailable · ${error.message}`
+        : "Storage status is unavailable.";
+  }
+}
+
+async function optimizeAuditStorage(): Promise<void> {
+  if (!window.audioV || auditStorageOptimizing.value) return;
+  auditStorageOptimizing.value = true;
+  auditStorageMessage.value =
+    "Optimizing saved audit storage… Audio-V remains open; do not start an audit or quit until this finishes.";
+  try {
+    const result = await window.audioV.optimizeAuditStorage();
+    auditStorageStatus.value = result.after;
+    auditStorageMessage.value =
+      `Optimization complete · ${formatBytes(
+        Math.max(
+          0,
+          result.before.databaseBytes - result.after.databaseBytes,
+        ),
+      )} reclaimed in ${formatDuration(result.elapsedMilliseconds / 1000)}.`;
+  } catch (error) {
+    auditStorageMessage.value =
+      error instanceof Error
+        ? `Storage was not optimized · ${error.message}`
+        : "Storage was not optimized.";
+  } finally {
+    auditStorageOptimizing.value = false;
+  }
 }
 
 async function scanSource(source: AudioSourceSelection): Promise<void> {
@@ -3900,6 +3945,28 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
             <small>Corpus {{ validationStatus?.corpusVersion ?? "—" }} · Synthetic fixtures and derivatives never increase the independent-master count.</small>
           </article>
           <article><span>Open-source license</span><strong>AGPL-3.0-only</strong><p>Code remains available under strong copyleft. Audio-V and Oracle Engine names and artwork remain governed by the trademark policy.</p></article>
+          <article class="resource-controls">
+            <span>Saved audit storage</span>
+            <strong>
+              {{
+                auditStorageStatus
+                  ? `${formatBytes(auditStorageStatus.liveBytes)} live · ${formatBytes(auditStorageStatus.reclaimableBytes)} reclaimable`
+                  : "Measuring local database"
+              }}
+            </strong>
+            <p>{{ auditStorageMessage }}</p>
+            <small v-if="auditStorageStatus">
+              Database {{ formatBytes(auditStorageStatus.databaseBytes) }} ·
+              {{ auditStorageStatus.autoVacuum === "incremental" ? "bounded automatic reclamation enabled" : "legacy database requires one full optimization" }}
+            </small>
+            <button
+              class="secondary-action"
+              :disabled="isDiscovering || auditStorageOptimizing || !auditStorageStatus?.optimizationRecommended"
+              @click="optimizeAuditStorage"
+            >
+              {{ auditStorageOptimizing ? "Optimizing…" : "Reclaim unused storage" }}
+            </button>
+          </article>
           <article><span>Support diagnostics</span><strong>Privacy-safe export and local application logs</strong><p>{{ diagnosticsMessage }}</p><div class="resource-presets"><button class="secondary-action" @click="exportDiagnostics">Export diagnostics</button><button class="secondary-action" @click="openApplicationLogs">Open log folder</button></div></article>
           <article><span>Keyboard workflow</span><strong>Fast navigation</strong><p>Use {{ primaryModifier }}+O for files, {{ primaryModifier }}+Shift+O for a folder, and {{ primaryModifier }}+1–6 for workspaces.</p></article>
         </div>
