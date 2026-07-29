@@ -59,6 +59,8 @@ const api: AudioVDesktopApi = {
       channelMapping,
       region,
     ),
+  loadComparisonFile: (filePath, sessionId) =>
+    ipcRenderer.invoke("comparison:load-file", filePath, sessionId),
   externalIdentityServiceStatus: () =>
     ipcRenderer.invoke("identity:service-status"),
   identifyFiles: (

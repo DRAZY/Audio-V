@@ -2540,6 +2540,20 @@ button:focus-visible {
   display: block;
 }
 
+.comparison-visual-placeholder {
+  min-height: 68px;
+  margin: 0;
+  padding: 12px;
+  display: grid;
+  place-items: center;
+  border: 1px dashed rgba(160, 164, 176, 0.24);
+  border-radius: 5px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.015);
+  font: 600 10px/1.45 var(--font-data);
+  text-align: center;
+}
+
 .waveform-stack line,
 .comparison-waveform-composite line,
 .residual-waveform line {
@@ -2581,6 +2595,14 @@ button:focus-visible {
   stroke-width: 1.2;
 }
 
+.residual-waveform > small {
+  margin-top: 7px;
+  display: block;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.4;
+}
+
 .spectrum-compare-grid {
   margin-top: 8px;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -2591,6 +2613,10 @@ button:focus-visible {
   height: 120px;
   display: block;
   image-rendering: pixelated;
+}
+
+.spectrum-compare-grid .comparison-visual-placeholder {
+  min-height: 120px;
 }
 
 .difference-spectrum {

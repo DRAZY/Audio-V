@@ -77,6 +77,10 @@ let oracleWorkers: OracleWorkerPool;
 let auditSessions: AuditStorageClient;
 let activeComparisonController: AbortController | null = null;
 let activeIdentityController: AbortController | null = null;
+const activeComparisonVisualLoads = new Map<
+  string,
+  Promise<AudioFileRecord>
+>();
 let historyCleanupTimer: NodeJS.Timeout | null = null;
 let historyCleanupRunning = false;
 let historyCleanupDeletedFiles = 0;
@@ -888,6 +892,83 @@ ipcMain.handle(
       quarantinedCandidateCount:
         recovery.quarantinedCandidatePaths.length,
     };
+  },
+);
+
+ipcMain.handle(
+  "comparison:load-file",
+  async (
+    _event,
+    requestedPath: unknown,
+    requestedSessionId: unknown,
+  ) => {
+    if (
+      typeof requestedPath !== "string" ||
+      (requestedSessionId !== undefined &&
+        (typeof requestedSessionId !== "string" ||
+          !/^[a-f0-9-]{36}$/iu.test(requestedSessionId)))
+    ) {
+      throw new TypeError(
+        "A valid comparison file and optional audit session are required.",
+      );
+    }
+    const filePath = path.resolve(requestedPath);
+    if (!approvedAudioFiles.has(filePath)) {
+      throw new Error(
+        "Select this audio file through Audio-V before loading comparison evidence.",
+      );
+    }
+    const loadKey = `${typeof requestedSessionId === "string" ? requestedSessionId : "reusable"}\0${filePath}`;
+    const existingLoad = activeComparisonVisualLoads.get(loadKey);
+    if (existingLoad) return existingLoad;
+    const load = (async (): Promise<AudioFileRecord> => {
+      const sessionRecord =
+        typeof requestedSessionId === "string"
+          ? await auditSessions.getSessionFile(requestedSessionId, filePath)
+          : null;
+      const record =
+        sessionRecord ??
+        authoritativeRecords.get(filePath) ??
+        (await auditSessions.getCached(filePath));
+      if (!record) {
+        throw new Error(
+          "The selected comparison file has no reusable Audio-V evidence.",
+        );
+      }
+      const measurements = record.oracle.measurements;
+      const hasVisualEvidence =
+        Boolean(measurements?.waveform?.points.length) &&
+        Boolean(measurements?.spectrogram.slices.length);
+      if (hasVisualEvidence) {
+        rememberAuthoritativeRecord(record);
+        return record;
+      }
+      const oracle = await analyzeWithWorkerIsolation(filePath);
+      const { detailLevel: _detailLevel, ...base } = record;
+      const hydrated = {
+        ...base,
+        oracle,
+      } as AudioFileRecord;
+      rememberAuthoritativeRecord(hydrated);
+      await auditSessions.setCached(hydrated);
+      if (typeof requestedSessionId === "string") {
+        const stored = await auditSessions.getSessionFile(
+          requestedSessionId,
+          filePath,
+        );
+        if (stored?.userReview) hydrated.userReview = stored.userReview;
+        await auditSessions.updateSessionFile(
+          requestedSessionId,
+          filePath,
+          hydrated,
+        );
+      }
+      return hydrated;
+    })().finally(() => {
+      activeComparisonVisualLoads.delete(loadKey);
+    });
+    activeComparisonVisualLoads.set(loadKey, load);
+    return load;
   },
 );
 

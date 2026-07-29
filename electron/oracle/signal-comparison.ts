@@ -479,12 +479,21 @@ export async function compareAudioFiles(
     leftProbe.durationSeconds ?? analyzedSeconds,
     rightProbe.durationSeconds ?? analyzedSeconds,
   );
+  const durationCoveragePercent =
+    maximumDuration > 0 ? (analyzedSeconds / maximumDuration) * 100 : 0;
+  const absolutePreviewCorrelation = Math.abs(
+    aligned.result.sampleCorrelation,
+  );
   const relationship =
-    worstDepth >= 80
+    worstDepth >= 80 &&
+      durationCoveragePercent >= 80 &&
+      (channelMapping || absolutePreviewCorrelation >= 0.999)
       ? "aligned-equivalent"
-      : worstDepth >= 50
+      : worstDepth >= 50 &&
+          (channelMapping || absolutePreviewCorrelation >= 0.95)
         ? "strongly-related"
-        : worstDepth >= 25
+        : worstDepth >= 25 &&
+            (channelMapping || absolutePreviewCorrelation >= 0.5)
           ? "possibly-related"
           : "distinct";
   return {
@@ -501,8 +510,7 @@ export async function compareAudioFiles(
     fullTrack: true,
     comparedChannels: mappings.length,
     comparedFrames: Math.round(analyzedSeconds * outputRate),
-    durationCoveragePercent:
-      maximumDuration > 0 ? (analyzedSeconds / maximumDuration) * 100 : 0,
+    durationCoveragePercent,
     perChannel: psnr.map((depth, channel) => ({
       channel,
       leftChannel: mappings[channel].leftChannel,

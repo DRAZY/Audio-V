@@ -97,6 +97,12 @@ Intentional filtering, microphones, instruments, analog transfers, noise reducti
 
 Load File A and File B independently from disk or choose current-audit files. Audio-V compares identity, properties, waveform envelopes, spectra, normalized spectral difference, preview-derived offset/gain/polarity, and a full-track per-channel null without adding playback.
 
+Large audit lists intentionally retain compact summary records in memory.
+Selecting either file in Compare automatically restores its full waveform and
+spectrogram evidence from the saved session. While that happens, the affected
+panel says that visual evidence is loading; a failed restore produces an
+explicit error rather than a blank or stale canvas.
+
 Automatic mapping runs a full-track null when channel counts match. For differing layouts, choose **Explicit channel map** and pair each participating File A channel with one File B channel. Each channel can appear once. Without an explicit map, Audio-V preserves the bounded mono alignment preview and explains why a full null was not attempted.
 
 ## Repair
@@ -204,6 +210,10 @@ gain. Choose a start and end time, then select **Measure selected region** to
 calculate correlation, residual level, and residual peak for that passage.
 These visual and regional aids do not replace the complete overlapping,
 per-channel null test shown in Decoded-signal alignment.
+
+An `aligned-equivalent` relationship requires strong alignment evidence and at
+least 80% duration coverage. A deep null over a very short overlap or an
+uncorrelated periodic signal is not promoted to equivalence.
 
 For account creation, the correct AcoustID key type, step-by-step Settings
 instructions, privacy details, and service-error help, use the dedicated

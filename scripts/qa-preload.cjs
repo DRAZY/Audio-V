@@ -10,7 +10,13 @@ const serializedPayload =
     : null);
 if (!serializedPayload) throw new Error("AUDIO_V_QA_PAYLOAD is required");
 
-const { source, result, comparison, spectrograms = {} } =
+const {
+  source,
+  result,
+  comparison,
+  comparisonFiles = result?.files ?? [],
+  spectrograms = {},
+} =
   JSON.parse(serializedPayload);
 
 contextBridge.exposeInMainWorld("audioV", {
@@ -20,7 +26,25 @@ contextBridge.exposeInMainWorld("audioV", {
   onScanProgress: () => () => undefined,
   listAuditSessions: async () => [],
   openAuditSession: async () => null,
+  openAuditSessionFile: async (_sessionId, filePath) =>
+    comparisonFiles.find((file) => file.path === filePath) ??
+    result.files.find((file) => file.path === filePath),
+  loadComparisonFile: async (filePath) =>
+    comparisonFiles.find((file) => file.path === filePath) ??
+    result.files.find((file) => file.path === filePath),
   compareSignals: async () => comparison,
+  externalIdentityServiceStatus: async () => ({
+    officialClientConfigured: false,
+    customClientRequired: true,
+    explanation: "QA build",
+  }),
+  onIdentityProgress: () => () => undefined,
+  listFingerprintLibrary: async () => [],
+  rebuildFingerprintLibrary: async () => ({ affected: 0, remaining: 0 }),
+  pruneFingerprintLibrary: async () => ({ affected: 0, remaining: 0 }),
+  clearFingerprintLibrary: async () => ({ affected: 0, remaining: 0 }),
+  auditStorageStatus: async () => null,
+  onAuditHistoryCleanup: () => () => undefined,
   pauseScan: async () => false,
   resumeScan: async () => false,
   cancelScan: async () => false,

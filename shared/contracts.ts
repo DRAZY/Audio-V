@@ -989,6 +989,10 @@ export interface AudioVDesktopApi {
     channelMapping?: ComparisonChannelMapping[],
     region?: ComparisonRegion,
   ): Promise<DecodedSignalComparison>;
+  loadComparisonFile(
+    filePath: string,
+    sessionId?: string,
+  ): Promise<AudioFileRecord>;
   externalIdentityServiceStatus(): Promise<ExternalIdentityServiceStatus>;
   identifyFiles(
     filePaths: string[],

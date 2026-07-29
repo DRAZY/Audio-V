@@ -74,4 +74,30 @@ describe("compareAudioFiles", () => {
     });
     expect(mapped.perChannel[0].nullDepthDb).toBeGreaterThan(70);
   });
+
+  it("does not call unrelated periodic signals equivalent from a short overlap", async () => {
+    temporaryDirectory = await fs.mkdtemp(
+      path.join(process.cwd(), "tests", ".tmp-distinct-null-"),
+    );
+    const left = path.join(temporaryDirectory, "left.flac");
+    const right = path.join(temporaryDirectory, "right.flac");
+    await runEngine("ffmpeg", [
+      "-nostdin", "-hide_banner", "-v", "error",
+      "-f", "lavfi", "-i",
+      "sine=frequency=440:sample_rate=48000:duration=2",
+      "-ac", "2", "-c:a", "flac", "-y", left,
+    ]);
+    await runEngine("ffmpeg", [
+      "-nostdin", "-hide_banner", "-v", "error",
+      "-f", "lavfi", "-i",
+      "sine=frequency=880:sample_rate=48000:duration=2",
+      "-ac", "2", "-c:a", "flac", "-y", right,
+    ]);
+
+    const result = await compareAudioFiles(left, right);
+
+    expect(result.fullTrack).toBe(true);
+    expect(result.durationCoveragePercent).toBeLessThan(20);
+    expect(result.relationship).toBe("distinct");
+  });
 });

@@ -95,6 +95,15 @@ const compareAId = ref("");
 const compareBId = ref("");
 const comparisonFiles = ref<AudioFileRecord[]>([]);
 const compareLoadingSlot = ref<"a" | "b" | null>(null);
+const comparisonVisualState = ref<
+  Record<"a" | "b", { status: "idle" | "loading" | "ready" | "error"; message: string }>
+>({
+  a: { status: "idle", message: "Choose File A." },
+  b: { status: "idle", message: "Choose File B." },
+});
+const comparisonFileSessions = new Map<string, string>();
+let comparisonVisualRequestA = 0;
+let comparisonVisualRequestB = 0;
 const comparisonMappingMode = ref<"automatic" | "explicit">("automatic");
 const comparisonChannelMappings = ref<
   Array<{ leftChannel: number; rightChannel: number }>
@@ -718,6 +727,24 @@ function residualWaveformPath(): string {
   );
 }
 
+function hasComparisonVisualEvidence(
+  file: AudioFileRecord | undefined,
+): boolean {
+  return Boolean(
+    file?.oracle.measurements?.waveform?.points.length &&
+      file.oracle.measurements.spectrogram.slices.length,
+  );
+}
+
+function comparisonVisualMessage(slot: "a" | "b"): string {
+  const state = comparisonVisualState.value[slot];
+  if (state.status !== "ready") return state.message;
+  const file = slot === "a" ? compareA.value : compareB.value;
+  return hasComparisonVisualEvidence(file)
+    ? ""
+    : `File ${slot.toUpperCase()} has no decoded visual evidence.`;
+}
+
 function drawComparisonSpectrum(
   canvas: HTMLCanvasElement | null,
   file: AudioFileRecord | undefined,
@@ -730,9 +757,22 @@ function drawSpectrumMeasurements(
   canvas: HTMLCanvasElement | null,
   spectral: SpectrogramMeasurements | null | undefined,
 ): void {
-  if (!canvas || !spectral?.slices.length) return;
+  if (!canvas) return;
+  const context = canvas.getContext("2d");
+  if (!context) return;
+  if (!spectral?.slices.length) {
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    canvas.width = 1;
+    canvas.height = 1;
+    return;
+  }
   const bins = spectral.slices[0]?.levelsDbfs.length ?? 0;
-  if (!bins) return;
+  if (!bins) {
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    canvas.width = 1;
+    canvas.height = 1;
+    return;
+  }
   const visibleFraction = 1 / comparisonZoom.value;
   const startFraction =
     comparisonPan.value * Math.max(0, 1 - visibleFraction);
@@ -747,8 +787,6 @@ function drawSpectrumMeasurements(
   const visibleSlices = spectral.slices.slice(startIndex, endIndex);
   canvas.width = visibleSlices.length;
   canvas.height = bins;
-  const context = canvas.getContext("2d");
-  if (!context) return;
   const pixels = context.createImageData(canvas.width, canvas.height);
   for (let x = 0; x < canvas.width; x += 1) {
     for (let bin = 0; bin < bins; bin += 1) {
@@ -812,23 +850,38 @@ function drawComparisonDifference(): void {
   const canvas = compareSpectrogramDifference.value;
   const spectrumA = compareA.value?.oracle.measurements?.spectrogram;
   const spectrumB = compareB.value?.oracle.measurements?.spectrogram;
-  if (!canvas || !spectrumA?.slices.length || !spectrumB?.slices.length) return;
-  const width = Math.min(spectrumA.slices.length, spectrumB.slices.length);
+  if (!canvas) return;
+  const context = canvas.getContext("2d");
+  if (!context) return;
+  if (!spectrumA?.slices.length || !spectrumB?.slices.length) {
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    canvas.width = 1;
+    canvas.height = 1;
+    return;
+  }
+  const sourceWidth = Math.min(
+    spectrumA.slices.length,
+    spectrumB.slices.length,
+  );
+  const visibleFraction = 1 / Math.max(1, comparisonZoom.value);
+  const startFraction = comparisonPan.value * (1 - visibleFraction);
+  const width = Math.max(2, Math.round(sourceWidth * visibleFraction));
   const height = Math.min(
     spectrumA.slices[0].levelsDbfs.length,
     spectrumB.slices[0].levelsDbfs.length,
   );
   canvas.width = width;
   canvas.height = height;
-  const context = canvas.getContext("2d");
-  if (!context) return;
   const pixels = context.createImageData(width, height);
   for (let x = 0; x < width; x += 1) {
+    const sourceFraction =
+      startFraction +
+      (x / Math.max(1, width - 1)) * visibleFraction;
     const indexA = Math.round(
-      (x / Math.max(1, width - 1)) * (spectrumA.slices.length - 1),
+      sourceFraction * (spectrumA.slices.length - 1),
     );
     const indexB = Math.round(
-      (x / Math.max(1, width - 1)) * (spectrumB.slices.length - 1),
+      sourceFraction * (spectrumB.slices.length - 1),
     );
     for (let bin = 0; bin < height; bin += 1) {
       const binA = Math.round(
@@ -1033,6 +1086,10 @@ watch(
     comparisonRegionEnd.value = 0;
     comparisonZoom.value = 1;
     comparisonPan.value = 0;
+    if (activeWorkspace.value === "compare") {
+      void hydrateComparisonFile("a");
+      void hydrateComparisonFile("b");
+    }
   },
 );
 watch(
@@ -1085,6 +1142,10 @@ watch(auditResultSort, () => {
 watch(activeWorkspace, (workspace) => {
   if (workspace === "library") void refreshFingerprintLibrary();
   if (workspace === "audit") scheduleTableViewportMeasurement();
+  if (workspace === "compare") {
+    void hydrateComparisonFile("a");
+    void hydrateComparisonFile("b");
+  }
 });
 watch(tableBody, (element) => {
   tableResizeObserver?.disconnect();
@@ -1851,6 +1912,99 @@ async function chooseSource(kind: "files" | "folder"): Promise<void> {
   if (source) await scanSource({ ...source, mode: scanMode.value });
 }
 
+function setComparisonVisualState(
+  slot: "a" | "b",
+  status: "idle" | "loading" | "ready" | "error",
+  message: string,
+): void {
+  comparisonVisualState.value = {
+    ...comparisonVisualState.value,
+    [slot]: { status, message },
+  };
+}
+
+function rememberComparisonFile(file: AudioFileRecord): void {
+  comparisonFiles.value = [
+    ...comparisonFiles.value.filter(
+      (entry) => entry.id !== file.id && entry.path !== file.path,
+    ),
+    file,
+  ];
+}
+
+async function hydrateComparisonFile(slot: "a" | "b"): Promise<void> {
+  if (!window.audioV) return;
+  const file = slot === "a" ? compareA.value : compareB.value;
+  const request =
+    slot === "a"
+      ? ++comparisonVisualRequestA
+      : ++comparisonVisualRequestB;
+  if (!file) {
+    setComparisonVisualState(
+      slot,
+      "idle",
+      `Choose File ${slot.toUpperCase()}.`,
+    );
+    return;
+  }
+  if (hasComparisonVisualEvidence(file)) {
+    setComparisonVisualState(
+      slot,
+      "ready",
+      `File ${slot.toUpperCase()} visual evidence is ready.`,
+    );
+    await renderComparisonVisuals();
+    return;
+  }
+  setComparisonVisualState(
+    slot,
+    "loading",
+    `Loading File ${slot.toUpperCase()} waveform and spectrogram…`,
+  );
+  try {
+    const sessionId =
+      comparisonFileSessions.get(file.id) ??
+      (files.value.some((candidate) => candidate.id === file.id)
+        ? activeSessionId.value || undefined
+        : undefined);
+    const hydrated = await window.audioV.loadComparisonFile(
+      file.path,
+      sessionId,
+    );
+    const isCurrent =
+      slot === "a"
+        ? request === comparisonVisualRequestA &&
+          compareAId.value === file.id
+        : request === comparisonVisualRequestB &&
+          compareBId.value === file.id;
+    if (!isCurrent) return;
+    rememberComparisonFile(hydrated);
+    setComparisonVisualState(
+      slot,
+      hasComparisonVisualEvidence(hydrated) ? "ready" : "error",
+      hasComparisonVisualEvidence(hydrated)
+        ? `File ${slot.toUpperCase()} visual evidence is ready.`
+        : `File ${slot.toUpperCase()} analysis completed without viewable waveform or spectrogram evidence.`,
+    );
+    await renderComparisonVisuals();
+  } catch (error) {
+    const isCurrent =
+      slot === "a"
+        ? request === comparisonVisualRequestA
+        : request === comparisonVisualRequestB;
+    if (!isCurrent) return;
+    setComparisonVisualState(
+      slot,
+      "error",
+      desktopErrorMessage(
+        error,
+        `File ${slot.toUpperCase()} visual evidence could not be loaded.`,
+      ),
+    );
+    await renderComparisonVisuals();
+  }
+}
+
 async function chooseComparisonFile(slot: "a" | "b"): Promise<void> {
   if (!window.audioV || isDiscovering.value) return;
   compareLoadingSlot.value = slot;
@@ -1868,13 +2022,14 @@ async function chooseComparisonFile(slot: "a" | "b"): Promise<void> {
       scanMessage.value = "No supported audio file was selected";
       return;
     }
-    comparisonFiles.value = [
-      ...comparisonFiles.value.filter((entry) => entry.id !== file.id),
-      file,
-    ];
+    if (result.sessionId) {
+      comparisonFileSessions.set(file.id, result.sessionId);
+    }
+    rememberComparisonFile(file);
     if (slot === "a") compareAId.value = file.id;
     else compareBId.value = file.id;
-    scanMessage.value = `Comparison file analyzed · ${file.name}`;
+    scanMessage.value =
+      `Comparison file analyzed · loading visual evidence · ${file.name}`;
   } catch (error) {
     scanMessage.value =
       error instanceof Error ? error.message : "The comparison file could not be analyzed.";
@@ -3952,14 +4107,16 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
           <div v-if="comparisonVisualMode === 'stacked'" class="waveform-stack">
             <article>
               <span>File A · {{ compareA.name }}</span>
-              <svg viewBox="0 0 1000 120" preserveAspectRatio="none" role="img" :aria-label="`Waveform envelope for ${compareA.name}`">
+              <p v-if="comparisonVisualMessage('a')" class="comparison-visual-placeholder" role="status">{{ comparisonVisualMessage("a") }}</p>
+              <svg v-else viewBox="0 0 1000 120" preserveAspectRatio="none" role="img" :aria-label="`Waveform envelope for ${compareA.name}`">
                 <line x1="0" y1="60" x2="1000" y2="60" />
                 <path :d="waveformPath(compareA)" />
               </svg>
             </article>
             <article>
               <span>File B · {{ compareB.name }}</span>
-              <svg viewBox="0 0 1000 120" preserveAspectRatio="none" role="img" :aria-label="`Waveform envelope for ${compareB.name}`">
+              <p v-if="comparisonVisualMessage('b')" class="comparison-visual-placeholder" role="status">{{ comparisonVisualMessage("b") }}</p>
+              <svg v-else viewBox="0 0 1000 120" preserveAspectRatio="none" role="img" :aria-label="`Waveform envelope for ${compareB.name}`">
                 <line x1="0" y1="60" x2="1000" y2="60" />
                 <path :d="waveformPath(compareB)" />
               </svg>
@@ -3967,7 +4124,10 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
           </div>
           <article v-else class="comparison-waveform-composite">
             <span>{{ comparisonVisualMode }} waveform · A aqua / B violet</span>
-            <svg viewBox="0 0 1000 120" preserveAspectRatio="none" role="img" :aria-label="`${comparisonVisualMode} waveform comparison`">
+            <p v-if="comparisonVisualMessage('a') || comparisonVisualMessage('b')" class="comparison-visual-placeholder" role="status">
+              {{ comparisonVisualMessage("a") || comparisonVisualMessage("b") }}
+            </p>
+            <svg v-else viewBox="0 0 1000 120" preserveAspectRatio="none" role="img" :aria-label="`${comparisonVisualMode} waveform comparison`">
               <defs>
                 <clipPath id="comparison-wipe-clip">
                   <rect :x="comparisonWipe * 1000" y="0" :width="(1 - comparisonWipe) * 1000" height="120" />
@@ -3986,15 +4146,29 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
             </svg>
           </article>
           <div class="spectrum-compare-grid">
-            <article v-show="comparisonVisualMode === 'stacked'"><span>File A spectrum</span><canvas ref="compareSpectrogramA" role="img" aria-label="Measured spectrum for comparison file A">Measured spectrum for comparison file A.</canvas></article>
-            <article v-show="comparisonVisualMode === 'stacked'"><span>File B spectrum</span><canvas ref="compareSpectrogramB" role="img" aria-label="Measured spectrum for comparison file B">Measured spectrum for comparison file B.</canvas></article>
+            <article v-show="comparisonVisualMode === 'stacked'">
+              <span>File A spectrum</span>
+              <p v-if="comparisonVisualMessage('a')" class="comparison-visual-placeholder" role="status">{{ comparisonVisualMessage("a") }}</p>
+              <canvas v-else ref="compareSpectrogramA" role="img" aria-label="Measured spectrum for comparison file A">Measured spectrum for comparison file A.</canvas>
+            </article>
+            <article v-show="comparisonVisualMode === 'stacked'">
+              <span>File B spectrum</span>
+              <p v-if="comparisonVisualMessage('b')" class="comparison-visual-placeholder" role="status">{{ comparisonVisualMessage("b") }}</p>
+              <canvas v-else ref="compareSpectrogramB" role="img" aria-label="Measured spectrum for comparison file B">Measured spectrum for comparison file B.</canvas>
+            </article>
             <article v-show="comparisonVisualMode !== 'stacked'" class="comparison-composite-spectrum">
               <span>{{ comparisonVisualMode }} spectrum · File A / File B</span>
-              <canvas ref="compareSpectrogramComposite" role="img" :aria-label="`${comparisonVisualMode} spectrogram comparison`">Composite measured spectrum.</canvas>
+              <p v-if="comparisonVisualMessage('a') || comparisonVisualMessage('b')" class="comparison-visual-placeholder" role="status">
+                {{ comparisonVisualMessage("a") || comparisonVisualMessage("b") }}
+              </p>
+              <canvas v-else ref="compareSpectrogramComposite" role="img" :aria-label="`${comparisonVisualMode} spectrogram comparison`">Composite measured spectrum.</canvas>
             </article>
             <article class="difference-spectrum">
               <span>Difference · B − A</span>
-              <canvas ref="compareSpectrogramDifference" role="img" aria-label="Normalized spectral difference between comparison files">Normalized spectral difference between comparison files.</canvas>
+              <p v-if="comparisonVisualMessage('a') || comparisonVisualMessage('b')" class="comparison-visual-placeholder" role="status">
+                Waiting for both source spectra.
+              </p>
+              <canvas v-else ref="compareSpectrogramDifference" role="img" aria-label="Normalized spectral difference between comparison files">Normalized spectral difference between comparison files.</canvas>
               <small><i></i>More energy in A <b></b>Matched <em></em>More energy in B</small>
             </article>
             <article class="residual-spectrum">
@@ -4009,6 +4183,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
               <line x1="0" y1="60" x2="1000" y2="60" />
               <path :d="residualWaveformPath()" />
             </svg>
+            <small v-if="signalComparison.residualVisual.peakDbfs === null">The aligned preview subtracts to digital silence; a flat residual is the expected result.</small>
           </article>
           <section v-if="signalComparison" class="comparison-region-panel">
             <header>

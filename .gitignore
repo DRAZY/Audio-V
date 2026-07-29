@@ -9,6 +9,7 @@ build/*-latest.json
 build/platform-validation-*.json
 build/format-validation-*.json
 build/layout-*.png
+build/comparison-visuals-latest.png
 .DS_Store
 *.log
 tests/.tmp-*/

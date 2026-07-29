@@ -52,7 +52,7 @@ Status meanings:
 - **Planned** — specified and prioritized, but not implemented.
 - **Excluded** — intentionally outside the core product.
 
-| Capability | User value | v0.4.31 source status | Disposition |
+| Capability | User value | v0.4.32 source status | Disposition |
 | --- | --- | --- | --- |
 | File and folder ingest | Analyze one track or a full library | Implemented | Current |
 | Recursive bounded discovery | Avoid freezing on large trees | Implemented | Current |
@@ -304,6 +304,8 @@ No build may be called a beta until:
 - Folder and adjacent-file audits discover GNU, BSD, and filename-specific MD5, SHA-1, SHA-256, and SHA-512 sidecar manifests. Matching entries become deterministic support; mismatches become Review because they disprove manifest identity without pretending to know whether the file or manifest is authoritative.
 - Stereo authenticity now distinguishes exact dual mono, near mono, distinct stereo content, mono, and inconclusive results using both Pearson correlation and side-to-mid energy. Dual/near mono is a review signal, not an accusation of deceptive intent.
 - Compare renders bounded full-track waveform envelopes, paired measured spectrograms, and a normalized B-minus-A spectral heatmap alongside identity, format, loudness, clipping, bandwidth, stereo, and checksum values; no playback surface was introduced.
+- Compare now hydrates full visual evidence on demand when the active audit uses compact in-memory records. File A and File B expose independent loading/error states, every canvas clears stale pixels when evidence changes, and the B-minus-A spectrum follows the shared zoom and horizontal position.
+- Full-track comparison no longer labels a short or uncorrelated overlap `aligned-equivalent`; equivalence requires at least 80% duration coverage plus corroborating preview correlation unless the user supplied an explicit channel map.
 - Audit and per-file evidence export to PDF, XLSX, DOCX, CSV, or JSON from a shared 40+ column evidence model. Production dependencies remain free of known audit advisories.
 - The desktop typography floor is 11px for utility labels and 12–14px for working text, with larger rows, controls, and analysis panels.
 - The 149-test regression suite covers discovery, mounted-source staging and identity preservation, malformed metadata, PCM math, internal WAVE decoding, spectral-bin detection, multi-codec full decoding, FLAC audio-MD5 mismatch, loudness/true peak, continuity, packet-rate behavior, fidelity controls, persistent fingerprint management, AcoustID application-key normalization, service preflight, transient retry, direct MusicBrainz enrichment and unique-ID caching, parallel identity corroboration/conflict classification, decoded residual and selected-region comparison, desktop IPC error normalization, cue programme/pregap segments, calculated and large-library-deferred ReplayGain eligibility, explicit comparison channel mapping, resource enforcement, adaptive crash recovery with cache bypass, structured log rotation, cache invalidation, prompt cancellation of blocked workers, virtualized large-session viewport recovery, process cancellation, source-preserving repair output, attached-artwork retention, source preservation, truncation, and verdict truthfulness.
