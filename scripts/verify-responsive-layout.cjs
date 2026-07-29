@@ -46,7 +46,10 @@ app.whenReady().then(async () => {
     const measurement = await window.webContents.executeJavaScript(`
       (() => {
         const rectangle = (selector) => {
-          const element = document.querySelector(selector);
+          const element =
+            typeof selector === "string"
+              ? document.querySelector(selector)
+              : selector;
           const rect = element.getBoundingClientRect();
           const style = getComputedStyle(element);
           return {
@@ -64,6 +67,15 @@ app.whenReady().then(async () => {
             scrollHeight: element.scrollHeight,
           };
         };
+        const statusItems = [...document.querySelectorAll(".statusbar > span")];
+        const statusTextNode = statusItems[0].lastChild;
+        const originalStatus = statusTextNode.textContent;
+        statusTextNode.textContent =
+          "AcoustID rejected the application API key. Copy the key from the registered application—not the user submission key—and try again. The audit did not begin, no audio was uploaded, and no file received a verdict. Open Settings to correct the credential before selecting the source again.";
+        const statusMessage = rectangle(statusItems[0]);
+        const statusSession = rectangle(statusItems[1]);
+        const statusScope = rectangle(statusItems[2]);
+        statusTextNode.textContent = originalStatus;
         return {
           viewport: { width: innerWidth, height: innerHeight },
           workspace: rectangle(".workspace"),
@@ -72,6 +84,9 @@ app.whenReady().then(async () => {
           badge: rectangle(".product-lockup span"),
           tagline: rectangle(".product-lockup > small"),
           commands: rectangle(".source-command"),
+          statusMessage,
+          statusSession,
+          statusScope,
           documentWidth: document.documentElement.scrollWidth,
         };
       })()
@@ -92,8 +107,21 @@ app.whenReady().then(async () => {
       measurement.commands.right <= measurement.workspace.right + 1;
     const noPageOverflow =
       measurement.documentWidth <= measurement.viewport.width;
+    const statusItemsSeparated =
+      !overlaps(measurement.statusMessage, measurement.statusSession) &&
+      !overlaps(measurement.statusMessage, measurement.statusScope) &&
+      !overlaps(measurement.statusSession, measurement.statusScope);
+    const longStatusTruncated =
+      measurement.statusMessage.scrollWidth >
+        measurement.statusMessage.clientWidth &&
+      measurement.statusMessage.clientWidth > 0;
     const passed =
-      singleLine && placementPassed && withinWorkspace && noPageOverflow;
+      singleLine &&
+      placementPassed &&
+      withinWorkspace &&
+      noPageOverflow &&
+      statusItemsSeparated &&
+      longStatusTruncated;
     results.push({
       ...scenario,
       measurement,
@@ -102,6 +130,8 @@ app.whenReady().then(async () => {
         placementPassed,
         withinWorkspace,
         noPageOverflow,
+        statusItemsSeparated,
+        longStatusTruncated,
       },
       passed,
     });
@@ -856,7 +886,7 @@ app.whenReady().then(async () => {
     );
   } else {
     console.log(
-      "Responsive layout passed at default and minimum desktop sizes, including storage-maintenance composition, open source warnings, table gutters, active assessment separation, adaptive resource controls, dense inspector text, selected paths, scan progress, independent report evidence panes, and the loudness diagnostics grid.",
+      "Responsive layout passed at default and minimum desktop sizes, including bounded long status messages, storage-maintenance composition, open source warnings, table gutters, active assessment separation, adaptive resource controls, dense inspector text, selected paths, scan progress, independent report evidence panes, and the loudness diagnostics grid.",
     );
   }
   window.destroy();

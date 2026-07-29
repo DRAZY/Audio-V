@@ -1740,6 +1740,8 @@ button:focus-visible {
   padding: 0 3px;
   display: flex;
   align-items: center;
+  min-width: 0;
+  overflow: hidden;
   color: var(--muted);
   font: 500 8px/1 var(--font-data);
   text-transform: uppercase;
@@ -1751,6 +1753,7 @@ button:focus-visible {
 }
 
 .statusbar > span:first-child {
+  flex: 1 1 0;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1767,14 +1770,43 @@ button:focus-visible {
 }
 
 .statusbar > span:nth-child(2) {
-  margin-left: auto;
+  flex: 0 0 auto;
+  margin-left: 18px;
   padding: 0 18px;
   border-left: 1px solid var(--line);
   border-right: 1px solid var(--line);
 }
 
 .statusbar > span:last-child {
+  flex: 0 0 auto;
   margin-left: 18px;
+}
+
+.credential-validation {
+  display: block;
+  margin-top: 3px;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgb(255 255 255 / 0.025);
+  color: var(--muted);
+  font: 600 11px/1.45 var(--font-data);
+}
+
+.credential-validation.checking {
+  border-color: rgb(139 92 246 / 0.46);
+  color: var(--text);
+}
+
+.credential-validation.valid {
+  border-color: rgb(66 211 146 / 0.45);
+  color: var(--green);
+}
+
+.credential-validation.error {
+  border-color: rgb(255 96 111 / 0.5);
+  background: rgb(255 96 111 / 0.07);
+  color: #ff9ba6;
 }
 
 .module-page {

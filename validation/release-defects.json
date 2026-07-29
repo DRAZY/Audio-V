@@ -1,7 +1,7 @@
 {
   "schema": "Audio-V release defect register v1",
-  "releaseVersion": "0.4.27",
-  "auditedAt": "2026-07-29T02:00:00.000Z",
+  "releaseVersion": "0.4.28",
+  "auditedAt": "2026-07-29T02:30:00.000Z",
   "repositoryIssueCountAtAudit": 0,
   "defects": [
     {
@@ -24,6 +24,13 @@
       "status": "fixed",
       "summary": "AcoustID application keys were not normalized or validated before discovery, causing large audits to repeat opaque HTTP 400 lookup failures.",
       "verification": "tests/analysis-tools.test.ts verifies whitespace trimming, the 10-character application-key contract, service-backed preflight, precise invalid-key errors, and bounded POST lookup construction."
+    },
+    {
+      "id": "AV-2026-004",
+      "severity": "P2",
+      "status": "fixed",
+      "summary": "AcoustID preflight rejection exposed Electron IPC plumbing and allowed the long message to render beneath fixed footer counters.",
+      "verification": "tests/desktop-error-message.test.ts verifies IPC-prefix removal; scripts/verify-responsive-layout.cjs injects an oversized status message and enforces truncation without counter overlap at all supported window widths."
     }
   ],
   "limitations": [

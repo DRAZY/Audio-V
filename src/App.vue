@@ -24,6 +24,7 @@ import {
   type AuditResultSort,
 } from "../shared/audit-result-sort";
 import { createVirtualWindow } from "../shared/virtual-window";
+import { desktopErrorMessage } from "../shared/desktop-error-message";
 
 type AnalysisPanel = "spectrogram" | "loudness" | "evidence";
 type WorkspacePanel =
@@ -77,6 +78,12 @@ const effectiveResourceLimits = ref<AnalysisResourceLimits | null>(null);
 const recoveryStatus = ref("");
 const acoustIdEnabled = ref(false);
 const acoustIdApiKey = ref("");
+const acoustIdValidationState = ref<"idle" | "checking" | "valid" | "error">(
+  "idle",
+);
+const acoustIdValidationMessage = ref(
+  "The application key will be checked before discovery begins.",
+);
 const filter = ref<
   "all" | "clear" | "review" | "not-analyzed" | "error" | "failed"
 >("all");
@@ -1220,17 +1227,25 @@ async function scanSource(source: AudioSourceSelection): Promise<void> {
     if (!window.audioV) return;
     const normalizedApiKey = acoustIdApiKey.value.trim();
     isDiscovering.value = true;
+    acoustIdValidationState.value = "checking";
+    acoustIdValidationMessage.value =
+      "Checking this application key with AcoustID…";
     scanMessage.value =
       "Validating the AcoustID application key before the audit starts…";
     try {
       await window.audioV.validateAcoustIdApiKey(normalizedApiKey);
       acoustIdApiKey.value = normalizedApiKey;
+      acoustIdValidationState.value = "valid";
+      acoustIdValidationMessage.value =
+        "Application key accepted · external lookup is ready for this audit.";
     } catch (error) {
       activeWorkspace.value = "settings";
-      scanMessage.value =
-        error instanceof Error
-          ? error.message
-          : "The AcoustID application key could not be validated.";
+      acoustIdValidationState.value = "error";
+      acoustIdValidationMessage.value = desktopErrorMessage(
+        error,
+        "The AcoustID application key could not be validated.",
+      );
+      scanMessage.value = "AcoustID key needs attention in Settings";
       return;
     } finally {
       isDiscovering.value = false;
@@ -3948,8 +3963,14 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
             <p>Enter the 10-character key from your registered AcoustID application. Audio-V trims copied whitespace and validates the key before discovery. User submission keys do not work for lookup. The key remains in memory for this app session and is removed from saved audit-source records and exports.</p>
             <label><input v-model="acoustIdEnabled" type="checkbox" :disabled="isDiscovering"> Enable lookup on next audit</label>
             <label>AcoustID API key
-              <input v-model="acoustIdApiKey" type="password" autocomplete="off" :disabled="isDiscovering || !acoustIdEnabled">
+              <input v-model="acoustIdApiKey" type="password" autocomplete="off" :disabled="isDiscovering || !acoustIdEnabled" @input="acoustIdValidationState = 'idle'; acoustIdValidationMessage = 'The application key will be checked before discovery begins.'">
             </label>
+            <small
+              class="credential-validation"
+              :class="acoustIdValidationState"
+              role="status"
+              aria-live="polite"
+            >{{ acoustIdValidationMessage }}</small>
           </article>
           <article class="validation-disclosure">
             <span>Oracle validation basis</span>
@@ -4022,7 +4043,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
         <span
           role="status"
           aria-live="polite"
-          :title="sourceIoNotice || undefined"
+          :title="sourceIoNotice || scanMessage"
         ><i></i>{{ scanMessage }}</span>
         <span>{{ files.length.toLocaleString() }} files in session</span>
         <span>Oracle evidence lanes &amp; forensics scope v11</span>
