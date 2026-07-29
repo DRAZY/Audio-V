@@ -150,6 +150,14 @@ const validationProgress = computed(() => {
       100,
   );
 });
+const auditStorageLivePercent = computed(() => {
+  const status = auditStorageStatus.value;
+  if (!status || status.databaseBytes <= 0) return 0;
+  return Math.max(
+    0,
+    Math.min(100, (status.liveBytes / status.databaseBytes) * 100),
+  );
+});
 const scanProgressPercent = computed(() => {
   const progress = scanProgress.value;
   if (!progress?.total) return 0;
@@ -3945,27 +3953,51 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
             <small>Corpus {{ validationStatus?.corpusVersion ?? "—" }} · Synthetic fixtures and derivatives never increase the independent-master count.</small>
           </article>
           <article><span>Open-source license</span><strong>AGPL-3.0-only</strong><p>Code remains available under strong copyleft. Audio-V and Oracle Engine names and artwork remain governed by the trademark policy.</p></article>
-          <article class="resource-controls">
-            <span>Saved audit storage</span>
-            <strong>
-              {{
-                auditStorageStatus
-                  ? `${formatBytes(auditStorageStatus.liveBytes)} live · ${formatBytes(auditStorageStatus.reclaimableBytes)} reclaimable`
-                  : "Measuring local database"
-              }}
-            </strong>
-            <p>{{ auditStorageMessage }}</p>
-            <small v-if="auditStorageStatus">
-              Database {{ formatBytes(auditStorageStatus.databaseBytes) }} ·
-              {{ auditStorageStatus.autoVacuum === "incremental" ? "bounded automatic reclamation enabled" : "legacy database requires one full optimization" }}
-            </small>
-            <button
-              class="secondary-action"
-              :disabled="isDiscovering || auditStorageOptimizing || !auditStorageStatus?.optimizationRecommended"
-              @click="optimizeAuditStorage"
-            >
-              {{ auditStorageOptimizing ? "Optimizing…" : "Reclaim unused storage" }}
-            </button>
+          <article class="storage-maintenance">
+            <div class="storage-maintenance-copy">
+              <span>Saved audit storage</span>
+              <strong>Local evidence database</strong>
+              <p>{{ auditStorageMessage }}</p>
+              <small v-if="auditStorageStatus">
+                {{ auditStorageStatus.autoVacuum === "incremental" ? "Bounded automatic reclamation is enabled for future history cleanup." : "This legacy database needs one full optimization before bounded reclamation can begin." }}
+              </small>
+            </div>
+            <div class="storage-maintenance-console">
+              <div class="storage-metrics">
+                <div>
+                  <span>Live evidence</span>
+                  <strong>{{ auditStorageStatus ? formatBytes(auditStorageStatus.liveBytes) : "—" }}</strong>
+                </div>
+                <div>
+                  <span>Reclaimable</span>
+                  <strong :class="{ available: auditStorageStatus?.optimizationRecommended }">
+                    {{ auditStorageStatus ? formatBytes(auditStorageStatus.reclaimableBytes) : "—" }}
+                  </strong>
+                </div>
+              </div>
+              <div
+                class="storage-capacity"
+                role="progressbar"
+                aria-label="Live evidence as a percentage of saved audit database storage"
+                :aria-valuenow="Math.round(auditStorageLivePercent)"
+                aria-valuemin="0"
+                aria-valuemax="100"
+              >
+                <i :style="{ width: `${auditStorageLivePercent}%` }"></i>
+              </div>
+              <div class="storage-maintenance-action">
+                <small v-if="auditStorageStatus">
+                  {{ formatBytes(auditStorageStatus.databaseBytes) }} total on disk
+                </small>
+                <button
+                  class="secondary-action"
+                  :disabled="isDiscovering || auditStorageOptimizing || !auditStorageStatus?.optimizationRecommended"
+                  @click="optimizeAuditStorage"
+                >
+                  {{ auditStorageOptimizing ? "Optimizing…" : auditStorageStatus?.optimizationRecommended ? "Reclaim unused storage" : "Storage optimized" }}
+                </button>
+              </div>
+            </div>
           </article>
           <article><span>Support diagnostics</span><strong>Privacy-safe export and local application logs</strong><p>{{ diagnosticsMessage }}</p><div class="resource-presets"><button class="secondary-action" @click="exportDiagnostics">Export diagnostics</button><button class="secondary-action" @click="openApplicationLogs">Open log folder</button></div></article>
           <article><span>Keyboard workflow</span><strong>Fast navigation</strong><p>Use {{ primaryModifier }}+O for files, {{ primaryModifier }}+Shift+O for a folder, and {{ primaryModifier }}+1–6 for workspaces.</p></article>

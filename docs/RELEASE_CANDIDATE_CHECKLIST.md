@@ -4,7 +4,7 @@ A release candidate is evidence-backed, not simply a successful packaging comman
 
 ## Current readiness snapshot
 
-As of source version 0.4.25:
+As of source version 0.4.26:
 
 | Area | Current evidence | RC meaning |
 |---|---|---|
@@ -15,7 +15,7 @@ As of source version 0.4.25:
 | Windows packages | Installer and portable package structure and bundled resources passed macOS-side inspection | Native Windows launch and workflow acceptance remain open |
 | Real-library scale | Maintainer witnessed a completed full audit of at least 6,000 files | Completion is established; platform, version, timing, memory, and final database size were not captured |
 | Blocking defects | Versioned register contains one fixed P1 and zero unresolved P0/P1 defects | Known critical/high defects block release automatically |
-| Release assets | Four application packages, checksums, block maps, and unsigned policy manifest prepared and locally verified for v0.4.25 | Preview distribution is reproducible after publication |
+| Release assets | Four v0.4.26 application packages, checksums, block maps, and unsigned policy manifest prepared and verified locally | Preview distribution is ready for publication |
 | Real-world origin calibration | Infrastructure is valid; licensed independent masters are absent | No probability-calibrated origin claim is allowed |
 
 The automated readiness command reports 17/17 repository evidence categories,

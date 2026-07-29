@@ -1,7 +1,7 @@
 {
   "schema": "Audio-V release defect register v1",
-  "releaseVersion": "0.4.25",
-  "auditedAt": "2026-07-29T00:05:00.000Z",
+  "releaseVersion": "0.4.26",
+  "auditedAt": "2026-07-29T00:45:00.000Z",
   "repositoryIssueCountAtAudit": 0,
   "defects": [
     {
@@ -10,6 +10,13 @@
       "status": "fixed",
       "summary": "Clearing large audit history removed logical records but did not reclaim free pages from legacy SQLite databases.",
       "verification": "tests/audit-session-store.test.ts verifies new incremental reclamation and one-time legacy compaction; Settings exposes measured live/reclaimable bytes and isolated optimization."
+    },
+    {
+      "id": "AV-2026-002",
+      "severity": "P2",
+      "status": "fixed",
+      "summary": "Saved storage information and its maintenance action were vertically compressed into the lower-left corner of the Settings card.",
+      "verification": "scripts/verify-responsive-layout.cjs enforces dedicated wide right-side and snapped full-width storage-maintenance compositions without overflow."
     }
   ],
   "limitations": [

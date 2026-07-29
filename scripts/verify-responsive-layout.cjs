@@ -417,6 +417,89 @@ app.whenReady().then(async () => {
     path.join(process.cwd(), "build", "layout-settings.png"),
     settingsScreenshot.toPNG(),
   );
+
+  const measureStorageMaintenance = async (width, height) => {
+    window.setContentSize(width, height);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    return window.webContents.executeJavaScript(`
+      (async () => {
+        const card = document.querySelector(".storage-maintenance");
+        card.scrollIntoView({ block: "center" });
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const rect = (element) => {
+          const value = element.getBoundingClientRect();
+          return {
+            left: value.left,
+            right: value.right,
+            top: value.top,
+            bottom: value.bottom,
+            width: value.width,
+            height: value.height,
+            clientWidth: element.clientWidth,
+            scrollWidth: element.scrollWidth,
+            clientHeight: element.clientHeight,
+            scrollHeight: element.scrollHeight,
+          };
+        };
+        return {
+          viewportWidth: innerWidth,
+          documentWidth: document.documentElement.scrollWidth,
+          card: rect(card),
+          copy: rect(card.querySelector(".storage-maintenance-copy")),
+          console: rect(card.querySelector(".storage-maintenance-console")),
+          button: rect(card.querySelector(".storage-maintenance-action button")),
+          metrics: [...card.querySelectorAll(".storage-metrics > div")].map(rect),
+        };
+      })()
+    `);
+  };
+
+  const storageWide = await measureStorageMaintenance(1800, 980);
+  const storageWidePassed =
+    storageWide.copy.right <= storageWide.console.left &&
+    storageWide.button.left >= storageWide.console.left &&
+    storageWide.button.right <= storageWide.console.right &&
+    storageWide.button.width >= 210 &&
+    storageWide.metrics.length === 2 &&
+    storageWide.metrics.every(
+      (metric) =>
+        metric.scrollWidth <= metric.clientWidth &&
+        metric.scrollHeight <= metric.clientHeight,
+    ) &&
+    storageWide.card.scrollWidth <= storageWide.card.clientWidth &&
+    storageWide.documentWidth <= storageWide.viewportWidth;
+  results.push({
+    name: "storage-maintenance-wide",
+    measurement: storageWide,
+    checks: { storageWidePassed },
+    passed: storageWidePassed,
+  });
+  const storageWideScreenshot = await window.webContents.capturePage();
+  await writeFile(
+    path.join(process.cwd(), "build", "layout-storage-maintenance.png"),
+    storageWideScreenshot.toPNG(),
+  );
+
+  const storageSnapped = await measureStorageMaintenance(900, 720);
+  const storageSnappedPassed =
+    storageSnapped.copy.bottom <= storageSnapped.console.top &&
+    storageSnapped.button.left >= storageSnapped.console.left &&
+    storageSnapped.button.right <= storageSnapped.console.right &&
+    storageSnapped.card.scrollWidth <= storageSnapped.card.clientWidth &&
+    storageSnapped.documentWidth <= storageSnapped.viewportWidth;
+  results.push({
+    name: "storage-maintenance-snapped",
+    measurement: storageSnapped,
+    checks: { storageSnappedPassed },
+    passed: storageSnappedPassed,
+  });
+  const storageSnappedScreenshot = await window.webContents.capturePage();
+  await writeFile(
+    path.join(process.cwd(), "build", "layout-storage-maintenance-snapped.png"),
+    storageSnappedScreenshot.toPNG(),
+  );
+
+  window.setContentSize(scenarios[0].width, scenarios[0].height);
   await window.webContents.executeJavaScript(`
     [...document.querySelectorAll(".rail-item")].find(
       (button) => button.textContent.toLowerCase().includes("audit")
@@ -773,7 +856,7 @@ app.whenReady().then(async () => {
     );
   } else {
     console.log(
-      "Responsive layout passed at default and minimum desktop sizes, including open source warnings, table gutters, active assessment separation, adaptive resource controls, dense inspector text, selected paths, scan progress, independent report evidence panes, and the loudness diagnostics grid.",
+      "Responsive layout passed at default and minimum desktop sizes, including storage-maintenance composition, open source warnings, table gutters, active assessment separation, adaptive resource controls, dense inspector text, selected paths, scan progress, independent report evidence panes, and the loudness diagnostics grid.",
     );
   }
   window.destroy();
