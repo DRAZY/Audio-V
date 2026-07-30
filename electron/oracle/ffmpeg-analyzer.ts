@@ -17,6 +17,7 @@ import {
   metadataProvenanceIndicators,
 } from "./analysis-tools";
 import { emptyMetadataInventory } from "../metadata-inventory";
+import { inspectMp3ChannelMode } from "./mp3-frame-header";
 
 interface ProbeStream {
   codec_name?: string;
@@ -136,10 +137,18 @@ async function probe(filePath: string, signal?: AbortSignal): Promise<{
           outputBitDepth: repairDepth as 16 | 24,
         }
       : null;
-  const [fileInspection, contentCredentials, fingerprint] = await Promise.all([
+  const [
+    fileInspection,
+    contentCredentials,
+    fingerprint,
+    mp3ChannelMode,
+  ] = await Promise.all([
     hashFileAndInspectStrings(filePath),
     inspectContentCredentials(filePath, signal),
     calculateChromaprint(filePath, signal),
+    codecName === "mp3"
+      ? inspectMp3ChannelMode(filePath).catch(() => null)
+      : Promise.resolve(null),
   ]);
   return {
     raw,
@@ -154,6 +163,7 @@ async function probe(filePath: string, signal?: AbortSignal): Promise<{
       sampleRate,
       channels: stream.channels,
       channelLayout: stream.channel_layout ?? null,
+      mp3ChannelMode,
       bitsPerRawSample:
         finiteNumber(stream.bits_per_raw_sample) ??
         finiteNumber(stream.bits_per_sample),

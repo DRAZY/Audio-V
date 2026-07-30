@@ -50,6 +50,11 @@ export type OracleVerdict =
   | "inconclusive";
 
 export type AnalysisMode = "full-audit" | "metadata-inventory";
+export type Mp3ChannelMode =
+  | "Stereo"
+  | "Joint Stereo"
+  | "Dual Channel"
+  | "Mono";
 export type OracleAnalysisState =
   | "not-analyzed"
   | "completed"
@@ -487,6 +492,7 @@ export interface StreamTechnicalAnalysis {
   sampleRate: number;
   channels: number;
   channelLayout: string | null;
+  mp3ChannelMode: Mp3ChannelMode | null;
   bitsPerRawSample: number | null;
   streamBitrate: number | null;
   durationSeconds: number | null;
@@ -626,7 +632,7 @@ export interface OracleResult {
     | "oracle-integrity-provenance-v8"
     | "oracle-integrity-forensics-v9"
     | "oracle-integrity-forensics-v10"
-    | "oracle-integrity-forensics-v11";
+    | "oracle-integrity-forensics-v12";
   verdict: OracleVerdict;
   analysisState?: OracleAnalysisState;
   failure?: OracleFailure | null;

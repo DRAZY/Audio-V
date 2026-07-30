@@ -53,8 +53,8 @@ function syntheticRecord(index) {
     scanError: null,
     oracle: {
       schemaVersion: 1,
-      engineVersion: "0.9.0-oracle-v11",
-      scope: "oracle-integrity-forensics-v11",
+      engineVersion: "0.10.0-oracle-v12",
+      scope: "oracle-integrity-forensics-v12",
       verdict: "verified",
       confidence: 100,
       headline: "Current checks passed",

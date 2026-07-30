@@ -15,7 +15,7 @@ function result(
   return {
     schemaVersion: 1,
     engineVersion: "test",
-    scope: "oracle-integrity-forensics-v11",
+    scope: "oracle-integrity-forensics-v12",
     verdict: findings.some((finding) => finding.severity === "review")
       ? "review"
       : "verified",

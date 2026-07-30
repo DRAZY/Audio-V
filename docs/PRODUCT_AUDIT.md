@@ -1,21 +1,48 @@
 # Audio-V product audit and capability contract
 
-Last reviewed: 2026-07-29
+Last reviewed: 2026-07-30
 
 This document is the product truth source between the approved vision, the original request, competing applications, and what the repository actually implements. A feature is not considered present because a mock-up displays it.
 
 ## Original request baseline
 
-The request from `jota726` in [DRAZY/deemix-remastered discussion 105](https://github.com/DRAZY/deemix-remastered/discussions/105#discussioncomment-17782035) asked for a lightweight, standalone analyzer with:
+The request in [DRAZY/deemix-remastered discussion 128](https://github.com/DRAZY/deemix-remastered/discussions/128) asked for a lightweight, standalone analyzer with:
 
 1. A full-track spectrogram for inspecting real frequency cutoffs.
 2. CBR/VBR, bitrate, encoding, and sample-rate details.
 3. Peak level, RMS, dynamic-range, and loudness measurements.
 4. Channel layout and encoding-mode details such as stereo, joint stereo, and mono.
 
-Those four outcomes are the minimum viable product. Batch folders, evidence-backed verdicts, integrity checks, comparison, and reports are the differentiators that make Audio-V a category-leading workstation.
+Those four outcomes are the minimum viable product and are implemented.
+Quick Inspect preserves the requested lightweight one-file workflow by placing
+the verdict, essential measurements, MP3 encoded channel mode, and deep-view
+actions on one screen. Batch folders, evidence-backed verdicts, integrity
+checks, comparison, and reports extend that workflow rather than making them
+mandatory.
 
-The phrase “100% accurate, unaltered, raw spectrogram” needs a scientifically precise interpretation. A spectrogram is an STFT-derived view whose appearance changes with window function, FFT size, overlap, scaling, normalization, and color floor. Audio-V must expose and export those settings, preserve the decoded sample values, and never imply that one rendering is the only valid representation. Sonic Visualiser documents the same time-versus-frequency-resolution tradeoff in its [spectrogram reference](https://sonicvisualiser.org/doc/reference/3.2/en/#spectrogram).
+The request’s phrase “100% accurate, unaltered, raw spectrogram” is treated as
+a request for an honest, reproducible view—not as a literal product claim. A
+spectrogram is an STFT-derived representation whose appearance changes with
+window function, FFT size, overlap, scaling, normalization, and color floor.
+Audio-V exposes and exports those settings, analyzes decoded samples without
+applying EQ or enhancement, and never implies that one rendering proves source
+history. Sonic Visualiser documents the same time-versus-frequency-resolution
+tradeoff in its [spectrogram reference](https://sonicvisualiser.org/doc/reference/3.2/en/#spectrogram).
+
+### Lightweight workflow contract
+
+“Lightweight” describes the shortest user journey, not a promise that Audio-V
+has a small capability set:
+
+1. Choose one file.
+2. Run the complete Oracle audit.
+3. Read Quick Inspect on one screen.
+4. Open a deep view only when the summary names something worth inspecting.
+
+Quick Inspect and the engineering views consume the same Oracle record. There
+is no fast-but-weaker verdict, hidden playback dependency, or alternate quality
+score. The larger workstation remains available for people who choose folders,
+comparison, reports, or advanced inspection.
 
 ## Product boundary
 
@@ -52,7 +79,7 @@ Status meanings:
 - **Planned** — specified and prioritized, but not implemented.
 - **Excluded** — intentionally outside the core product.
 
-| Capability | User value | v0.4.37 source status | Disposition |
+| Capability | User value | v0.4.38 source status | Disposition |
 | --- | --- | --- | --- |
 | File and folder ingest | Analyze one track or a full library | Implemented | Current |
 | Recursive bounded discovery | Avoid freezing on large trees | Implemented | Current |
@@ -67,7 +94,8 @@ Status meanings:
 | Delivery profiles | Evaluate a file against an explicitly chosen destination | Implemented for EBU R 128 programme QC, ATSC A/85, and AES internet-music track references with exact limits preserved in evidence | Current |
 | Clipping and near-clipping | Find damaged or overly limited masters | Implemented with per-channel events and timeline | Current |
 | DC offset, silence, dropout | Diagnose signal defects | Implemented | Current |
-| Channel layout and codec mode | Stereo, mono, 5.1, joint stereo | Implemented from probe and decoded evidence | Current |
+| Quick Inspect | Read one file's verdict and essential evidence without entering the engineering workflow | Implemented as the default selected-file summary with direct deep-view actions | Current |
+| Channel layout and codec mode | Stereo, mono, 5.1, joint stereo | Implemented from probe/decoded evidence, with explicit MP3 MPEG-frame mode parsing | Current |
 | Stereo correlation / duplicate mono | Detect phase and fake stereo issues | Implemented | Current |
 | Full-track spectrogram | Direct visual inspection | Implemented with multichannel inspection and export | Current |
 | Adjustable analysis settings | Reproducible visual evidence | Implemented | Current |
@@ -248,7 +276,7 @@ This milestone deliberately stops before a statistical AI classifier or automati
 - ReplayGain reports why album gain is unavailable, including missing album identity, insufficient matching tracks, incompatible channel counts, measurement failure, and large-library deferral. Audits above 1,000 files retain calculated track gain but skip the otherwise unbounded second full-library decode; selecting an album or a smaller source calculates exact grouped album gain.
 - Cue programme segments stop at the next INDEX 00/01 boundary; declared INDEX 00 pregaps are decoded and reported separately.
 
-### Oracle v11 evidence-model status
+### Oracle v12 evidence-model status
 
 - Results now expose separate integrity, signal-defect, spectral-origin, provenance, and delivery lanes. Advisory provenance strings, stereo relationships, bit padding, positive true peak without a selected delivery profile, and steep transitions no longer force the overall verdict to Review.
 - Optional delivery conformance now evaluates exact, persisted EBU R 128 programme-QC, ATSC A/85, or AES internet-music track limits. A miss produces Review and never changes deterministic integrity to Failed.

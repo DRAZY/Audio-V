@@ -2,9 +2,9 @@
 
 Audio-V separates deterministic integrity checks, direct measurements, and heuristic interpretation. A successful heuristic never upgrades a file to proven authentic, and a spectral anomaly alone is never called proof of a transcode or upsample.
 
-## Oracle v11 assessment lanes
+## Oracle v12 assessment lanes
 
-Oracle v11 evaluates five independent lanes: **file integrity**, **signal defects**, **spectral origin**, **provenance**, and **delivery compliance**. The overall precedence is deliberately narrow:
+Oracle v12 evaluates five independent lanes: **file integrity**, **signal defects**, **spectral origin**, **provenance**, and **delivery compliance**. The overall precedence is deliberately narrow:
 
 1. **Failed** requires deterministic evidence against the file itself, such as two unsuccessful decode paths or a decoded FLAC MD5 mismatch.
 2. **Analysis error** means a tool, resource, or internal stage did not complete; it is never converted to file damage.
@@ -64,7 +64,19 @@ A missing or out-of-range delivery measurement produces **Review**, never **Fail
 
 ## Spectral analysis
 
-- The displayed spectrogram is measured, not decorative. Active analysis creates 512-point overview and 2,048-point detail data. Durable large-library history retains a bounded 32-region overview and 160-point waveform while keeping the complete measurement/verdict summary. Oracle v11 also runs a separate 4,096-point, 48-region classifier tier and discards its full matrix after retaining bounded summary evidence; this avoids multiplying historical-database size. The inspector can decode the selected file on demand for 4,096- or 16,384-point presentation. Every tier discloses its dynamic floor, frequency range, hop size, and resolution.
+- Quick Inspect is a presentation layer over the completed Oracle record. It
+  does not change evidence precedence, recalculate confidence, or issue an
+  alternate verdict. “Lightweight” refers to this compact one-file workflow,
+  not reduced decoding or reduced evidence.
+- MP3 encoded channel mode is parsed from validated consecutive MPEG audio
+  frame headers and reported separately from decoded channel count/layout.
+  Audio-V distinguishes Stereo, Joint Stereo, Dual Channel, and Mono without
+  treating the mode itself as a fidelity verdict.
+- The displayed spectrogram is measured, not decorative. Active analysis creates 512-point overview and 2,048-point detail data. Durable large-library history retains a bounded 32-region overview and 160-point waveform while keeping the complete measurement/verdict summary. Oracle v12 also runs a separate 4,096-point, 48-region classifier tier and discards its full matrix after retaining bounded summary evidence; this avoids multiplying historical-database size. The inspector can decode the selected file on demand for 4,096- or 16,384-point presentation. Every tier discloses its dynamic floor, frequency range, hop size, and resolution.
+- “Measured” means the view is calculated from decoded samples without EQ,
+  enhancement, or a decorative texture. It does not mean the rendering is a
+  uniquely raw or source-authentic picture: FFT size, window, overlap, scale,
+  floor, channel combination, and palette all affect presentation.
 - Combined mode averages per-channel power, so opposite-polarity channels do not cancel before measurement. Left and right modes isolate the first two channels. L−R measures the side signal \((L-R)/2\); mono requests resolve to the available left channel.
 - Zoom and pan select a bounded time window from the measured slices. Drag selection reports exact visible time and frequency bounds. Inferno, magma, and viridis palettes affect presentation only; FFT data and verdict logic are unchanged. Batch PNG export applies the selected FFT resolution, channel mode, floor, and colormap to each decoded file.
 - The waveform overview is a per-channel envelope: its extrema preserve the minimum and maximum sample across channels, while RMS uses average channel power. It is not a mono downmix.

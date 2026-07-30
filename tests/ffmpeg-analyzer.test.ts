@@ -55,6 +55,13 @@ describe("FFmpeg Oracle analyzer", () => {
       if (codec === "flac") {
         expect(result.technical.flacMd5?.status).toBe("verified");
       }
+      if (codec === "mp3") {
+        expect(result.technical.mp3ChannelMode).toMatch(
+          /^(Stereo|Joint Stereo|Dual Channel|Mono)$/,
+        );
+      } else {
+        expect(result.technical.mp3ChannelMode).toBeNull();
+      }
     },
   );
 

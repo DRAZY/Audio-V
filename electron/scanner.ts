@@ -199,7 +199,7 @@ function recoveryQuarantinedOracleResult(reason: string): OracleResult {
   return {
     schemaVersion: 1,
     engineVersion: currentOracleEngineVersion,
-    scope: "oracle-integrity-forensics-v11",
+    scope: "oracle-integrity-forensics-v12",
     verdict: "inconclusive",
     analysisState: "error",
     failure: {

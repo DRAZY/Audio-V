@@ -153,6 +153,12 @@ Even a strong match remains **possible**, not proven. Microphones, instruments,
 analog transfers, noise reduction, intentional low-pass mastering, and other
 artistic choices can create similar shapes.
 
+Audio-V calls this a **measured spectrogram**, not a “100% raw” spectrogram.
+It is calculated from decoded samples without EQ or enhancement, but FFT size,
+window, channel handling, scale, floor, and color mapping necessarily shape
+the view. The settings remain visible so another inspection can reproduce the
+same representation.
+
 Origin Assessment reports three different ideas:
 
 - **Rule strength** says how fully the file matched the current pattern:
@@ -214,7 +220,7 @@ evidence cannot responsibly support that claim.
 
 ### 9. Five evidence lanes: keep unlike questions apart
 
-Oracle v11 organizes findings into five lanes:
+Oracle v12 organizes findings into five lanes:
 
 | Lane | Plain-language question | Examples |
 |---|---|---|

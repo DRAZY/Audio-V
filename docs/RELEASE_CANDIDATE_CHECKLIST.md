@@ -4,18 +4,18 @@ A release candidate is evidence-backed, not simply a successful packaging comman
 
 ## Current readiness snapshot
 
-As of source version 0.4.37:
+As of source version 0.4.38:
 
 | Area | Current evidence | RC meaning |
 |---|---|---|
-| Source regression | 168 tests passed | Automated source behavior is green |
+| Source regression | 175 tests passed | Automated source behavior is green |
 | Build and UI | Type checks, production build, responsive-layout checks, and 41 accessibility rules passed | Repository-level UI gate is green |
 | Scale storage | 10,000-record persistence completed in 6.95 seconds; restore completed in 485 ms; cumulative 11,100-record database was 458.4 MB (437.1 MiB) | Synthetic dense-evidence storage budget is green |
 | macOS packages | Apple Silicon and Universal DMGs passed structure/signature checks; native packaged reference audit and clean Apple Silicon maintainer testing passed | Intel and the complete clean-environment journey remain open |
 | Windows packages | Installer and portable structure passed; the maintainer exercised the portable build natively on Windows | Clean installer, upgrade, uninstall, and formal parity evidence remain open |
 | Real-library scale | Maintainer witnessed a completed full audit of at least 6,000 files on native Windows | Platform and portable context are established; exact package version, timing, memory, and final database size were not captured |
 | Blocking defects | Versioned register contains fixed P1/P2 defects and zero unresolved P0/P1 defects | Known critical/high defects block release automatically |
-| Release assets | Four v0.4.37 application packages, checksums, block maps, and unsigned policy manifest were prepared, verified, and published together | Current release distribution is complete |
+| Release assets | Four v0.4.38 application packages, checksums, block maps, and unsigned policy manifest are prepared and verified together | Current release distribution remains a single versioned set |
 | Instrumented acceptance | Every real audit records privacy-safe package, workload, throughput, sampled memory, storage growth, cancellation, source class, and recovery evidence | The next witnessed large-library run should export this record; earlier observations did not capture it |
 | Real-world origin calibration | Infrastructure is valid; licensed independent masters are absent | No probability-calibrated origin claim is allowed |
 
@@ -35,6 +35,8 @@ instrumented real-library performance remain manual GA acceptance work.
 - [x] Real-world corpus infrastructure and packaged validation disclosure verify.
 - [x] Accessibility audit has no serious or critical violations.
 - [x] Left, right, and L−R channel selections each repaint a fully populated spectrogram canvas without requiring a Floor, zoom, or color control change.
+- [x] Quick Inspect is the default completed-file view, renders four bounded summary cards from the Oracle record, and routes to the deeper Spectrogram, Loudness, and Evidence views.
+- [x] MP3 Stereo, Joint Stereo, Dual Channel, and Mono modes are parsed from consecutive MPEG frame headers and remain distinct from decoded channel layout.
 - [x] Compare restores compact session records into independent File A and File B waveform/spectrum evidence, paints difference and residual panels, and never leaves a stale canvas.
 - [x] AcoustID enablement, protected key presence, and MusicBrainz enablement restore after relaunch; clearing the key removes it without plaintext fallback.
 - [x] Audit startup waits for protected identity preferences, and cached records enabled for recognition cannot remain in an ambiguous not-requested state.
@@ -47,7 +49,7 @@ instrumented real-library performance remain manual GA acceptance work.
 - [x] A 640-file fingerprint-finalization regression bounds persistent lookups to four outstanding requests, uses indexed exact matching at scale, and preserves audit completion when supplemental history enrichment times out.
 - [x] The defect register matches the package version and contains no unresolved P0/P1 defects.
 - [x] Maintainer acceptance evidence validates and states every uncaptured measurement.
-- [x] Packaged CLI folder audit emits the v11 five-lane JSON evidence model, honors evidence-policy and native resource limits, and does not persist external-service keys.
+- [x] Packaged CLI folder audit emits the v12 five-lane JSON evidence model, honors evidence-policy and native resource limits, and does not persist external-service keys.
 - [x] Production dependency audit reports zero known vulnerabilities.
 - [x] Apple Silicon DMG, Universal DMG, Windows installer, and Windows portable artifacts pass structural inspection.
 - [x] Both macOS app bundles have valid whole-bundle ad-hoc signatures, no Developer ID identity, and remain valid after quarantine metadata is applied.

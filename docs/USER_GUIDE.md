@@ -42,7 +42,38 @@ Verdicts have deliberately limited scope:
 
 An **Analysis error** means a tool, resource, probe, measurement, or internal processing stage did not finish. Audio-V shows the failure stage, code, and exact diagnostic evidence and does not call the source damaged. Retry the analysis after reviewing that evidence.
 
-Select a row to inspect its measured spectrogram, loudness, technical profile, evidence chain, Origin Assessment, and Oracle verdict. A Clear result does not prove provenance.
+Select a row to open **Quick Inspect**, the one-file-at-a-glance view. It shows
+the Oracle verdict and explanation, format, bitrate and encoded channel mode,
+key signal measurements, spectrum/origin summary, integrity state, and the
+recommended next step. Use its buttons—or the tabs above it—to open the full
+Spectrogram, Loudness, and Evidence workflows. Quick Inspect uses the same
+Oracle evidence and does not calculate a separate or simplified verdict.
+
+For MP3, **MP3 frame mode** means the mode encoded in the MPEG frame headers:
+Stereo, Joint Stereo, Dual Channel, or Mono. It is intentionally separate from
+the decoder's output channel layout. Other formats continue to show their
+declared/probed channel layout.
+
+A Clear result does not prove provenance.
+
+### The lightweight one-file path
+
+If you only want to check one download, choose that file and remain in Quick
+Inspect. You do not need to configure Compare, Reports, Identity, delivery
+profiles, or high-resolution spectrogram controls. The scan is still a complete
+Oracle audit; the result is simply presented in a compact form.
+
+Use the deeper tabs only when you want to:
+
+- inspect frequency energy visually;
+- understand loudness or defect measurements;
+- read the exact evidence behind Review or Failed; or
+- export a detailed record.
+
+Audio-V does not modify, normalize, EQ, or enhance the signal to draw the
+spectrogram. The view is an STFT measurement of decoded samples. FFT size,
+window, channel selection, scaling, floor, and palette affect its presentation,
+so no responsible analyzer can call one rendering the uniquely “raw” view.
 
 The results table can be sorted by verdict so Clear, Review, Failed, Not
 analyzed, and Analysis error files can be handled together. Long paths and
@@ -264,6 +295,6 @@ Source and CI users can audit files or recursive folders without opening the des
 npm run cli -- ./collection --output ./audio-v-evidence.json --concurrency 2 --memory-mb 256 --fail-on failed
 ```
 
-Use `--fail-on review`, `failed`, or `never` to choose when evidence returns policy exit code 2. Processing errors return exit code 1. The output uses the same compact Oracle v11 five-lane JSON contract as desktop JSON reports. Desktop packages include launchers under `Contents/Resources/cli` on macOS and `resources\cli` on Windows.
+Use `--fail-on review`, `failed`, or `never` to choose when evidence returns policy exit code 2. Processing errors return exit code 1. The output uses the same compact Oracle v12 five-lane JSON contract as desktop JSON reports. Desktop packages include launchers under `Contents/Resources/cli` on macOS and `resources\cli` on Windows.
 
 For unsigned installation and checksum verification, see [UNSIGNED_INSTALLATION.md](UNSIGNED_INSTALLATION.md).

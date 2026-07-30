@@ -6,7 +6,7 @@
 
   <p>
     <img alt="Locally verified builds" src="https://img.shields.io/badge/builds-locally%20verified-51e19b?style=for-the-badge">
-    <a href="https://github.com/DRAZY/Audio-V/releases/latest"><img alt="Latest Audio-V release 0.4.37" src="https://img.shields.io/badge/latest-0.4.37-8b5cf6?style=for-the-badge"></a>
+    <a href="https://github.com/DRAZY/Audio-V/releases/latest"><img alt="Latest Audio-V release 0.4.38" src="https://img.shields.io/badge/latest-0.4.38-8b5cf6?style=for-the-badge"></a>
     <a href="LICENSE"><img alt="AGPL 3.0 only" src="https://img.shields.io/badge/license-AGPL--3.0--only-8b5cf6?style=for-the-badge"></a>
     <img alt="macOS and Windows" src="https://img.shields.io/badge/platforms-macOS%20%7C%20Windows-252532?style=for-the-badge">
   </p>
@@ -43,6 +43,22 @@ does not assume that a large bitrate or “Hi-Res” label means high quality. I
 is an inspection desk: decode the file, measure the signal, show the evidence,
 and explain the result.
 
+### One file or a whole workstation
+
+Audio-V has two paths through the same Oracle Engine:
+
+- **Quick Inspect** is the lightweight path. Choose one file and get its
+  verdict, format, encoded MP3 channel mode, signal, spectrum, integrity, and
+  next step on one screen.
+- **Deep inspection** adds adjustable spectrograms, evidence lanes, comparison,
+  batch processing, reports, history, and collection tools when they are
+  needed.
+
+Quick Inspect does not run a weaker scan or invent a simplified verdict. It
+summarizes the same complete-stream analysis used by the deeper views. Audio-V
+is therefore lightweight to *use for one file*, even though its total scope is
+larger than a single-purpose spectrogram viewer.
+
 ### Who is it for?
 
 - Music collectors checking a personal library
@@ -77,6 +93,7 @@ explains what each result can—and cannot—establish.
 | Audio-V strength | What it gives you |
 |---|---|
 | **Complete-stream assessment** | The selected audio stream is decoded from beginning to end instead of judging a filename, header, or short visual sample |
+| **Fast first answer, deep evidence behind it** | Quick Inspect puts the verdict, format, encoded MP3 channel mode, signal, spectrum, integrity, and next steps on one screen; every value links back to the same deeper evidence |
 | **Narrow, explainable verdicts** | Clear, Review, and Failed follow disclosed precedence; measurements, heuristics, declarations, and deterministic checks remain visibly different |
 | **Library-scale operation** | Recursive folders, bounded workers and fingerprint finalization, mounted-source staging, pause, prompt cancellation, checkpoints, adaptive recovery, cache reuse, and compact SQLite history |
 | **Deep visual inspection** | Measured waveform and 512–16,384-point spectrogram views with channel isolation, L−R, zoom, pan, regions, scientific palettes, and batch image export |
@@ -86,6 +103,20 @@ explains what each result can—and cannot—establish.
 | **Identity without verdict inflation** | Local Chromaprint relationships plus optional AcoustID and MusicBrainz context remain separate from audio-quality verdicts |
 | **Evidence you can keep** | Per-file inspection, human review disposition, resumable history, privacy-safe acceptance records, JSON automation, and PDF/XLSX/DOCX/CSV reports |
 | **Local-first design** | No player, account, advertising, telemetry, automatic upload, or source overwrite |
+
+### What “measured spectrogram” means
+
+Audio-V does not market any spectrogram as “100% raw” or as proof of an
+untouched studio master. It decodes the selected audio stream, calculates a
+short-time Fourier transform (STFT), and discloses the FFT size, window,
+channel mode, frequency range, display floor, scale, and palette. Those
+settings affect how every spectrogram looks; exposing them makes Audio-V’s
+view measurable and reproducible instead of mysterious.
+
+A spectrogram can reveal bandwidth and cutoff patterns. It cannot, by itself,
+prove the complete history, authenticity, ownership, or artistic intent of a
+recording. Oracle combines it with integrity and signal evidence and labels
+uncertain origin findings as Review—not fact.
 
 ### Friendly for beginners, deep enough for specialists
 
@@ -103,7 +134,7 @@ This is positioning, not a claim that one tool replaces every other:
 
 | Tool | Its published center of gravity | Audio-V’s different job |
 |---|---|---|
-| [Spek](https://www.spek.cc/about) | Fast, approachable single-file spectrogram viewing and image export | Turn one or thousands of files into integrity, signal, origin, provenance, delivery, and reportable verdict evidence |
+| [Spek](https://www.spek.cc/about) | Fast, approachable single-file spectrogram viewing and image export | Offer an equally direct one-file starting point through Quick Inspect, then extend it to integrity, signal, origin, provenance, delivery, comparison, and reportable evidence |
 | [Sonic Visualiser](https://sonicvisualiser.org/features.html) | Highly configurable visualization, annotation, layers, playback, and plugin research | Provide a guided audit and decision workflow without requiring plugin selection or becoming an annotation environment |
 | [AudioAuditor](https://audioauditor.org/) | Broad Windows toolkit combining analysis with playback, EQ, lyrics, metadata tools, and experimental detection | Stay cross-platform and assessment-focused, keeping every verdict reproducible and every uncertain claim explicitly limited |
 | [CUETools/CTDB](https://cue.tools/wiki/CUETools_Database) and [AccurateRip](https://accuraterip.com/) | Specialized verification of properly contextualized audio-CD extractions against shared databases | Assess ordinary files and libraries broadly; identify disc-verification eligibility without pretending eligibility is a database match |
@@ -116,21 +147,21 @@ comparison.
 ## Download Audio-V
 
 The current locally built and verified release is
-**[Audio-V 0.4.37](https://github.com/DRAZY/Audio-V/releases/latest)**.
+**[Audio-V 0.4.38](https://github.com/DRAZY/Audio-V/releases/latest)**.
 
 | Your computer | Download | What you receive |
 |---|---|---|
-| Apple Silicon Mac | [Apple Silicon DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.37/Audio-V-0.4.37-mac-arm64.dmg) | Native build for M-series Macs |
-| Any supported Mac | [Universal DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.37/Audio-V-0.4.37-mac-universal.dmg) | Apple Silicon and Intel in one package |
-| Windows | [Windows installer](https://github.com/DRAZY/Audio-V/releases/download/v0.4.37/Audio-V-0.4.37-win-x64.exe) | Guided installation |
-| Windows portable | [Portable executable](https://github.com/DRAZY/Audio-V/releases/download/v0.4.37/Audio-V-Portable-0.4.37-x64.exe) | Runs without installation |
+| Apple Silicon Mac | [Apple Silicon DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.38/Audio-V-0.4.38-mac-arm64.dmg) | Native build for M-series Macs |
+| Any supported Mac | [Universal DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.38/Audio-V-0.4.38-mac-universal.dmg) | Apple Silicon and Intel in one package |
+| Windows | [Windows installer](https://github.com/DRAZY/Audio-V/releases/download/v0.4.38/Audio-V-0.4.38-win-x64.exe) | Guided installation |
+| Windows portable | [Portable executable](https://github.com/DRAZY/Audio-V/releases/download/v0.4.38/Audio-V-Portable-0.4.38-x64.exe) | Runs without installation |
 
 These builds are not signed with paid Apple or Microsoft certificates. Verify
 the download with
-[`SHA256SUMS.txt`](https://github.com/DRAZY/Audio-V/releases/download/v0.4.37/SHA256SUMS.txt),
+[`SHA256SUMS.txt`](https://github.com/DRAZY/Audio-V/releases/download/v0.4.38/SHA256SUMS.txt),
 then follow the
 [unsigned installation guide](docs/UNSIGNED_INSTALLATION.md). The
-[`UNSIGNED_RELEASE_MANIFEST.json`](https://github.com/DRAZY/Audio-V/releases/download/v0.4.37/UNSIGNED_RELEASE_MANIFEST.json)
+[`UNSIGNED_RELEASE_MANIFEST.json`](https://github.com/DRAZY/Audio-V/releases/download/v0.4.38/UNSIGNED_RELEASE_MANIFEST.json)
 records the signing policy and artifact identities.
 
 ## Your first audit
@@ -170,7 +201,13 @@ results are checkpointed, and interrupted scans can be resumed from History.
 
 ### 4. Read the verdict
 
-Select a file to see:
+Select a file and **Quick Inspect** opens first. It places the one-file verdict,
+plain-language explanation, format, signal, spectrum, integrity, and next-step
+summary on one screen. Its buttons open the full Spectrogram, Loudness, and
+Evidence views; it summarizes the existing Oracle result and never issues a
+different verdict.
+
+The deeper views include:
 
 - the plain-language Oracle explanation;
 - the evidence lane that raised a concern;
@@ -179,6 +216,10 @@ Select a file to see:
 - Origin Assessment and its limitations;
 - provenance and acoustic-identity clues;
 - measured waveform and spectrogram views.
+
+For MP3 files, **MP3 frame mode** is read directly from MPEG audio frame
+headers and reported as Stereo, Joint Stereo, Dual Channel, or Mono. This is
+kept separate from the decoded output channel layout.
 
 ### 5. Decide what to do
 

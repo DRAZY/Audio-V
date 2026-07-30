@@ -80,7 +80,7 @@ try {
     result.discovered !== 1 ||
     result.completed !== 1 ||
     !["verified", "review"].includes(result.verdicts?.[0]) ||
-    result.engineVersions?.[0] !== "0.9.0-oracle-v11" ||
+    result.engineVersions?.[0] !== "0.10.0-oracle-v12" ||
     result.acceptance?.schema !== "Audio-V acceptance run evidence v1" ||
     result.acceptance?.status !== "completed" ||
     result.acceptance?.workload?.discoveredCount !== 1 ||
@@ -144,9 +144,9 @@ try {
   const cliEvidence = JSON.parse(await fs.readFile(cliOutput, "utf8"));
   if (
     cliEvidence.summary?.discovered !== 1 ||
-    cliEvidence.files?.[0]?.oracle?.engineVersion !== "0.9.0-oracle-v11"
+    cliEvidence.files?.[0]?.oracle?.engineVersion !== "0.10.0-oracle-v12"
   ) {
-    throw new Error("Packaged CLI did not produce v11 Oracle evidence.");
+    throw new Error("Packaged CLI did not produce v12 Oracle evidence.");
   }
   console.log(`Verified packaged ${target} CLI launcher and bundled engine.`);
 } finally {

@@ -30,7 +30,7 @@ describe("analyzeAudioFile", () => {
 
     expect(result.verdict).toBe("verified");
     expect(result.confidence).toBeNull();
-    expect(result.scope).toBe("oracle-integrity-forensics-v11");
+    expect(result.scope).toBe("oracle-integrity-forensics-v12");
     expect(result.headline).toBe("Current checks passed");
     expect(result.assessments).toMatchObject({
       integrity: { status: "passed" },

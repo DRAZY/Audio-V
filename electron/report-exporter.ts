@@ -149,6 +149,7 @@ export function audioFileReportRow(file: AudioFileRecord): ReportRow {
       "Bitrate bps": display(file.bitrate),
       Channels: display(file.channels),
       "Channel layout": display(file.channelMode),
+      "MP3 encoded channel mode": display(technical?.mp3ChannelMode),
       "Bitrate mode": display(file.bitrateMode),
       "Packet bitrate p05 bps": display(technical?.packetBitrateP05),
       "Packet bitrate p95 bps": display(technical?.packetBitrateP95),

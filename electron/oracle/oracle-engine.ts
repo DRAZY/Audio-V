@@ -7,7 +7,7 @@ import {
   buildOracleAssessments,
 } from "./oracle-assessments";
 
-export const engineVersion = "0.9.0-oracle-v11";
+export const engineVersion = "0.10.0-oracle-v12";
 
 export function oracleFailureResult(error: unknown): OracleResult {
   const failure = classifyOracleFailure(error);
@@ -15,7 +15,7 @@ export function oracleFailureResult(error: unknown): OracleResult {
   return {
     schemaVersion: 1,
     engineVersion,
-    scope: "oracle-integrity-forensics-v11",
+    scope: "oracle-integrity-forensics-v12",
     verdict: integrityFailure ? "damaged" : "inconclusive",
     analysisState: integrityFailure ? "failed" : "error",
     failure,
@@ -192,7 +192,7 @@ export async function analyzeAudioFile(
     return {
       schemaVersion: 1,
       engineVersion,
-      scope: "oracle-integrity-forensics-v11",
+      scope: "oracle-integrity-forensics-v12",
       verdict,
       analysisState: flacMd5Mismatch ? "failed" : "completed",
       failure: flacMd5Mismatch

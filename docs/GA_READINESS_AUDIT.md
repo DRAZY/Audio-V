@@ -1,7 +1,7 @@
 # Audio-V GA readiness audit
 
 Assessment date: 2026-07-29
-Assessment basis: Oracle v11 source, automated gates, packaged-release policy,
+Assessment basis: Oracle v12 source, automated gates, packaged-release policy,
 product documentation, and comparison with the published capabilities of
 AudioAuditor and Spek.
 

@@ -34,7 +34,7 @@ import {
   resolveDeliveryProfile,
 } from "../shared/delivery-profiles";
 
-type AnalysisPanel = "spectrogram" | "loudness" | "evidence";
+type AnalysisPanel = "quick" | "spectrogram" | "loudness" | "evidence";
 type WorkspacePanel =
   | "audit"
   | "library"
@@ -46,7 +46,7 @@ type RepairBitDepthMode = "source" | "16" | "24";
 
 const files = ref<AudioFileRecord[]>([]);
 const selectedId = ref("");
-const activePanel = ref<AnalysisPanel>("spectrogram");
+const activePanel = ref<AnalysisPanel>("quick");
 const activeWorkspace = ref<WorkspacePanel>("audit");
 const sourceRoot = ref("No source selected");
 const activeSessionId = ref("");
@@ -587,6 +587,32 @@ function decodeStatusLabel(file: AudioFileRecord): string {
   if (state === "not-analyzed") return "Not run";
   if (state === "error") return `Error · ${failureStageLabel(file)}`;
   return "Failed integrity";
+}
+
+function analysisPanelLabel(panel: AnalysisPanel): string {
+  return panel === "quick" ? "Quick inspect" : panel;
+}
+
+function encodedChannelLabel(file: AudioFileRecord): string {
+  const encodedMode = file.oracle.technical?.mp3ChannelMode;
+  if (encodedMode) {
+    return `${encodedMode} · ${file.channels ?? "?"} decoded channel${file.channels === 1 ? "" : "s"}`;
+  }
+  return (
+    file.oracle.technical?.channelLayout ??
+    file.channelMode ??
+    (file.channels
+      ? `${file.channels} decoded channel${file.channels === 1 ? "" : "s"}`
+      : "Not reported")
+  );
+}
+
+function quickIntegrityLabel(file: AudioFileRecord): string {
+  const state = oracleAnalysisState(file);
+  if (state === "not-analyzed") return "Not analyzed";
+  if (state === "error") return `Stopped at ${failureStageLabel(file)}`;
+  if (file.oracle.verdict === "damaged") return "Deterministic failure";
+  return "Complete decode passed";
 }
 
 function acoustIdStatusLabel(file: AudioFileRecord): string {
@@ -1770,7 +1796,7 @@ async function scanSource(source: AudioSourceSelection): Promise<void> {
     compareAId.value = result.files[0]?.id ?? "";
     compareBId.value = result.files[1]?.id ?? result.files[0]?.id ?? "";
     reportSelectedId.value = result.files[0]?.id ?? "";
-    activePanel.value = firstMeasured?.oracle.measurements ? "loudness" : "evidence";
+    activePanel.value = "quick";
     filter.value = "all";
     const measured = result.files.filter(
       (file) => oracleAnalysisState(file) === "completed",
@@ -2269,7 +2295,7 @@ async function analyzeSelected(): Promise<void> {
         ? { ...file, detailLevel: undefined, oracle }
         : file,
     );
-    activePanel.value = oracle.measurements ? "loudness" : "evidence";
+    activePanel.value = "quick";
     scanMessage.value =
       oracle.analysisState === "failed"
         ? `Deterministic integrity failure · ${selected.value.name}`
@@ -2604,7 +2630,7 @@ function assessmentStatusLabel(
   lane: "integrity" | "signal" | "origin" | "provenance" | "delivery",
 ): string {
   const assessment = file.oracle.assessments?.[lane];
-  if (!assessment) return "Legacy result · re-run for v11 lanes";
+  if (!assessment) return "Legacy result · re-run for v12 lanes";
   if (lane === "delivery") {
     const delivery = file.oracle.assessments?.delivery;
     return delivery?.status === "not-evaluated"
@@ -3399,14 +3425,14 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
       <section v-if="selected" class="analysis-card">
         <nav class="analysis-tabs" role="tablist" aria-label="Analysis views">
           <button
-            v-for="panel in (['spectrogram', 'loudness', 'evidence'] as AnalysisPanel[])"
+            v-for="panel in (['quick', 'spectrogram', 'loudness', 'evidence'] as AnalysisPanel[])"
             :key="panel"
             role="tab"
             :aria-selected="activePanel === panel"
             :class="{ active: activePanel === panel }"
             @click="activePanel = panel"
           >
-            {{ panel }}
+            {{ analysisPanelLabel(panel) }}
           </button>
           <span>
             {{
@@ -3422,7 +3448,63 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
         </nav>
         <div class="analysis-content">
           <div class="visualization">
-            <div v-if="activePanel === 'spectrogram'" class="spectrogram">
+            <section v-if="activePanel === 'quick'" class="quick-inspect">
+              <header class="quick-verdict" :class="fileStateClass(selected)">
+                <div>
+                  <span class="eyebrow">One-file Oracle summary</span>
+                  <h2>{{ shortVerdict(selected) }}</h2>
+                  <strong>{{ selected.oracle.headline }}</strong>
+                </div>
+                <p>{{ reviewExplanation(selected) }}</p>
+              </header>
+              <div class="quick-grid">
+                <article>
+                  <span class="eyebrow">Format</span>
+                  <strong>{{ selected.codec }} · {{ selected.container }}</strong>
+                  <dl>
+                    <div><dt>Resolution</dt><dd>{{ formatRate(selected.sampleRate) }} · {{ selected.bitDepth ? `${selected.bitDepth}-bit` : "bit depth not declared" }}</dd></div>
+                    <div><dt>Bitrate</dt><dd>{{ formatBitrate(selected.bitrate) }}{{ selected.bitrateMode ? ` · ${selected.bitrateMode}` : "" }}</dd></div>
+                    <div><dt>{{ selected.oracle.technical?.mp3ChannelMode ? "MP3 frame mode" : "Channels" }}</dt><dd>{{ encodedChannelLabel(selected) }}</dd></div>
+                  </dl>
+                </article>
+                <article>
+                  <span class="eyebrow">Signal</span>
+                  <strong>{{ selected.oracle.measurements ? `${selected.oracle.measurements.integratedLufs?.toFixed(1) ?? "—"} LUFS` : "Not measured" }}</strong>
+                  <dl>
+                    <div><dt>Sample / true peak</dt><dd>{{ formatDb(selected.oracle.measurements?.samplePeakDbfs ?? null) }} / {{ selected.oracle.measurements?.truePeakDbtp === null || selected.oracle.measurements?.truePeakDbtp === undefined ? "—" : `${selected.oracle.measurements.truePeakDbtp.toFixed(2)} dBTP` }}</dd></div>
+                    <div><dt>RMS / loudness range</dt><dd>{{ formatDb(selected.oracle.measurements?.rmsDbfs ?? null) }} / {{ selected.oracle.measurements?.loudnessRangeLu === null || selected.oracle.measurements?.loudnessRangeLu === undefined ? "—" : `${selected.oracle.measurements.loudnessRangeLu.toFixed(1)} LU` }}</dd></div>
+                    <div><dt>DR meter</dt><dd>{{ selected.oracle.measurements?.drMeter === null || selected.oracle.measurements?.drMeter === undefined ? "—" : `DR${selected.oracle.measurements.drMeter.toFixed(1)}` }}</dd></div>
+                  </dl>
+                  <button @click="activePanel = 'loudness'">Open signal details</button>
+                </article>
+                <article>
+                  <span class="eyebrow">Spectrum & origin</span>
+                  <strong>{{ originAssessmentLabel(selected) }}</strong>
+                  <dl>
+                    <div><dt>Observed bandwidth</dt><dd>{{ formatHz(originSpectrum(selected)?.effectiveBandwidthHz) }}</dd></div>
+                    <div><dt>Evidence coverage</dt><dd>{{ selected.oracle.fidelity ? `${selected.oracle.fidelity.evidenceCoverage}%` : "Not assessed" }}</dd></div>
+                    <div><dt>Rule strength</dt><dd>{{ selected.oracle.fidelity?.ruleStrength?.replaceAll("-", " ") ?? "Not assessed" }}</dd></div>
+                  </dl>
+                  <button @click="activePanel = 'spectrogram'">Open spectrogram</button>
+                </article>
+                <article>
+                  <span class="eyebrow">Integrity & next step</span>
+                  <strong>{{ quickIntegrityLabel(selected) }}</strong>
+                  <dl>
+                    <div><dt>Clipped samples</dt><dd>{{ selected.oracle.measurements?.clippedSamples.toLocaleString() ?? "Not measured" }}</dd></div>
+                    <div><dt>Waveform candidates</dt><dd>{{ selected.oracle.measurements?.defects ? `${selected.oracle.measurements.defects.clickPopCandidateCount} click/pop · ${selected.oracle.measurements.defects.stuckSampleCandidateCount} stuck` : "Not measured" }}</dd></div>
+                    <div><dt>Evidence findings</dt><dd>{{ selected.oracle.evidence.length.toLocaleString() }}</dd></div>
+                  </dl>
+                  <button @click="activePanel = 'evidence'">Open evidence</button>
+                </article>
+              </div>
+              <footer>
+                Quick Inspect summarizes the same measured evidence used by the Oracle Engine.
+                It does not create a second verdict or hide uncertainty.
+              </footer>
+            </section>
+
+            <div v-else-if="activePanel === 'spectrogram'" class="spectrogram">
               <div
                 v-if="displaySpectrum?.slices.length"
                 class="spectrogram-render"
@@ -3858,6 +3940,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
               <div><dt>Bitrate</dt><dd>{{ formatBitrate(selected.bitrate) }}</dd></div>
               <div><dt>Channels</dt><dd>{{ selected.channels ?? "—" }}</dd></div>
               <div><dt>Channel layout</dt><dd>{{ selected.oracle.technical?.channelLayout ?? selected.channelMode ?? "—" }}</dd></div>
+              <div v-if="selected.oracle.technical?.mp3ChannelMode"><dt>MP3 frame mode</dt><dd>{{ selected.oracle.technical.mp3ChannelMode }}</dd></div>
               <div><dt>Bitrate mode</dt><dd>{{ selected.bitrateMode ?? "Not probed" }}</dd></div>
               <div><dt>Packet bitrate p05 / p95</dt><dd>{{ selected.oracle.technical?.packetBitrateP05 === null || selected.oracle.technical?.packetBitrateP05 === undefined ? "Not available" : `${formatBitrate(selected.oracle.technical.packetBitrateP05)} / ${formatBitrate(selected.oracle.technical.packetBitrateP95)}` }}</dd></div>
               <div><dt>Packet bitrate deviation</dt><dd>{{ selected.oracle.technical?.packetBitrateStdDev === null || selected.oracle.technical?.packetBitrateStdDev === undefined ? "Not available" : formatBitrate(selected.oracle.technical.packetBitrateStdDev) }}</dd></div>
@@ -3898,7 +3981,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
               class="origin-assessment-card"
             >
               <header>
-                <span class="eyebrow">Oracle v11 evidence lanes</span>
+                <span class="eyebrow">Oracle v12 evidence lanes</span>
                 <strong>Separated assessment model</strong>
                 <em>Only review-level evidence changes the overall verdict</em>
               </header>
@@ -4613,7 +4696,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
               v-if="reportSelected.oracle.assessments"
               class="report-origin"
             >
-              <span class="eyebrow">Oracle v11 evidence lanes</span>
+              <span class="eyebrow">Oracle v12 evidence lanes</span>
               <dl>
                 <div><dt>File integrity</dt><dd>{{ assessmentStatusLabel(reportSelected, "integrity") }}</dd></div>
                 <div><dt>Signal defects</dt><dd>{{ assessmentStatusLabel(reportSelected, "signal") }}</dd></div>
@@ -4665,7 +4748,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
         </header>
         <div class="capability-grid">
           <article><span>Decode integrity</span><strong>Strict plus confirmation decode</strong><p>Every selected stream is decoded from beginning to end. A strict decoder error is confirmed with a tolerant full pass before Audio-V can issue a deterministic Failed verdict.</p></article>
-          <article><span>Oracle v11 policy</span><strong>Five independent evidence lanes</strong><p>File integrity, signal defects, spectral origin, provenance, and delivery guidance remain separate. Advisory inventory never masquerades as file damage.</p></article>
+          <article><span>Oracle v12 policy</span><strong>Five independent evidence lanes</strong><p>File integrity, signal defects, spectral origin, provenance, and delivery guidance remain separate. Advisory inventory never masquerades as file damage.</p></article>
           <article><span>Metadata workflow</span><strong>Explicit inventory mode</strong><p>Catalog declared format, codec, duration, bitrate, sample rate, bit depth, and channels without decoding. Files remain Not analyzed until a Full Oracle Audit runs.</p></article>
           <article><span>Signal analysis</span><strong>Measured PCM and spectrum</strong><p>Peak, RMS, clipping, DC offset, channel relationship, and a real STFT spectrogram come from decoded samples.</p></article>
           <article><span>Broadcast loudness</span><strong>EBU R128 / BS.1770</strong><p>Integrated LUFS, loudness range, and oversampled true peak are measured by the bundled engine.</p></article>
@@ -4869,7 +4952,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
           :title="sourceIoNotice || scanMessage"
         ><i></i>{{ scanMessage }}</span>
         <span>{{ files.length.toLocaleString() }} files in session</span>
-        <span>Oracle evidence lanes &amp; forensics scope v11</span>
+        <span>Oracle evidence lanes &amp; forensics scope v12</span>
       </footer>
     </main>
   </div>

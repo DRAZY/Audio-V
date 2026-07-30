@@ -2,13 +2,7 @@ import { contextBridge, ipcRenderer } from "electron";
 import type { AudioVDesktopApi } from "../shared/contracts";
 
 const api: AudioVDesktopApi = {
-  ...(process.env.AUDIO_V_ENABLE_QA === "1" &&
-  process.env.AUDIO_V_QA_SOURCE
-    ? {
-        qaLoadConfiguredSource: () =>
-          ipcRenderer.invoke("qa:configured-source"),
-      }
-    : {}),
+  qaLoadConfiguredSource: () => ipcRenderer.invoke("qa:configured-source"),
   selectFiles: () => ipcRenderer.invoke("library:select-files"),
   selectCompareFile: () => ipcRenderer.invoke("comparison:select-file"),
   selectFolder: () => ipcRenderer.invoke("library:select-folder"),

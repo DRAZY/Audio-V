@@ -147,6 +147,47 @@ app.whenReady().then(async () => {
         check();
       })
     `);
+    const quickInspect = await window.webContents.executeJavaScript(`
+      (() => {
+        const activeTab = document.querySelector(
+          '.analysis-tabs button[aria-selected="true"]',
+        );
+        const panel = document.querySelector(".quick-inspect");
+        const cards = [...document.querySelectorAll(".quick-grid article")];
+        if (!activeTab?.textContent.toLowerCase().includes("quick inspect")) {
+          throw new Error("Quick Inspect was not the default completed-file view.");
+        }
+        if (!panel || cards.length !== 4) {
+          throw new Error("Quick Inspect did not render all four summary cards.");
+        }
+        const panelRect = panel.getBoundingClientRect();
+        const overflow = cards.some((card) => {
+          const rect = card.getBoundingClientRect();
+          return (
+            rect.left < panelRect.left - 1 ||
+            rect.right > panelRect.right + 1 ||
+            card.scrollWidth > card.clientWidth
+          );
+        });
+        if (overflow) {
+          throw new Error("Quick Inspect summary cards overflow their panel.");
+        }
+        return {
+          activeTab: activeTab.textContent.trim(),
+          cardCount: cards.length,
+          headings: cards.map((card) =>
+            card.querySelector(".eyebrow")?.textContent.trim(),
+          ),
+          verdict: panel.querySelector(".quick-verdict h2")?.textContent.trim(),
+        };
+      })()
+    `);
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    const quickScreenshot = await window.webContents.capturePage();
+    await writeFile(
+      path.join(process.cwd(), "build", "layout-quick-inspect.png"),
+      quickScreenshot.toPNG(),
+    );
     await window.webContents.executeJavaScript(`
       [...document.querySelectorAll(".analysis-tabs button")]
         .find((button) => button.textContent.toLowerCase().includes("spectrogram"))
@@ -159,6 +200,7 @@ app.whenReady().then(async () => {
     const report = {
       schema: "Audio-V spectrogram channel rendering v1",
       measuredAt: new Date().toISOString(),
+      quickInspect,
       results,
       passed: true,
     };

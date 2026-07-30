@@ -685,20 +685,21 @@ ipcMain.handle("acceptance:export", async () => {
   return { canceled: false, filePath: result.filePath };
 });
 
-if (
-  process.env.AUDIO_V_ENABLE_QA === "1" &&
-  process.env.AUDIO_V_QA_SOURCE
-) {
-  ipcMain.handle("qa:configured-source", async () => {
-    const configuredPath = path.resolve(process.env.AUDIO_V_QA_SOURCE!);
-    const stat = await fs.stat(configuredPath);
-    return approveSelection({
-      kind: stat.isDirectory() ? "folder" : "files",
-      paths: [configuredPath],
-      label: configuredPath,
-    });
+ipcMain.handle("qa:configured-source", async () => {
+  if (
+    process.env.AUDIO_V_ENABLE_QA !== "1" ||
+    !process.env.AUDIO_V_QA_SOURCE
+  ) {
+    return null;
+  }
+  const configuredPath = path.resolve(process.env.AUDIO_V_QA_SOURCE);
+  const stat = await fs.stat(configuredPath);
+  return approveSelection({
+    kind: stat.isDirectory() ? "folder" : "files",
+    paths: [configuredPath],
+    label: configuredPath,
   });
-}
+});
 
 ipcMain.handle("library:select-files", async () => {
   const result = await dialog.showOpenDialog({

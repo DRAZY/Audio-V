@@ -24,7 +24,7 @@ const manifest = {
   projectLicense: packageJson.license,
   sourceRevision,
   oracleEngine: {
-    version: "0.9.0-oracle-v11",
+    version: "0.10.0-oracle-v12",
     schemaVersion: 1,
     decoderBundled: "FFmpeg-and-ffprobe-8.1.2-LGPL",
     capabilities: {
@@ -38,6 +38,10 @@ const manifest = {
         "implemented-md5-sha1-sha256-sha512-gnu-bsd-and-sidecar",
       bitrateMode:
         "implemented-streaming-packet-distribution-for-all-demuxers-reporting-packet-sizes-and-durations",
+      mp3ChannelMode:
+        "implemented-consecutive-mpeg-frame-header-stereo-joint-stereo-dual-channel-and-mono",
+      quickInspect:
+        "implemented-one-file-verdict-format-signal-spectrum-integrity-and-deep-view-routing",
       loudnessBs1770: "implemented-ebur128",
       truePeak: "implemented-bs1770-oversampled",
       spectrogram: "implemented-multicodec-stft-512-2048-4096-16384-hann",
@@ -73,7 +77,7 @@ const manifest = {
       fidelityGoldenCorpus: "implemented-regression-only-not-probability-calibrated",
       persistentCache: "implemented-versioned-size-mtime-invalidated",
       batchCancellation: "implemented-active-process-termination",
-      scopedVerdictRules: "implemented-for-oracle-integrity-forensics-v11",
+      scopedVerdictRules: "implemented-for-oracle-integrity-forensics-v12",
       compareWorkflow:
         "implemented-independent-files-stacked-overlay-wipe-blink-residual-region-full-track-null-and-explicit-channel-mapping",
       repairTriage: "implemented-actions-evidence-reveal-acknowledge",
