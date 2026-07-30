@@ -18,6 +18,13 @@ prerelease flag. “Release candidate” describes readiness; GitHub’s
 release. The README must name the exact promoted version and link all four
 primary assets directly; a generic Releases link alone is insufficient.
 
+Each native acceptance run can be exported from Settings as privacy-safe JSON.
+Attach or archive this evidence for clean-machine, cancellation, recovery, and
+large-library witnessing. It records the exact package/platform, workload,
+throughput, sampled process working set, database growth, source-storage class,
+and recovery mode without including source names, paths, hashes, tags, audio
+evidence, or service credentials.
+
 `.github/workflows/verify.yml` is an optional, manual-only cross-platform verification workflow. It runs only when a maintainer explicitly dispatches it and is not triggered by pushes, pull requests, or tags. This prevents the private repository from consuming GitHub-hosted runner allowance during normal development and publication.
 
 ## Local verification
@@ -63,8 +70,10 @@ Build and launch-test Windows packages on a maintainer-controlled Windows instal
 `build/external-services.json` resource. The value must be the 10-character key
 for the registered Audio-V AcoustID application. It is never committed. Omit
 the environment variable for a development/fork package that should require a
-session-only user key. Artifact verification must confirm the Settings service
-status matches the intended release configuration.
+user-supplied application key. The user may keep that key only through
+operating-system-protected storage; it never enters a package or audit record.
+Artifact verification must confirm the Settings service status matches the
+intended release configuration.
 
 ## Version and publish
 

@@ -13,11 +13,13 @@ import {
   type FingerprintIndexCandidate,
 } from "../shared/contracts";
 import { compactAudioFileRecord } from "../shared/compact-audio-record";
+import { assessDiscVerificationEligibility } from "../shared/disc-verification";
 import { assessExternalIdentity } from "../shared/external-identity-assessment";
 import {
   analyzeAudioFile,
   engineVersion as currentOracleEngineVersion,
 } from "./oracle/oracle-engine";
+import { applyDeliveryProfile } from "./oracle/delivery-profile";
 import {
   audioCodecLabel,
   audioFormatLabel,
@@ -236,6 +238,8 @@ function recoveryQuarantinedOracleResult(reason: string): OracleResult {
       delivery: {
         profile: null,
         status: "not-evaluated",
+        measuredLoudnessLufs: null,
+        measuredTruePeakDbtp: null,
         findingIds: [],
       },
       findings: [
@@ -470,14 +474,16 @@ async function attachExternalChecksumEvidence(
   };
 }
 
-function attachMetadataProvenance(file: AudioFileRecord): AudioFileRecord {
+export function attachMetadataProvenance(
+  file: AudioFileRecord,
+): AudioFileRecord {
   const technical = file.oracle.technical;
   if (!technical) return file;
   const metadataIndicators = metadataProvenanceIndicators(
     file.metadata.tags,
     [],
     technical.contentCredentials,
-  ).filter((item) => item.type === "generator-metadata");
+  ).filter((item) => item.source.startsWith("metadata:"));
   const provenanceIndicators = [
     ...technical.provenanceIndicators,
     ...metadataIndicators,
@@ -500,20 +506,26 @@ function attachMetadataProvenance(file: AudioFileRecord): AudioFileRecord {
       },
     };
   }
-  const provenanceFindingIds = metadataIndicators.map(
-    (_, index) => `generator-metadata-${index}`,
-  );
+  const evidenceId = (
+    indicator: (typeof metadataIndicators)[number],
+    index: number,
+  ) =>
+    `${indicator.type === "format-marker" ? "format-marker" : "generator-metadata"}-${index}`;
+  const provenanceFindingIds = metadataIndicators.map(evidenceId);
   return {
     ...file,
     oracle: {
       ...file.oracle,
       evidence: [
         ...file.oracle.evidence.filter(
-          (item) => !item.id.startsWith("generator-metadata-"),
+          (item) =>
+            !item.id.startsWith("generator-metadata-") &&
+            !item.id.startsWith("format-marker-"),
         ),
         ...metadataIndicators.map((indicator, index) => ({
-          id: `generator-metadata-${index}`,
-          label: `Generator metadata · ${indicator.identifier}`,
+          id: evidenceId(indicator, index),
+          label:
+            `${indicator.type === "format-marker" ? "Format marker" : "Generator metadata"} · ${indicator.identifier}`,
           summary: `${indicator.source}: ${indicator.value}. ${indicator.interpretation}`,
           kind: "heuristic" as const,
           disposition: "neutral" as const,
@@ -530,7 +542,9 @@ function attachMetadataProvenance(file: AudioFileRecord): AudioFileRecord {
                   : file.oracle.assessments.provenance.status,
               findingIds: [
                 ...file.oracle.assessments.provenance.findingIds.filter(
-                  (id) => !id.startsWith("generator-metadata-"),
+                  (id) =>
+                    !id.startsWith("generator-metadata-") &&
+                    !id.startsWith("format-marker-"),
                 ),
                 ...provenanceFindingIds,
               ],
@@ -538,19 +552,36 @@ function attachMetadataProvenance(file: AudioFileRecord): AudioFileRecord {
             findings: [
               ...file.oracle.assessments.findings.filter(
                 (finding) =>
-                  !finding.id.startsWith("generator-metadata-"),
+                  !finding.id.startsWith("generator-metadata-") &&
+                  !finding.id.startsWith("format-marker-"),
               ),
               ...metadataIndicators.map((indicator, index) => ({
-                id: `generator-metadata-${index}`,
+                id: evidenceId(indicator, index),
                 lane: "provenance" as const,
                 severity: "info" as const,
                 certainty: "declared" as const,
                 summary: `${indicator.identifier}: editable metadata inventory only; not proof of audio origin.`,
-                evidenceIds: [`generator-metadata-${index}`],
+                evidenceIds: [evidenceId(indicator, index)],
               })),
             ],
           }
         : file.oracle.assessments,
+    },
+  };
+}
+
+export function attachDiscVerificationEligibility(
+  file: AudioFileRecord,
+): AudioFileRecord {
+  if (!file.oracle.technical) return file;
+  return {
+    ...file,
+    oracle: {
+      ...file.oracle,
+      technical: {
+        ...file.oracle.technical,
+        discVerification: assessDiscVerificationEligibility(file),
+      },
     },
   };
 }
@@ -1248,6 +1279,7 @@ export async function scanSources(
           let restored = attachMetadataProvenance(
             normalizeAudioRecordFormat(cached),
           );
+          restored = attachDiscVerificationEligibility(restored);
           restored = await attachExternalIdentityEvidence(
             restored,
             source,
@@ -1384,6 +1416,7 @@ export async function scanSources(
             oracle,
           });
           file = attachMetadataProvenance(file);
+          file = attachDiscVerificationEligibility(file);
           file = discloseDeferredAlbumReplayGain(
             file,
             filePaths.length,
@@ -1411,7 +1444,14 @@ export async function scanSources(
           await staged.cleanup();
         }
         })();
-      const { file, fromCache } = analyzed;
+      const { file: baseFile, fromCache } = analyzed;
+      const file = {
+        ...baseFile,
+        oracle: applyDeliveryProfile(
+          baseFile.oracle,
+          source.deliveryProfile,
+        ),
+      };
       await abortable(
         Promise.resolve(options?.onFileStored?.(file, index, fromCache)),
         options?.signal,

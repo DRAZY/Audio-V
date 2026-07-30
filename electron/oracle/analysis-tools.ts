@@ -818,6 +818,20 @@ export function metadataProvenanceIndicators(
         });
       }
     }
+    if (
+      /\bmqa/iu.test(
+        normalized,
+      )
+    ) {
+      indicators.push({
+        type: "format-marker",
+        identifier: "MQA declaration",
+        source: `metadata:${tag.key}`,
+        value: tag.value,
+        interpretation:
+          "An editable metadata field declares MQA-related information. Audio-V has not authenticated an MQA payload, unfolded audio, or certified provenance.",
+      });
+    }
   }
   for (const raw of rawIdentifiers) {
     indicators.push({

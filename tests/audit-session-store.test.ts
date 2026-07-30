@@ -363,7 +363,10 @@ describe("AuditSessionStore", () => {
           (spectrum) => spectrum.slices.length > 0,
         ),
       ).toBe(true);
+      expect(restoredFull?.oracle.evidence.length).toBeGreaterThan(0);
       expect(restoredSummary).toMatchObject({ detailLevel: "summary" });
+      expect(restoredSummary?.oracle.evidence).toEqual([]);
+      expect(restoredSummary?.oracle.assessments?.findings).toEqual([]);
       expect(restoredSummary?.oracle.measurements?.spectrogram.slices).toEqual(
         [],
       );

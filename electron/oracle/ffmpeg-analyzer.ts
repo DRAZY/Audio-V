@@ -173,11 +173,23 @@ async function probe(filePath: string, signal?: AbortSignal): Promise<{
       externalChecksums: [],
       metadata: emptyMetadataInventory,
       contentCredentials,
-      provenanceIndicators: metadataProvenanceIndicators(
-        [],
-        fileInspection.identifiers,
-        contentCredentials,
-      ),
+      provenanceIndicators: [
+        ...metadataProvenanceIndicators(
+          [],
+          fileInspection.identifiers,
+          contentCredentials,
+        ),
+        ...(/\bmqa\b/iu.test(stream.profile ?? "")
+          ? [{
+              type: "format-marker" as const,
+              identifier: "MQA stream profile",
+              source: "decoder-stream-profile",
+              value: stream.profile!,
+              interpretation:
+                "The decoder declared an MQA-related stream profile. Audio-V does not authenticate MQA provenance or perform a proprietary unfold.",
+            }]
+          : []),
+      ],
       fingerprint,
       repairProvenance,
     },

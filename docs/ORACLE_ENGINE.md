@@ -222,11 +222,25 @@ Oracle v11 organizes findings into five lanes:
 | **Signal defects** | Did the decoded sound contain material warning patterns? | Clipping, dropout candidates, click/pop candidates, DC offset |
 | **Spectral origin** | Does the spectrum resemble a prior transformation? | Possible lossy transcode, possible upsample, limited bandwidth |
 | **Provenance** | Are there attached claims or identity clues? | C2PA, generator metadata, raw identifiers, Chromaprint |
-| **Delivery compliance** | Does the signal match a chosen delivery target? | True-peak advisory; profile-based compliance is not yet selected |
+| **Delivery compliance** | Does the signal match a chosen delivery target? | Optional EBU R 128, ATSC A/85, or AES internet-music loudness and true-peak limits |
 
 Keeping the lanes separate matters. Missing Content Credentials do not damage
 an audio file. A possible transcode pattern does not mean the decoder failed.
 A positive true peak does not prove the file is corrupt.
+
+Delivery profiles are opt-in. Oracle records the selected reference, accepted
+loudness range, maximum true peak, measured values, and qualification in the
+file evidence. A profile miss produces Review because the file may be valid
+audio prepared for a different destination. It never produces Failed, and it
+never changes the integrity lane.
+
+The provenance lane also distinguishes readiness from proof. A complete,
+CD-frame-aligned 44.1 kHz / 16-bit / stereo lossless image plus cue layout is
+labeled eligible for future CTDB or AccurateRip lookup, but it is not called
+verified until a database checksum implementation returns a match. An
+MQA-related metadata field or decoder profile is shown as an unauthenticated
+format marker; Audio-V does not claim to unfold or authenticate proprietary
+MQA data.
 
 ### 10. Verdict assembly: apply narrow precedence
 

@@ -1,6 +1,10 @@
 import path from "node:path";
 import { promises as fs } from "node:fs";
-import { availableParallelism, totalmem } from "node:os";
+import {
+  availableParallelism,
+  release as operatingSystemRelease,
+  totalmem,
+} from "node:os";
 import {
   app,
   BrowserWindow,
@@ -11,6 +15,7 @@ import {
 } from "electron";
 import type {
   AnalysisResourceLimits,
+  AcceptanceRunEvidence,
   AuditHistoryCleanupProgress,
   AudioFileRecord,
   AudioSourceSelection,
@@ -25,7 +30,12 @@ import {
 } from "../shared/user-review";
 import { AUDIO_EXTENSIONS } from "../shared/contracts";
 import { createTruePeakSafeCopy } from "./repair-engine";
-import { attachExternalIdentityEvidence, scanSources } from "./scanner";
+import {
+  attachDiscVerificationEligibility,
+  attachExternalIdentityEvidence,
+  attachMetadataProvenance,
+  scanSources,
+} from "./scanner";
 import type { OracleRecordCache } from "./scanner";
 import { compactReportFile, writeAuditReport } from "./report-exporter";
 import type { ReportExportFormat } from "../shared/contracts";
@@ -55,6 +65,16 @@ import {
   ExternalIdentityPreferencesStore,
   type ExternalIdentityPreferencesUpdate,
 } from "./external-identity-preferences";
+import {
+  AcceptanceRunRecorder,
+  AcceptanceRunStore,
+} from "./acceptance-run";
+import { classifySourceStorage } from "./source-read-optimizer";
+import {
+  isDeliveryProfileId,
+  resolveDeliveryProfile,
+} from "../shared/delivery-profiles";
+import { applyDeliveryProfile } from "./oracle/delivery-profile";
 
 const approvedSelections = new Map<string, AudioSourceSelection>();
 const approvedAudioFiles = new Set<string>();
@@ -112,6 +132,27 @@ const defaultResourceLimits = resolveAnalysisResourcePolicy(
 let currentResourceLimits = defaultResourceLimits;
 let applicationLogger: ApplicationLogger | null = null;
 let externalIdentityPreferences: ExternalIdentityPreferencesStore;
+let acceptanceRuns: AcceptanceRunStore;
+let activeAcceptanceRecorder: AcceptanceRunRecorder | null = null;
+let activeAcceptanceTimer: NodeJS.Timeout | null = null;
+
+function sampleAcceptanceProcesses(): void {
+  if (!activeAcceptanceRecorder) return;
+  activeAcceptanceRecorder.sampleProcesses(
+    app.getAppMetrics().map((metric) => ({
+      type: metric.type,
+      workingSetBytes: metric.memory.workingSetSize * 1024,
+    })),
+    process.memoryUsage().rss,
+  );
+}
+
+function stopAcceptanceSampling(): void {
+  if (activeAcceptanceTimer) {
+    clearInterval(activeAcceptanceTimer);
+    activeAcceptanceTimer = null;
+  }
+}
 const validatedAcoustIdApiKeys = new Set<string>();
 let officialAcoustIdClientKey: string | null | undefined;
 
@@ -469,6 +510,8 @@ function isSourceSelection(value: unknown): value is AudioSourceSelection {
         [128, 256, 384, 512].includes(source.resourceLimits.workerMemoryMb) &&
         [1, 2, 4].includes(source.resourceLimits.ffmpegThreads) &&
         [256, 512, 1024, 2048].includes(source.resourceLimits.nativeProcessMemoryMb))) &&
+    (source.deliveryProfile === undefined ||
+      isDeliveryProfileId(source.deliveryProfile.id)) &&
     (source.externalLookup === undefined ||
       (typeof source.externalLookup.acoustIdEnabled === "boolean" &&
         (source.externalLookup.musicBrainzEnabled === undefined ||
@@ -611,6 +654,33 @@ ipcMain.handle("app:export-diagnostics", async () => {
       sessions,
       engineManifest,
     }), null, 2)}\n`,
+  );
+  return { canceled: false, filePath: result.filePath };
+});
+
+ipcMain.handle("acceptance:latest", async () => acceptanceRuns.load());
+
+ipcMain.handle("acceptance:export", async () => {
+  const evidence = await acceptanceRuns.load();
+  if (!evidence) {
+    throw new Error(
+      "Complete or begin an audit before exporting acceptance evidence.",
+    );
+  }
+  const result = await dialog.showSaveDialog({
+    title: "Export privacy-safe Audio-V acceptance evidence",
+    defaultPath:
+      `Audio-V-Acceptance-${evidence.application.version}-` +
+      `${evidence.application.platform}-${evidence.finishedAt.slice(0, 10)}.json`,
+    filters: [{ name: "JSON acceptance evidence", extensions: ["json"] }],
+  });
+  if (result.canceled || !result.filePath) {
+    return { canceled: true, filePath: null };
+  }
+  await fs.writeFile(
+    result.filePath,
+    `${JSON.stringify(evidence, null, 2)}\n`,
+    { encoding: "utf8", mode: 0o600 },
   );
   return { canceled: false, filePath: result.filePath };
 });
@@ -1083,7 +1153,7 @@ ipcMain.handle("identity:service-status", async () => {
     customClientRequired: !configured,
     explanation: configured
       ? "This official build contains the registered Audio-V AcoustID client identity. Recognition still runs only after explicit user action."
-      : "This development build needs the application key from a registered AcoustID application. The key remains session-only.",
+      : "This development build needs the application key from a registered AcoustID application. You can save it using operating-system-protected storage.",
   };
 });
 
@@ -1316,6 +1386,9 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
     ...approved,
     mode: requestedSource.mode ?? "full-audit",
     resourceLimits: resourcePolicy.limits,
+    deliveryProfile: requestedSource.deliveryProfile
+      ? resolveDeliveryProfile(requestedSource.deliveryProfile.id)
+      : undefined,
     recovery: approved.recovery,
     externalLookup,
   };
@@ -1348,6 +1421,54 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
   };
   const sessionId = await auditSessions.create(persistedSource);
   const scanStartedMilliseconds = Date.now();
+  const acceptanceStartedAt = new Date(scanStartedMilliseconds).toISOString();
+  const storageBefore = await auditSessions.storageStatus().catch(() => null);
+  const sourceStorageKinds = new Set(
+    source.paths.map((sourcePath) => classifySourceStorage(sourcePath)),
+  );
+  activeAcceptanceRecorder = new AcceptanceRunRecorder({
+    sessionId,
+    startedAt: acceptanceStartedAt,
+    applicationVersion: app.getVersion(),
+    packaged: app.isPackaged,
+    platform: process.platform,
+    architecture: process.arch,
+    operatingSystemRelease: operatingSystemRelease(),
+    logicalCpuCount: availableParallelism(),
+    totalMemoryBytes: totalmem(),
+    source: persistedSource,
+    sourceStorageKind:
+      sourceStorageKinds.size === 1
+        ? [...sourceStorageKinds][0]
+        : "mixed",
+    resourceLimits: requestedLimits,
+    storageBefore,
+  });
+  sampleAcceptanceProcesses();
+  let acceptanceSamplesSinceCheckpoint = 0;
+  activeAcceptanceTimer = setInterval(() => {
+    if (!activeAcceptanceRecorder) return;
+    sampleAcceptanceProcesses();
+    acceptanceSamplesSinceCheckpoint += 1;
+    if (acceptanceSamplesSinceCheckpoint >= 20) {
+      acceptanceSamplesSinceCheckpoint = 0;
+      const checkpoint = activeAcceptanceRecorder.finish(
+        "interrupted",
+        null,
+      );
+      void acceptanceRuns.save(checkpoint).catch((error) => {
+        logApplication("warn", "acceptance.checkpoint-failed", { error });
+      });
+    }
+  }, 500);
+  activeAcceptanceTimer.unref();
+  await acceptanceRuns.save(
+    activeAcceptanceRecorder.finish(
+      "interrupted",
+      storageBefore,
+      acceptanceStartedAt,
+    ),
+  );
   activeScanSessionId = sessionId;
   logApplication("info", "scan.started", {
     sessionId,
@@ -1448,6 +1569,7 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
           failure: file.oracle.failure,
         },
       );
+      activeAcceptanceRecorder?.recordFile(file, fromCache);
       return persistence.add(file, ordinal, fromCache);
     };
     const onFileStarted = async (filePath: string) => {
@@ -1546,6 +1668,7 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
           analyzeWithWorkerIsolation(filePath, signal),
         onDiscovered: async (filePaths, warnings) => {
           sessionWarnings = [...warnings];
+          activeAcceptanceRecorder?.recordDiscovery(filePaths.length);
           logApplication("info", "scan.discovery-completed", {
             sessionId,
             discoveredCount: filePaths.length,
@@ -1591,6 +1714,23 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
     const completedStorageStatus = await auditSessions
       .storageStatus()
       .catch(() => null);
+    sampleAcceptanceProcesses();
+    stopAcceptanceSampling();
+    const completedAcceptance = activeAcceptanceRecorder?.finish(
+      "completed",
+      completedStorageStatus,
+    );
+    if (completedAcceptance) {
+      await acceptanceRuns.save(completedAcceptance);
+      logApplication("info", "acceptance.completed", {
+        sessionId,
+        status: completedAcceptance.status,
+        workload: completedAcceptance.workload,
+        timing: completedAcceptance.timing,
+        resources: completedAcceptance.resources,
+        storage: completedAcceptance.storage,
+      });
+    }
     emitProgress(
       {
         phase: "complete",
@@ -1641,6 +1781,7 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
           engineVersions: [
             ...new Set(result.files.map((file) => file.oracle.engineVersion)),
           ],
+          acceptance: completedAcceptance,
         }, null, 2)}\n`,
       );
       setTimeout(() => app.quit(), 250);
@@ -1669,8 +1810,24 @@ ipcMain.handle("library:scan-selection", async (_event, requestedSource: unknown
         .finish(sessionId, "failed", sessionWarnings)
         .catch(() => undefined);
     }
+    sampleAcceptanceProcesses();
+    stopAcceptanceSampling();
+    const storageAfter = await auditSessions.storageStatus().catch(() => null);
+    const acceptance = activeAcceptanceRecorder?.finish(
+      controller.signal.aborted ? "canceled" : "failed",
+      storageAfter,
+    );
+    if (acceptance) {
+      await acceptanceRuns.save(acceptance).catch((saveError) => {
+        logApplication("warn", "acceptance.final-save-failed", {
+          error: saveError,
+        });
+      });
+    }
     throw error;
   } finally {
+    stopAcceptanceSampling();
+    activeAcceptanceRecorder = null;
     await oracleCache.flush();
     if (activeScanController === controller) activeScanController = null;
     if (activeScanPause === pauseGate) activeScanPause = null;
@@ -1687,6 +1844,7 @@ ipcMain.handle("library:cancel-scan", () => {
   logApplication("info", "scan.cancel-requested", {
     sessionId: activeScanSessionId,
   });
+  activeAcceptanceRecorder?.requestCancellation();
   activeScanPause?.resume();
   activeScanController.abort();
   return true;
@@ -1704,7 +1862,8 @@ ipcMain.handle("oracle:analyze-file", async (
   if (!approvedAudioFiles.has(filePath)) {
     throw new Error("Select this audio file through Audio-V before analyzing it.");
   }
-  const oracle = await analyzeWithWorkerIsolation(filePath);
+  const baseOracle = await analyzeWithWorkerIsolation(filePath);
+  let resultOracle = baseOracle;
   let prior: AudioFileRecord | null | undefined =
     authoritativeRecords.get(filePath);
   if (
@@ -1715,7 +1874,15 @@ ipcMain.handle("oracle:analyze-file", async (
     prior = await auditSessions.getSessionFile(requestedSessionId, filePath);
   }
   if (prior) {
-    const updated = { ...prior, oracle };
+    const oracle = applyDeliveryProfile(
+      baseOracle,
+      prior.oracle.assessments?.delivery.profile ?? undefined,
+    );
+    resultOracle = oracle;
+    const updated = attachDiscVerificationEligibility(
+      attachMetadataProvenance({ ...prior, oracle }),
+    );
+    resultOracle = updated.oracle;
     rememberAuthoritativeRecord(updated);
     await auditSessions.setCached(updated);
     if (
@@ -1730,7 +1897,7 @@ ipcMain.handle("oracle:analyze-file", async (
       await auditSessions.updateSessionFile(requestedSessionId, filePath, updated);
     }
   }
-  return oracle;
+  return resultOracle;
 });
 
 ipcMain.handle(
@@ -2027,6 +2194,9 @@ app.whenReady().then(async () => {
     path.join(userDataPath, "external-identity-preferences-v1.json"),
     safeStorage,
   );
+  acceptanceRuns = new AcceptanceRunStore(
+    path.join(userDataPath, "acceptance-run-latest-v1.json"),
+  );
   logApplication("info", "application.started", {
     version: app.getVersion(),
     packaged: app.isPackaged,
@@ -2085,6 +2255,13 @@ app.on("before-quit", () => {
     activeSessionId: activeScanSessionId,
   });
   activeScanController?.abort();
+  sampleAcceptanceProcesses();
+  if (activeAcceptanceRecorder) {
+    void acceptanceRuns
+      ?.save(activeAcceptanceRecorder.finish("interrupted", null))
+      .catch(() => undefined);
+  }
+  stopAcceptanceSampling();
   activeComparisonController?.abort();
   if (historyCleanupTimer) {
     clearTimeout(historyCleanupTimer);

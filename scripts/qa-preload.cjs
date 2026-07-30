@@ -22,6 +22,7 @@ const {
     hasStoredAcoustIdApiKey: false,
     protection: "os-encrypted",
   },
+  acceptanceRun = null,
   spectrograms = {},
 } =
   JSON.parse(serializedPayload);
@@ -78,6 +79,8 @@ contextBridge.exposeInMainWorld("audioV", {
   }),
   validationStatus: async () => null,
   exportDiagnostics: async () => ({ canceled: true, filePath: null }),
+  latestAcceptanceRun: async () => acceptanceRun,
+  exportAcceptanceRun: async () => ({ canceled: true, filePath: null }),
   revealFile: async () => undefined,
   createTruePeakSafeCopy: async () => {
     throw new Error("Not used by populated-state QA");

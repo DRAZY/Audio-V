@@ -1,6 +1,6 @@
 # Audio-V product audit and capability contract
 
-Last reviewed: 2026-07-28
+Last reviewed: 2026-07-29
 
 This document is the product truth source between the approved vision, the original request, competing applications, and what the repository actually implements. A feature is not considered present because a mock-up displays it.
 
@@ -32,7 +32,7 @@ The official [AudioAuditor website](https://audioauditor.org/) and [source repos
 | Automated batch analysis | Adopt | Implemented with recursive discovery, adaptively bounded 1–8 worker decoding, pause/cancellation, truthful finalization progress, checkpoints, and cache reuse |
 | Fake-lossless / spectral-cutoff review | Adopt conservatively | Implemented as an explicitly heuristic origin assessment with inconclusive behavior |
 | AI-generated audio detection | Research-gated | Generic “AI detected” verdict excluded until a validated corpus exists; offline C2PA validation, known generator metadata, and known identifier strings are implemented as separately labeled indicators rather than an AI verdict |
-| MQA detection | Evidence-gated | Planned only as marker/profile disclosure; Audio-V will not imply MQA authenticity or decoding without a reproducible method |
+| MQA detection | Evidence-gated | Implemented only for editable metadata and decoder-profile declarations; Audio-V explicitly does not imply authenticated MQA, proprietary unfolding, or source provenance |
 | Fake stereo detection | Adopt with neutral language | Implemented as mono, sample-identical dual-mono, near-mono, distinct-stereo, or inconclusive using correlation and side-to-mid energy |
 | Clipping analysis | Adopt | Implemented total/per-channel percentages, contiguous events and timeline, near clipping, BS.1770 true peak, and conservative scaled-clipping review; destructive peak reconstruction is never promised |
 | Spectrogram viewer | Adopt and deepen | Implemented 512/2,048/4,096/16,384-point STFT, combined/L/R/L−R views, zoom/pan/region measurement, scientific colormaps, and single/batch PNG export |
@@ -41,7 +41,7 @@ The official [AudioAuditor website](https://audioauditor.org/) and [source repos
 | CSV / PDF / XLSX / DOCX export | Adopt and add JSON | Implemented from one evidence model; JSON remains the lossless machine-readable format |
 | Free / actively developed / open source | Product decision | Active development is current; source is AGPL-3.0-only, contributor and trademark policies are published, and development releases disclose their unsigned status |
 
-AudioAuditor also advertises MQA and experimental AI checks. Audio-V now covers exact/internal silence, steep-transition, click/pop, and stuck-sample candidates; persistent Chromaprint identity relationships; offline C2PA inspection; known generator/signature inventory; and integer lossless bit-utilization review. MQA markers and a statistically calibrated AI classifier remain future work; neither may appear as authoritative until fixtures and failure boundaries exist.
+AudioAuditor also advertises MQA and experimental AI checks. Audio-V now covers exact/internal silence, steep-transition, click/pop, and stuck-sample candidates; persistent Chromaprint identity relationships; offline C2PA inspection; known generator/signature inventory; integer lossless bit-utilization review; and explicitly unauthenticated MQA metadata/profile declarations. A statistically calibrated AI classifier remains future work and may not appear as authoritative until a labeled corpus and failure boundaries exist.
 
 ## Capability matrix
 
@@ -52,7 +52,7 @@ Status meanings:
 - **Planned** — specified and prioritized, but not implemented.
 - **Excluded** — intentionally outside the core product.
 
-| Capability | User value | v0.4.33 source status | Disposition |
+| Capability | User value | v0.4.34 source status | Disposition |
 | --- | --- | --- | --- |
 | File and folder ingest | Analyze one track or a full library | Implemented | Current |
 | Recursive bounded discovery | Avoid freezing on large trees | Implemented | Current |
@@ -64,6 +64,7 @@ Status meanings:
 | Sample peak and RMS | Requested objective level measurements | Implemented | Current |
 | Integrated LUFS and LRA | Standards-based loudness and variation | Implemented | Current |
 | True peak | Detect inter-sample peaks | Implemented | Current |
+| Delivery profiles | Evaluate a file against an explicitly chosen destination | Implemented for EBU R 128 programme QC, ATSC A/85, and AES internet-music track references with exact limits preserved in evidence | Current |
 | Clipping and near-clipping | Find damaged or overly limited masters | Implemented with per-channel events and timeline | Current |
 | DC offset, silence, dropout | Diagnose signal defects | Implemented | Current |
 | Channel layout and codec mode | Stereo, mono, 5.1, joint stereo | Implemented from probe and decoded evidence | Current |
@@ -80,7 +81,8 @@ Status meanings:
 | File/edition comparison | Distinguish masters and encodes | Implemented with independent loading and full-overlap multichannel null testing | Current |
 | Duplicate fingerprints | Find identical audio across containers and sessions | Implemented with persistent SQLite index | Current |
 | External MD5/SHA manifests | Verify file identity against supplied sidecars | Implemented | Current |
-| AccurateRip/CTDB verification | Verify CD extraction provenance when context exists | Planned | Post-1.0 |
+| AccurateRip/CTDB verification | Verify CD extraction provenance when context exists | Eligibility contract implemented for complete CD-frame-aligned single-image cue context; checksum/database match remains planned | Post-1.0 lookup |
+| Acceptance/soak evidence | Document real package and library behavior | Implemented privacy-safe workload, timing, sampled memory, storage growth, cancellation, source, and recovery evidence export | Current |
 | AI-generated audio detection | Experimental and difficult to validate responsibly | Deterministic provenance indicators implemented; statistical classifier deferred | Research only |
 | Full music-player features | Does not improve the central verdict | Excluded | Excluded |
 | Metadata editing | Risks turning inspection into mutation | Excluded | Excluded from 1.x |
@@ -103,7 +105,7 @@ Audio-V measurements must name their governing method:
 - Programme loudness and true peak: [ITU-R BS.1770-5](https://www.itu.int/rec/R-REC-BS.1770-5-202311-I).
 - EBU mode, momentary/short-term/integrated loudness, and loudness range: [EBU R 128 and Tech 3341/3342](https://tech.ebu.ch/loudness/).
 - FLAC integrity: decode and compare the unencoded PCM MD5 stored in STREAMINFO as described by [Xiph](https://xiph.org/flac/documentation_format_overview.html).
-- CD-rip provenance: only call a rip verified when it matches a suitable external database such as [AccurateRip](https://accuraterip.com/) with the required disc context. A matching FLAC MD5 proves internal stream integrity, not provenance.
+- CD-rip provenance: only call a rip verified when it matches a suitable external database such as [AccurateRip](https://accuraterip.com/) or [CTDB](https://cue.tools/wiki/CUETools_Database) with the required whole-disc context. Audio-V currently reports eligibility—not a match. A matching FLAC MD5 proves internal stream integrity, not provenance.
 - Fingerprints: use local [Chromaprint](https://acoustid.org/chromaprint) for similarity and duplicates. Any AcoustID lookup must be opt-in because it is a network call with service terms and rate limits.
 
 Every heuristic classifier must ship with:
@@ -152,7 +154,7 @@ Gate 1 is complete at the repository level. Compare uses bounded alignment estim
 - Successful scan completion logs now include application version, elapsed wall time, file and error counts, point-in-time main-process RSS, database size, reclaimable bytes, source kind, and run mode. The RSS field is explicitly not represented as whole-application peak memory.
 - Exhausted Oracle worker timeouts persist as per-file `Analysis error` records with the exact filename, `oracle-engine` failure stage, worker code, attempt count, and evidence. The failed worker is replaced and the remaining library continues; infrastructure-error cache entries are retried on later audits.
 - Per-file Reports use independent bounded list and evidence panes. Selecting a row anywhere in a long report keeps the evidence visible beside it, resets the new evidence report to its header, and preserves independent scrolling in both wide and stacked window layouts.
-- `npm run benchmark:scale` enforces repeatable persistence and restoration budgets for dense-evidence 100-, 1,000-, and 10,000-record sessions. The v0.4.25 benchmark persisted 10,000 records in 7.67 seconds, restored compact history in 385 ms, and occupied 435.5 MB across the cumulative 11,100 stored records, below the 600 MiB database budget.
+- `npm run benchmark:scale` enforces repeatable persistence and restoration budgets for dense-evidence 100-, 1,000-, and 10,000-record sessions. The v0.4.34 benchmark persisted 10,000 records in 6.95 seconds, restored compact history in 485 ms, and occupied 458.4 MB (437.1 MiB) across the cumulative 11,100 stored records, below the 600 MiB database budget.
 
 These dense-evidence figures validate storage and compact state retrieval on the development Mac; they do not represent full audio decode throughput.
 
@@ -211,7 +213,7 @@ Infrastructure is complete, while source acquisition remains factual external wo
 - Oracle Engine v10 validates embedded and locally resolvable C2PA Content Credentials with C2PA Tool 0.27.3. Remote-manifest and OCSP fetching are disabled so ordinary audits remain deterministic and private.
 - Valid, untrusted-signer, invalid, absent, unsupported, and tool-error states remain distinct. A credential can validate a signed provenance statement; it does not establish truthfulness, human authorship, ownership, or audio quality.
 - Known generator names in editable metadata and known watermark/signature identifier strings in raw file bytes are inventoried with their exact source and limitation. Audio-V does not claim to decode proprietary watermarks and does not produce a generic AI Yes/No badge.
-- Local Chromaprint fingerprints identify exact-fingerprint and high-similarity relationships within the current audit and across a dedicated, browsable Identity workspace. The historical index can be rebuilt from sessions, pruned for missing sources, or cleared without deleting audit evidence. **Identify current audit** recognizes and enriches already measured fingerprints in place with visible progress and per-file persistence. Optional AcoustID recognition sends only fingerprint plus rounded duration and returns linked MusicBrainz recording leads; it is off by default, serialized below the service ceiling, cached by fingerprint, and retried only for bounded transient failures. A release-injected client identity or session-only user/fork override is never persisted in audit evidence. Direct MusicBrainz enrichment is a separate no-key opt-in that prefers an embedded MBID, otherwise uses the strongest AcoustID candidate, caches unique IDs, obeys the public one-request-per-second ceiling, and preserves bounded artist, ISRC, date, and release-group context as neutral identity evidence.
+- Local Chromaprint fingerprints identify exact-fingerprint and high-similarity relationships within the current audit and across a dedicated, browsable Identity workspace. The historical index can be rebuilt from sessions, pruned for missing sources, or cleared without deleting audit evidence. **Identify current audit** recognizes and enriches already measured fingerprints in place with visible progress and per-file persistence. Optional AcoustID recognition sends only fingerprint plus rounded duration and returns linked MusicBrainz recording leads; it is off by default, serialized below the service ceiling, cached by fingerprint, and retried only for bounded transient failures. A release-injected client identity or OS-protected per-user key is never persisted in audit evidence. Direct MusicBrainz enrichment is a separate no-key opt-in that prefers an embedded MBID, otherwise uses the strongest AcoustID candidate, caches unique IDs, obeys the public one-request-per-second ceiling, and preserves bounded artist, ISRC, date, and release-group context as neutral identity evidence.
 - A parallel identity result classifies usable external evidence as metadata-corroborated, identity-matched, metadata-conflict, or inconclusive. The saved comparison names every declared and identified recording ID, title, or artist value considered. The result is intentionally outside the five Oracle verdict lanes and cannot change Clear, Review, Failed, Analysis error, or Not analyzed.
 - Metadata Inventory includes bounded native tags, BPM, ISRC, MusicBrainz IDs, declared ReplayGain values, embedded cue sheets, and adjacent cue-sheet references without invoking the decoder. Full Audit adds calculated RG2 track gain, album eligibility/reason evidence, grouped album gain, independent cue INDEX 01 programme analysis, and separate INDEX 00 pregap analysis.
 - Full audits add DR meter values and integer-lossless bit-utilization/truncation assessment. Possible zero-padded depth is an origin advisory, not deterministic file damage.
@@ -231,6 +233,9 @@ This milestone deliberately stops before a statistical AI classifier or automati
 ### Oracle v11 evidence-model status
 
 - Results now expose separate integrity, signal-defect, spectral-origin, provenance, and delivery lanes. Advisory provenance strings, stereo relationships, bit padding, positive true peak without a selected delivery profile, and steep transitions no longer force the overall verdict to Review.
+- Optional delivery conformance now evaluates exact, persisted EBU R 128 programme-QC, ATSC A/85, or AES internet-music track limits. A miss produces Review and never changes deterministic integrity to Failed.
+- Complete CD-frame-aligned single-image cue sources receive explicit CTDB/AccurateRip eligibility evidence without being mislabeled as database-verified. MQA text/profile declarations remain neutral format markers.
+- Every audit checkpoints a privacy-safe acceptance record with package, platform, workload, throughput, sampled process working set, storage growth, cancellation response, source class, and recovery behavior. The packaged reference-audit gate validates this evidence contract.
 - Strict full-decode failures receive a complete tolerant confirmation analysis. Only failure of both paths can establish deterministic stream damage; tolerant success becomes recoverable structural nonconformance for Review.
 - The origin classifier uses a dedicated 4,096-point, 48-region tier, retains bounded summary evidence rather than another persisted matrix, and requires a stable band edge plus corroborating evidence before issuing a strong possible-upsample or possible-lossy-transcode pattern.
 - Top-level and origin probability-like percentages are retired. The engine publishes ordinal rule strength, evidence coverage, regional stability, and independent-indicator count as distinct quantities.
@@ -309,6 +314,6 @@ No build may be called a beta until:
 - AcoustID enablement, the validated personal application key, and the independent MusicBrainz preference now survive restarts. The key is encrypted by macOS Keychain or Windows DPAPI, never persisted as plaintext or audit evidence, and can be explicitly cleared.
 - Audit and per-file evidence export to PDF, XLSX, DOCX, CSV, or JSON from a shared 40+ column evidence model. Production dependencies remain free of known audit advisories.
 - The desktop typography floor is 11px for utility labels and 12–14px for working text, with larger rows, controls, and analysis panels.
-- The 149-test regression suite covers discovery, mounted-source staging and identity preservation, malformed metadata, PCM math, internal WAVE decoding, spectral-bin detection, multi-codec full decoding, FLAC audio-MD5 mismatch, loudness/true peak, continuity, packet-rate behavior, fidelity controls, persistent fingerprint management, AcoustID application-key normalization, service preflight, transient retry, direct MusicBrainz enrichment and unique-ID caching, parallel identity corroboration/conflict classification, decoded residual and selected-region comparison, desktop IPC error normalization, cue programme/pregap segments, calculated and large-library-deferred ReplayGain eligibility, explicit comparison channel mapping, resource enforcement, adaptive crash recovery with cache bypass, structured log rotation, cache invalidation, prompt cancellation of blocked workers, virtualized large-session viewport recovery, process cancellation, source-preserving repair output, attached-artwork retention, source preservation, truncation, and verdict truthfulness.
+- The 162-test regression suite covers discovery, mounted-source staging and identity preservation, malformed metadata, PCM math, internal WAVE decoding, spectral-bin detection, multi-codec full decoding, FLAC audio-MD5 mismatch, loudness/true peak, delivery profiles, continuity, packet-rate behavior, fidelity controls, persistent fingerprint management, AcoustID application-key normalization, service preflight, transient retry, direct MusicBrainz enrichment and unique-ID caching, parallel identity corroboration/conflict classification, CD-database eligibility, neutral MQA marker inventory, privacy-safe acceptance evidence, decoded residual and selected-region comparison, desktop IPC error normalization, cue programme/pregap segments, calculated and large-library-deferred ReplayGain eligibility, explicit comparison channel mapping, resource enforcement, adaptive crash recovery with cache bypass, structured log rotation, cache invalidation, prompt cancellation of blocked workers, virtualized large-session viewport recovery, process cancellation, source-preserving repair output, attached-artwork retention, source preservation, truncation, and verdict truthfulness.
 - Production dependencies pass `npm audit --omit=dev`; remaining advisories are confined to the upstream packaging toolchain.
 - Release packages contain third-party notices and a machine-readable engine capability manifest.

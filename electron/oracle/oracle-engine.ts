@@ -58,6 +58,8 @@ export function oracleFailureResult(error: unknown): OracleResult {
       delivery: {
         profile: null,
         status: "not-evaluated",
+        measuredLoudnessLufs: null,
+        measuredTruePeakDbtp: null,
         findingIds: [],
       },
       findings: [

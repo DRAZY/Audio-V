@@ -11,6 +11,7 @@ build/format-validation-*.json
 build/layout-*.png
 build/comparison-visuals-latest.png
 build/identity-preferences-latest.png
+build/acceptance-evidence-latest.png
 .DS_Store
 *.log
 tests/.tmp-*/

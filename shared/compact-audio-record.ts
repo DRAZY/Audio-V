@@ -14,12 +14,41 @@ export function compactAudioFileRecord(
   file: AudioFileRecord,
 ): AudioFileRecord {
   const measurements = file.oracle.measurements;
-  if (!measurements) return { ...file, detailLevel: "summary" };
+  const metadata = { ...file.metadata, rawTags: [] };
+  const technical = file.oracle.technical
+    ? {
+        ...file.oracle.technical,
+        metadata: file.oracle.technical.metadata
+          ? { ...file.oracle.technical.metadata, rawTags: [] }
+          : file.oracle.technical.metadata,
+      }
+    : file.oracle.technical;
+  if (!measurements) {
+    return {
+      ...file,
+      metadata,
+      detailLevel: "summary",
+      oracle: {
+        ...file.oracle,
+        evidence: [],
+        assessments: file.oracle.assessments
+          ? { ...file.oracle.assessments, findings: [] }
+          : file.oracle.assessments,
+        technical,
+      },
+    };
+  }
   return {
     ...file,
+    metadata,
     detailLevel: "summary",
     oracle: {
       ...file.oracle,
+      evidence: [],
+      assessments: file.oracle.assessments
+        ? { ...file.oracle.assessments, findings: [] }
+        : file.oracle.assessments,
+      technical,
       measurements: {
         ...measurements,
         waveform: measurements.waveform
@@ -73,8 +102,12 @@ export function restoreAudioFileDetails(
   }
   return {
     ...record,
+    metadata: full.metadata,
     oracle: {
       ...record.oracle,
+      evidence: full.oracle.evidence,
+      assessments: full.oracle.assessments,
+      technical: full.oracle.technical,
       measurements: {
         ...summaryMeasurements,
         waveform: fullMeasurements.waveform,

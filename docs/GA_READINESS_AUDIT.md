@@ -1,13 +1,13 @@
 # Audio-V GA readiness audit
 
-Assessment date: 2026-07-28  
+Assessment date: 2026-07-29
 Assessment basis: Oracle v11 source, automated gates, packaged-release policy,
 product documentation, and comparison with the published capabilities of
 AudioAuditor and Spek.
 
 ## Executive rating
 
-Audio-V is **89% GA-ready** on a weighted engineering and product rubric. It is
+Audio-V is **90% GA-ready** on a weighted engineering and product rubric. It is
 already stronger than a spectrogram-only utility and is broadly competitive
 with AudioAuditor's core assessment workflow. It should remain labeled a
 development release until the external acceptance gates below are witnessed.
@@ -18,14 +18,14 @@ supportable general release is complete.
 
 | Area | Weight | Current score | Evidence |
 | --- | ---: | ---: | --- |
-| Scientific validity and verdict semantics | 25% | 86% | Standards-based loudness and true peak, complete decode, FLAC PCM MD5, versioned five-lane rules, explicit uncertainty |
-| Functional assessment completeness | 20% | 94% | Batch audit, metadata, signal, spectral, provenance, comparison, reports, CLI, cue, ReplayGain, fingerprints |
-| Reliability, scale, recovery, and cancellation | 20% | 92% | Bounded workers, SQLite checkpoints, adaptive resume, suspect isolation, 10,000-record storage benchmark, witnessed 6,000-file completion, and measured page reclamation |
+| Scientific validity and verdict semantics | 25% | 88% | Standards-based loudness and true peak, explicit EBU/ATSC/AES delivery profiles, complete decode, FLAC PCM MD5, versioned five-lane rules, explicit uncertainty |
+| Functional assessment completeness | 20% | 96% | Batch audit, metadata, signal, spectral, provenance, delivery profiles, comparison, reports, CLI, cue, ReplayGain, fingerprints, and disc-verification eligibility |
+| Reliability, scale, recovery, and cancellation | 20% | 93% | Bounded workers, SQLite checkpoints, adaptive resume, suspect isolation, privacy-safe acceptance telemetry, 10,000-record storage benchmark, witnessed 6,000-file completion, and measured page reclamation |
 | Workflow, responsive UI, and accessibility | 15% | 92% | Evidence-first review, human disposition, scalable layouts, keyboard and automated accessibility gates |
 | Cross-platform acceptance | 10% | 68% | Four package targets exist; native Windows, Intel Mac, clean-VM, assistive-technology, and display-scale witnessing remains incomplete |
 | Security, privacy, documentation, and release operations | 10% | 97% | Local-first analysis, opt-in AcoustID, bounded IPC, versioned P0/P1 defect gate, AGPL policy, checksums, unsigned-build disclosure, reproducible release scripts |
 
-Weighted result: **89.0%**.
+Weighted result: **90.1%** (displayed as 90%).
 
 ## What a verdict can and cannot mean
 
@@ -74,11 +74,13 @@ focused spectrogram viewer with a smaller conceptual and operational surface.
 
 Audio-V is broadly at parity in core file inspection and is stronger in
 cross-platform intent, transparent verdict precedence, immutable evidence,
-large-library recovery, historical identity indexing, explicit uncertainty,
-and headless JSON automation. AudioAuditor retains visible checklist advantages
-in MQA marker detection and experimental AI indicators. Audio-V intentionally
-does not add an opaque AI yes/no badge or imply authenticated MQA decoding
-without reproducible validation.
+large-library recovery, historical identity indexing, standards-backed
+delivery profiles, explicit uncertainty, and headless JSON automation.
+Audio-V now inventories MQA-related metadata/profile declarations but does not
+pretend that a marker is authenticated MQA or an unfolded signal. AudioAuditor
+retains a visible checklist advantage in experimental AI indicators. Audio-V
+intentionally does not add an opaque AI yes/no badge without reproducible
+validation.
 
 ## Remaining GA blockers
 
@@ -111,9 +113,11 @@ fabricated confidence percentage.
 
 ## Post-1.0 opportunities
 
-- AccurateRip or CTDB verification when disc context is available.
-- Reproducible MQA-compatible marker/profile disclosure, clearly separated from
-  authenticity and decoding.
+- Read-only AccurateRip or CTDB checksum lookup after the implemented disc
+  eligibility contract, whole-disc assembly, and service/client review.
+- Reproducible MQA payload authentication only if a lawful, testable,
+  cross-platform method becomes available; metadata/profile marker disclosure
+  is already separate from authenticity and decoding.
 - A statistical AI-origin classifier only after corpus acquisition,
   calibration, and published false-positive/false-negative performance.
 - Signed and notarized packages if the project later obtains platform

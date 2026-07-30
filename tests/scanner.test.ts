@@ -11,6 +11,7 @@ import {
 } from "../electron/oracle/oracle-worker-pool";
 import { runEngine } from "../electron/oracle/ffmpeg-runtime";
 import type { AudioFileRecord } from "../shared/contracts";
+import { deliveryProfiles } from "../shared/delivery-profiles";
 import { pcmWave } from "./helpers/wave-fixture";
 
 const temporaryDirectories: string[] = [];
@@ -240,7 +241,7 @@ describe("scanSources", () => {
   it("decodes cue INDEX 01 tracks as independent evidence segments", async () => {
     const directory = await makeTemporaryDirectory();
     const filePath = path.join(directory, "album.wav");
-    await fs.writeFile(filePath, pcmWave({ seconds: 2 }));
+    await fs.writeFile(filePath, pcmWave({ seconds: 2, channels: 2 }));
     await fs.writeFile(
       path.join(directory, "album.cue"),
       [
@@ -282,6 +283,16 @@ describe("scanSources", () => {
     expect(
       result.files[0].oracle.cueTracks?.[1].pregap?.durationSeconds,
     ).toBeCloseTo(0.2, 6);
+    expect(result.files[0].oracle.technical?.discVerification).toMatchObject({
+      status: "eligible-not-verified",
+      layout: "single-image-cue",
+      ctdbEligible: true,
+      accurateRipEligible: true,
+      cueTrackCount: 2,
+    });
+    expect(
+      result.files[0].oracle.technical?.discVerification?.limitation,
+    ).toContain("Eligibility is not verification");
   });
 
   it("runs metadata inventory without invoking the Oracle decoder", async () => {
@@ -682,6 +693,77 @@ describe("scanSources", () => {
 
     expect(analyses).toBe(1);
     expect(recovered.files[0].oracle.analysisState).toBe("completed");
+  });
+
+  it("applies the selected delivery profile after cache reuse", async () => {
+    const directory = await makeTemporaryDirectory();
+    const audioPath = path.join(directory, "delivery.wav");
+    await fs.writeFile(
+      audioPath,
+      pcmWave({ seconds: 1, amplitude: 0.2 }),
+    );
+    let cached: AudioFileRecord | null = null;
+    const cache = {
+      get: async () => cached,
+      set: async (file: AudioFileRecord) => {
+        cached = file;
+      },
+      flush: async () => undefined,
+    };
+    await scanSources(
+      { kind: "files", label: "base", paths: [audioPath] },
+      undefined,
+      { cache },
+    );
+    expect(cached?.oracle.assessments?.delivery.status).toBe(
+      "not-evaluated",
+    );
+    let cacheHit = false;
+    const profiled = await scanSources(
+      {
+        kind: "files",
+        label: "profiled",
+        paths: [audioPath],
+        deliveryProfile: deliveryProfiles["ebu-r128-programme"],
+      },
+      (progress) => {
+        if (progress.file) cacheHit = progress.fromCache;
+      },
+      { cache },
+    );
+
+    expect(cacheHit).toBe(true);
+    expect(
+      profiled.files[0].oracle.assessments?.delivery.profile?.id,
+    ).toBe("ebu-r128-programme");
+    expect(
+      profiled.files[0].oracle.assessments?.delivery.findingIds,
+    ).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/^delivery-loudness-/),
+        expect.stringMatching(/^delivery-true-peak-/),
+      ]),
+    );
+    const switched = await scanSources(
+      {
+        kind: "files",
+        label: "profile switched",
+        paths: [audioPath],
+        deliveryProfile: deliveryProfiles["atsc-a85"],
+      },
+      undefined,
+      { cache },
+    );
+    expect(
+      switched.files[0].oracle.assessments?.delivery.profile?.id,
+    ).toBe("atsc-a85");
+    expect(
+      switched.files[0].oracle.assessments?.findings.some(
+        (finding) =>
+          finding.lane === "delivery" &&
+          finding.summary.includes("EBU R 128"),
+      ),
+    ).toBe(false);
   });
 
   it("links copied recordings by their local Chromaprint identity", async () => {

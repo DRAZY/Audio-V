@@ -80,14 +80,22 @@ try {
     result.discovered !== 1 ||
     result.completed !== 1 ||
     !["verified", "review"].includes(result.verdicts?.[0]) ||
-    result.engineVersions?.[0] !== "0.9.0-oracle-v11"
+    result.engineVersions?.[0] !== "0.9.0-oracle-v11" ||
+    result.acceptance?.schema !== "Audio-V acceptance run evidence v1" ||
+    result.acceptance?.status !== "completed" ||
+    result.acceptance?.workload?.discoveredCount !== 1 ||
+    result.acceptance?.workload?.completedCount !== 1 ||
+    result.acceptance?.resources?.sampleCount < 1 ||
+    result.acceptance?.resources?.peakTotalWorkingSetBytes <= 0 ||
+    result.acceptance?.source?.pathCount !== 1 ||
+    JSON.stringify(result.acceptance).includes(source)
   ) {
     throw new Error(
       `Packaged runtime returned an unexpected audit result: ${JSON.stringify(result)}`,
     );
   }
   console.log(
-    `Verified packaged ${target} runtime: one FLAC fully analyzed as ${result.verdicts[0]} by ${result.engineVersions[0]}.`,
+    `Verified packaged ${target} runtime: one FLAC fully analyzed as ${result.verdicts[0]} by ${result.engineVersions[0]}, with privacy-safe acceptance evidence.`,
   );
   const cliOutput = path.join(temporaryDirectory, "cli-evidence.json");
   const launcher =

@@ -63,6 +63,33 @@ The **Declared metadata inventory** lists normalized fields and a bounded set of
 
 The **Provenance & identity** card distinguishes cryptographic Content Credential status, editable generator metadata, known identifier strings, local Chromaprint relationships, and optional external matches. These are not collapsed into an “AI: Yes/No” badge. A raw identifier is not proof that Audio-V decoded a proprietary watermark, and a valid C2PA claim authenticates a signed statement rather than the truth of every statement.
 
+An MQA-related tag or decoder profile appears only as an **MQA declaration**.
+That means Audio-V found a marker; it does not mean Audio-V authenticated MQA,
+performed an unfold, or proved the recording’s origin.
+
+For CD-rip databases, Audio-V first checks eligibility. A complete
+single-image cue layout must be CD-frame aligned and the decoded source must be
+lossless 44.1 kHz, 16-bit stereo. **Eligible · not verified** means the
+required context exists for a future read-only CTDB or AccurateRip lookup. It
+is not a database match.
+
+## Delivery profiles
+
+Settings offers optional standards profiles for future full audits:
+
+- **EBU R 128 programme QC** — −23 LUFS with the recommendation’s ±0.2 LU
+  quality-control tolerance and −1 dBTP production maximum.
+- **ATSC A/85 delivery** — −24 LKFS/LUFS with the current Annex M anticipated
+  ±2 dB measurement range and −2 dBTP maximum.
+- **AES internet music · track** — −16 LUFS track-normalization target,
+  +0.2 LU upper tolerance, −20 LUFS general operational floor, and −1 dBTP
+  maximum at lossy-codec input.
+
+The selected profile is saved with the audit and appears in evidence and
+reports. Outside-target audio becomes Review, not Failed. The source audio is
+never normalized or altered. Leave the profile at **None · measure only** when
+you are inspecting a library without one shared delivery requirement.
+
 ## Understanding progress and finalization
 
 The analyzed-file count can reach the discovered-file count before the session
@@ -133,6 +160,14 @@ compaction, enables bounded future reclamation, preserves cache and Identity
 records, and is unavailable while an audit or history cleanup is active. Keep
 Audio-V open until the operation finishes.
 
+Settings also shows **Acceptance and soak evidence** for the latest audit:
+package version, platform and architecture, completed workload and bytes,
+elapsed time and throughput, sampled peak process working set, database
+growth, cancellation response, source-storage class, and recovery mode. Export
+this privacy-safe JSON when documenting a real-library or clean-machine test.
+It contains no filenames, paths, hashes, tags, audio evidence, or service
+credentials.
+
 ## Keyboard commands
 
 - `Command/Ctrl+O` — choose audio files
@@ -181,7 +216,7 @@ approximately megabyte-sized visual payloads from being duplicated across
 Electron processes without discarding the evidence that determined the
 verdict.
 
-**AcoustID recognition** is off by default. An official Audio-V package can contain the registered Audio-V client identity, while a development build or fork requires the 10-character key from its own registered AcoustID application. The Settings card says which case applies. A key typed there is a session-only override; it is not the separate user submission key. Audio-V trims copied whitespace, checks the format, and asks AcoustID to validate an override before file discovery begins. A rejected key stops the audit before repeated lookups and displays the service explanation. When enabled, Audio-V sends the local Chromaprint value and rounded duration—not the audio—to AcoustID using bounded POST requests. Calls are serialized below three requests per second, repeated fingerprints are cached, and HTTP 429/502/503/504 responses receive at most three attempts with bounded backoff. No client key is written to saved sessions or reports.
+**AcoustID recognition** is off by default. An official Audio-V package can contain the registered Audio-V client identity, while a development build or fork requires the 10-character key from its own registered AcoustID application. The Settings card says which case applies. This is not the separate user submission key. Audio-V trims copied whitespace, checks the format, and asks AcoustID to validate an override before file discovery begins. A rejected key stops the audit before repeated lookups and displays the service explanation. **Save identity settings** encrypts the key with macOS Keychain or Windows DPAPI and remembers both service switches for future launches; Audio-V refuses plaintext fallback. When enabled, Audio-V sends the local Chromaprint value and rounded duration—not the audio—to AcoustID using bounded POST requests. Calls are serialized below three requests per second, repeated fingerprints are cached, and HTTP 429/502/503/504 responses receive at most three attempts with bounded backoff. No client key is written to saved sessions or reports.
 
 **MusicBrainz enrichment** has its own switch and needs no API key. It looks up one valid recording ID per file, preferring an ID already embedded in the metadata and otherwise using the strongest AcoustID candidate. The result can add credited artists, ISRCs, a first-release date, and up to eight release groups. Audio-V caches repeated IDs and never makes more than one MusicBrainz request per second, so enabling it for a large library can significantly extend the audit. Service errors and missing IDs stay visible and neutral. AcoustID and MusicBrainz results are identity leads, not proof of ownership, mastering provenance, integrity, or sound quality.
 

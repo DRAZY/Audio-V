@@ -6,7 +6,7 @@
 
   <p>
     <img alt="Locally verified builds" src="https://img.shields.io/badge/builds-locally%20verified-51e19b?style=for-the-badge">
-    <a href="https://github.com/DRAZY/Audio-V/releases/tag/v0.4.33"><img alt="Latest development release 0.4.33" src="https://img.shields.io/badge/latest-0.4.33-8b5cf6?style=for-the-badge"></a>
+    <a href="https://github.com/DRAZY/Audio-V/releases/tag/v0.4.34"><img alt="Latest development release 0.4.34" src="https://img.shields.io/badge/latest-0.4.34-8b5cf6?style=for-the-badge"></a>
     <a href="LICENSE"><img alt="AGPL 3.0 only" src="https://img.shields.io/badge/license-AGPL--3.0--only-8b5cf6?style=for-the-badge"></a>
     <img alt="macOS and Windows" src="https://img.shields.io/badge/platforms-macOS%20%7C%20Windows-252532?style=for-the-badge">
   </p>
@@ -67,21 +67,21 @@ but the main workflow is designed to answer three simple questions:
 ## Download Audio-V
 
 The current locally built development release is
-**[Audio-V 0.4.33](https://github.com/DRAZY/Audio-V/releases/tag/v0.4.33)**.
+**[Audio-V 0.4.34](https://github.com/DRAZY/Audio-V/releases/tag/v0.4.34)**.
 
 | Your computer | Download | What you receive |
 |---|---|---|
-| Apple Silicon Mac | [Apple Silicon DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.33/Audio-V-0.4.33-mac-arm64.dmg) | Native build for M-series Macs |
-| Any supported Mac | [Universal DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.33/Audio-V-0.4.33-mac-universal.dmg) | Apple Silicon and Intel in one package |
-| Windows | [Windows installer](https://github.com/DRAZY/Audio-V/releases/download/v0.4.33/Audio-V-0.4.33-win-x64.exe) | Guided installation |
-| Windows portable | [Portable executable](https://github.com/DRAZY/Audio-V/releases/download/v0.4.33/Audio-V-Portable-0.4.33-x64.exe) | Runs without installation |
+| Apple Silicon Mac | [Apple Silicon DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.34/Audio-V-0.4.34-mac-arm64.dmg) | Native build for M-series Macs |
+| Any supported Mac | [Universal DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.34/Audio-V-0.4.34-mac-universal.dmg) | Apple Silicon and Intel in one package |
+| Windows | [Windows installer](https://github.com/DRAZY/Audio-V/releases/download/v0.4.34/Audio-V-0.4.34-win-x64.exe) | Guided installation |
+| Windows portable | [Portable executable](https://github.com/DRAZY/Audio-V/releases/download/v0.4.34/Audio-V-Portable-0.4.34-x64.exe) | Runs without installation |
 
 These builds are not signed with paid Apple or Microsoft certificates. Verify
 the download with
-[`SHA256SUMS.txt`](https://github.com/DRAZY/Audio-V/releases/download/v0.4.33/SHA256SUMS.txt),
+[`SHA256SUMS.txt`](https://github.com/DRAZY/Audio-V/releases/download/v0.4.34/SHA256SUMS.txt),
 then follow the
 [unsigned installation guide](docs/UNSIGNED_INSTALLATION.md). The
-[`UNSIGNED_RELEASE_MANIFEST.json`](https://github.com/DRAZY/Audio-V/releases/download/v0.4.33/UNSIGNED_RELEASE_MANIFEST.json)
+[`UNSIGNED_RELEASE_MANIFEST.json`](https://github.com/DRAZY/Audio-V/releases/download/v0.4.34/UNSIGNED_RELEASE_MANIFEST.json)
 records the signing policy and artifact identities.
 
 ## Your first audit
@@ -103,6 +103,12 @@ macOS volumes, Windows mapped drives, and UNC network paths.
 - **Metadata inventory** quickly catalogs declared properties without decoding
   the signal. Its result is **Not analyzed**, because no audio verdict was
   attempted.
+
+In Settings, you may also select an optional delivery profile for future full
+audits: EBU R 128 programme QC, ATSC A/85 delivery, or AES internet-music
+track normalization. Audio-V stores the exact profile and limits with the
+session. A miss becomes Review, never Failed; with no profile selected,
+loudness and true peak remain measured evidence only.
 
 ### 3. Watch the work
 
@@ -167,7 +173,8 @@ flowchart LR
 7. **Assess origin clues** — look for conservative multi-feature patterns
    compatible with possible transcoding or upsampling.
 8. **Inspect provenance and identity** — examine C2PA statements, generator
-   indicators, and Chromaprint relationships.
+   indicators, MQA-related declarations, CD-database eligibility, and
+   Chromaprint relationships.
 9. **Organize evidence** — keep integrity, signal, origin, provenance, and
    delivery findings in separate lanes.
 10. **Issue and explain the verdict** — apply narrow rules and show exactly

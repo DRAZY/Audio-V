@@ -393,7 +393,9 @@ app.whenReady().then(async () => {
         (button) => button.textContent.toLowerCase().includes("settings")
       )?.click();
       await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-      const card = document.querySelector(".capability-grid .resource-controls");
+      const card = document.querySelector(
+        ".capability-grid .analysis-resource-card",
+      );
       const rect = card.getBoundingClientRect();
       const presets = [...card.querySelectorAll(".resource-presets button")].map(
         (button) => ({

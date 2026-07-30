@@ -98,6 +98,30 @@ export function audioFileReportRow(file: AudioFileRecord): ReportRow {
       "Spectral-origin lane": display(file.oracle.assessments?.origin.status),
       "Provenance lane": display(file.oracle.assessments?.provenance.status),
       "Delivery lane": display(file.oracle.assessments?.delivery.status),
+      "Delivery profile": display(
+        file.oracle.assessments?.delivery.profile?.label,
+      ),
+      "Delivery reference": display(
+        file.oracle.assessments?.delivery.profile?.reference,
+      ),
+      "Delivery target LUFS": display(
+        file.oracle.assessments?.delivery.profile?.targetLoudnessLufs,
+      ),
+      "Delivery minimum LUFS": display(
+        file.oracle.assessments?.delivery.profile?.minimumLoudnessLufs,
+      ),
+      "Delivery maximum LUFS": display(
+        file.oracle.assessments?.delivery.profile?.maximumLoudnessLufs,
+      ),
+      "Delivery maximum dBTP": display(
+        file.oracle.assessments?.delivery.profile?.maximumTruePeakDbtp,
+      ),
+      "Delivery measured LUFS": display(
+        file.oracle.assessments?.delivery.measuredLoudnessLufs,
+      ),
+      "Delivery measured dBTP": display(
+        file.oracle.assessments?.delivery.measuredTruePeakDbtp,
+      ),
       "Assessment findings":
         file.oracle.assessments?.findings
           .map(
@@ -133,6 +157,21 @@ export function audioFileReportRow(file: AudioFileRecord): ReportRow {
       ),
       "Packet duration coverage percent": display(
         technical?.packetDurationCoverage,
+      ),
+      "Disc verification eligibility": display(
+        technical?.discVerification?.status,
+      ),
+      "Disc layout": display(technical?.discVerification?.layout),
+      "CTDB eligible": technical?.discVerification?.ctdbEligible
+        ? "yes · not yet verified"
+        : "no",
+      "AccurateRip eligible": technical?.discVerification?.accurateRipEligible
+        ? "yes · not yet verified"
+        : "no",
+      "Disc eligibility reasons":
+        technical?.discVerification?.reasonCodes.join(" | ") ?? "",
+      "Disc verification limitation": display(
+        technical?.discVerification?.limitation,
       ),
       Title: display(file.metadata?.title),
       Artists: file.metadata?.artists.join(" | ") ?? "",

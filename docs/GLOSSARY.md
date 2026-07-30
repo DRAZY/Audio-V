@@ -23,7 +23,9 @@ they affect a verdict.
 | **Correlation** | A measurement of how similarly two channels move. Negative or near-identical channels can be intentional. |
 | **DC offset** | A waveform is centered slightly above or below digital zero. Large offset deserves review but is not file corruption. |
 | **Decode** | Turn stored audio data into samples that can be measured. Audio-V decodes the selected stream from beginning to end. |
+| **Delivery profile** | An optional named loudness and true-peak target, such as EBU R 128. A miss means Review, not file damage. |
 | **Deterministic evidence** | A repeatable yes/no check, such as a checksum match. |
+| **Disc verification eligibility** | Audio-V has enough CD-format and cue-layout context to construct a future AccurateRip or CTDB query. Eligibility is not a database match. |
 | **DR / dynamic-range descriptor** | A measurement related to the difference between stronger and weaker parts of a signal. It is not a universal score of musical quality. |
 | **Evidence coverage** | How much usable information was available to the spectral-origin rules. It is not a probability of truth. |
 | **Failed** | Audio-V found deterministic integrity evidence against the file itself. |
@@ -44,6 +46,7 @@ they affect a verdict.
 | **Metadata conflict** | The external identity and at least one comparable recording ID, title, or artist stored in the file disagree. It does not change the Oracle verdict. |
 | **Metadata corroborated** | The usable external identity agrees with all comparable recording ID, title, and artist values stored in the file. |
 | **MusicBrainz** | A community-maintained music database. Audio-V can optionally use a recording ID to add artist, ISRC, date, and release-group context without changing the Oracle verdict. |
+| **MQA marker** | An unauthenticated metadata or decoder-profile declaration containing MQA. Audio-V inventories it but does not unfold or certify MQA. |
 | **Near mono / dual mono** | Stereo channels contain nearly or exactly the same signal. This can be intentional and is not damage. |
 | **Not analyzed** | Audio-V inventoried metadata but did not decode and assess the signal. |
 | **Null test** | Align two decoded signals and subtract one from the other. A quiet residual suggests similarity; it does not prove provenance. |

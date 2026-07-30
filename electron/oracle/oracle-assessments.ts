@@ -401,6 +401,8 @@ export function buildOracleAssessments(
     delivery: {
       profile: null,
       status: "not-evaluated",
+      measuredLoudnessLufs: measurements.integratedLufs,
+      measuredTruePeakDbtp: measurements.truePeakDbtp,
       findingIds: deliveryFindings.map((item) => item.id),
     },
     findings,

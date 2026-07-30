@@ -18,6 +18,8 @@ Audit reports can contain identifying file paths and cryptographic hashes. Users
 
 Privacy-safe diagnostics are intentionally separate from evidence exports. Automated tests ensure the diagnostics builder accepts aggregate session status rather than filenames, paths, checksums, tags, or evidence.
 
+Acceptance/soak evidence is also privacy-safe by construction. It records aggregate counts, timing, storage class, process-memory peaks, database growth, failure stages, and recovery behavior, but no filenames, paths, hashes, metadata, or per-file evidence. Users can inspect and export the latest acceptance record from Settings.
+
 ## Processes and bundled engines
 
 FFmpeg and ffprobe are bundled, checksum-pinned engines. The main process invokes them with argument arrays rather than shell command construction. Oracle and comparison analysis run in bounded workers; SQLite runs in a dedicated storage worker.
@@ -37,6 +39,8 @@ When the user chooses **Save identity settings**, Audio-V encrypts the personal 
 MusicBrainz enrichment is a separate opt-in. It sends one MusicBrainz recording identifier—not the fingerprint or audio—to `https://musicbrainz.org` and receives community-maintained recording, artist, ISRC, date, and release-group fields. Audio-V prefers a valid recording ID embedded in the file, otherwise it can use the strongest AcoustID candidate. Unique IDs are cached in application memory and public requests are globally limited to one per second. The returned fields are saved as advisory identity evidence and never change the Oracle verdict.
 
 The parallel identity result is calculated locally from the returned identity and the file's existing recording ID, title, and artist declarations. No additional network request is made for this comparison.
+
+Audio-V does not contact AccurateRip or the CUETools Database in this release. CD-verification eligibility is calculated locally from technical format and cue-layout evidence only. MQA-like strings are likewise local, unauthenticated inventory markers; Audio-V does not call an MQA service or perform proprietary unfolding.
 
 The [external identity services setup
 guide](EXTERNAL_IDENTITY_SERVICES.md) explains how to enable either service,

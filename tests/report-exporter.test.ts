@@ -121,6 +121,7 @@ describe("report exports", () => {
         expect(bytes.toString("utf8")).toContain(
           "Compared with the trusted release notes.",
         );
+        expect(bytes.toString("utf8")).toContain("Delivery profile");
       } else if (format === "pdf") {
         expect(bytes.subarray(0, 5).toString()).toBe("%PDF-");
       } else {

@@ -281,11 +281,29 @@ export interface ContentCredentialsAssessment {
 }
 
 export interface ProvenanceIndicator {
-  type: "generator-metadata" | "watermark-signature" | "content-credential";
+  type:
+    | "generator-metadata"
+    | "watermark-signature"
+    | "content-credential"
+    | "format-marker";
   identifier: string;
   source: string;
   value: string;
   interpretation: string;
+}
+
+export interface DiscVerificationEligibility {
+  status:
+    | "eligible-not-verified"
+    | "insufficient-disc-context"
+    | "not-cd-audio";
+  layout: "single-image-cue" | "partial-or-multifile-cue" | "none";
+  ctdbEligible: boolean;
+  accurateRipEligible: boolean;
+  cueTrackCount: number;
+  reasonCodes: string[];
+  summary: string;
+  limitation: string;
 }
 
 export interface AcoustIdLookup {
@@ -489,6 +507,7 @@ export interface StreamTechnicalAnalysis {
   fingerprint: ChromaprintAssessment;
   musicBrainzEnrichment?: MusicBrainzEnrichment;
   identityAssessment?: ExternalIdentityAssessment;
+  discVerification?: DiscVerificationEligibility;
   repairProvenance: {
     action: "true_peak_safe_copy";
     targetDbtp: number;
@@ -530,6 +549,24 @@ export type OracleAssessmentLane =
   | "provenance"
   | "delivery";
 
+export type DeliveryProfileId =
+  | "none"
+  | "ebu-r128-programme"
+  | "atsc-a85"
+  | "aes-streaming-track";
+
+export interface DeliveryProfileSelection {
+  id: Exclude<DeliveryProfileId, "none">;
+  label: string;
+  targetLoudnessLufs: number;
+  minimumLoudnessLufs: number;
+  maximumLoudnessLufs: number;
+  maximumTruePeakDbtp: number;
+  reference: string;
+  referenceUrl: string;
+  qualification: string;
+}
+
 export interface OracleAssessmentFinding {
   id: string;
   lane: OracleAssessmentLane;
@@ -565,8 +602,10 @@ export interface OracleAssessmentLanes {
     findingIds: string[];
   };
   delivery: {
-    profile: string | null;
+    profile: DeliveryProfileSelection | null;
     status: "not-evaluated" | "compliant" | "outside-target";
+    measuredLoudnessLufs: number | null;
+    measuredTruePeakDbtp: number | null;
     findingIds: string[];
   };
   findings: OracleAssessmentFinding[];
@@ -649,6 +688,7 @@ export interface AudioSourceSelection {
   label: string;
   mode?: AnalysisMode;
   resourceLimits?: AnalysisResourceLimits;
+  deliveryProfile?: DeliveryProfileSelection;
   recovery?: AuditRecoveryState;
   externalLookup?: {
     acoustIdEnabled: boolean;
@@ -722,6 +762,73 @@ export interface AuditStorageOptimizationResult {
   before: AuditStorageStatus;
   after: AuditStorageStatus;
   elapsedMilliseconds: number;
+}
+
+export interface AcceptanceRunEvidence {
+  schema: "Audio-V acceptance run evidence v1";
+  sessionId: string;
+  status: "completed" | "canceled" | "failed" | "interrupted";
+  startedAt: string;
+  finishedAt: string;
+  application: {
+    version: string;
+    packaged: boolean;
+    platform: DesktopPlatform;
+    architecture: string;
+  };
+  system: {
+    operatingSystemRelease: string;
+    logicalCpuCount: number;
+    totalMemoryBytes: number;
+  };
+  source: {
+    kind: AudioSourceSelection["kind"];
+    mode: AnalysisMode;
+    storageKind:
+      | "local"
+      | "network"
+      | "removable-or-mounted"
+      | "mixed";
+    pathCount: number;
+    externalIdentityEnabled: boolean;
+    musicBrainzEnabled: boolean;
+  };
+  workload: {
+    discoveredCount: number;
+    completedCount: number;
+    completedBytes: number;
+    cacheHitCount: number;
+    analysisErrorCount: number;
+    verdicts: Record<string, number>;
+    failureStages: Record<string, number>;
+  };
+  timing: {
+    elapsedMilliseconds: number;
+    filesPerMinute: number;
+    cancellationRequestedAt: string | null;
+    cancellationLatencyMilliseconds: number | null;
+  };
+  resources: {
+    requestedAndEffectiveLimits: AnalysisResourceLimits;
+    sampleIntervalMilliseconds: number;
+    sampleCount: number;
+    peakTotalWorkingSetBytes: number;
+    peakMainRssBytes: number;
+    peakWorkingSetByProcessType: Record<string, number>;
+  };
+  storage: {
+    before: AuditStorageStatus | null;
+    after: AuditStorageStatus | null;
+    databaseGrowthBytes: number | null;
+  };
+  recovery: {
+    strategy: AuditResumeStrategy | null;
+    attempt: number;
+    safeCandidateCount: number;
+    quarantinedCandidateCount: number;
+  };
+  privacy: string;
+  limitations: string[];
 }
 
 export interface StoredAuditSession extends AuditSessionSummary {
@@ -1034,6 +1141,8 @@ export interface AudioVDesktopApi {
   ): Promise<BatchSpectrogramExportResult>;
   validationStatus(): Promise<OracleValidationStatus>;
   exportDiagnostics(): Promise<ReportExportResult>;
+  latestAcceptanceRun(): Promise<AcceptanceRunEvidence | null>;
+  exportAcceptanceRun(): Promise<ReportExportResult>;
   openApplicationLogs(): Promise<boolean>;
   revealFile(filePath: string): Promise<boolean>;
   createTruePeakSafeCopy(

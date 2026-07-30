@@ -61,6 +61,35 @@ describe("provenance and fingerprint tools", () => {
     expect(indicators[0].interpretation).toContain("not proof");
   });
 
+  it("labels MQA text only as an unauthenticated format declaration", () => {
+    const indicators = metadataProvenanceIndicators(
+      [{ key: "MQAORIGINALSAMPLERATE", value: "96000" }],
+      [],
+      {
+        status: "not-present",
+        manifestCount: 0,
+        activeManifest: null,
+        claimGenerator: null,
+        signer: null,
+        signedAt: null,
+        digitalSourceTypes: [],
+        validationErrors: [],
+        networkAccess: "disabled",
+        limitation: "Absence is neutral.",
+      },
+    );
+    expect(indicators).toContainEqual(
+      expect.objectContaining({
+        type: "format-marker",
+        identifier: "MQA declaration",
+        source: "metadata:MQAORIGINALSAMPLERATE",
+      }),
+    );
+    expect(indicators.at(-1)?.interpretation).toContain(
+      "has not authenticated",
+    );
+  });
+
   it("keeps opt-in AcoustID results bounded and aligned to recording IDs", async () => {
     const fingerprint = await calculateChromaprint(fixture);
     const responseBody = JSON.stringify({

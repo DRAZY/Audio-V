@@ -116,6 +116,8 @@ const api: AudioVDesktopApi = {
     ipcRenderer.invoke("reports:export-spectrogram-batch", items),
   validationStatus: () => ipcRenderer.invoke("oracle:validation-status"),
   exportDiagnostics: () => ipcRenderer.invoke("app:export-diagnostics"),
+  latestAcceptanceRun: () => ipcRenderer.invoke("acceptance:latest"),
+  exportAcceptanceRun: () => ipcRenderer.invoke("acceptance:export"),
   openApplicationLogs: () => ipcRenderer.invoke("app:open-logs"),
   revealFile: (filePath) => ipcRenderer.invoke("files:reveal", filePath),
   createTruePeakSafeCopy: (filePath, targetBitDepth) =>

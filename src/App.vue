@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import type {
+  AcceptanceRunEvidence,
   AnalysisMode,
   AnalysisResourceLimits,
   AudioFileRecord,
@@ -10,6 +11,7 @@ import type {
   AuditStorageStatus,
   ComparisonRegion,
   DecodedSignalComparison,
+  DeliveryProfileId,
   ExternalIdentityServiceStatus,
   FingerprintLibraryEntry,
   OracleValidationStatus,
@@ -27,6 +29,10 @@ import {
 } from "../shared/audit-result-sort";
 import { createVirtualWindow } from "../shared/virtual-window";
 import { desktopErrorMessage } from "../shared/desktop-error-message";
+import {
+  isDeliveryProfileId,
+  resolveDeliveryProfile,
+} from "../shared/delivery-profiles";
 
 type AnalysisPanel = "spectrogram" | "loudness" | "evidence";
 type WorkspacePanel =
@@ -53,6 +59,10 @@ const sourceIoNotice = ref("");
 const diagnosticsMessage = ref(
   "Diagnostics exclude filenames, paths, checksums, tags, and audio evidence.",
 );
+const latestAcceptanceRun = ref<AcceptanceRunEvidence | null>(null);
+const acceptanceRunMessage = ref(
+  "Every audit records privacy-safe package, workload, timing, memory, storage, cancellation, and recovery evidence.",
+);
 const auditStorageStatus = ref<AuditStorageStatus | null>(null);
 const auditStorageMessage = ref("Measuring saved audit storage…");
 const auditStorageOptimizing = ref(false);
@@ -72,6 +82,17 @@ const loadingSessionId = ref("");
 const hydratingFileId = ref("");
 const isAnalyzing = ref(false);
 const scanMode = ref<AnalysisMode>("full-audit");
+const storedDeliveryProfile = localStorage.getItem(
+  "audio-v.delivery-profile-v1",
+);
+const deliveryProfileId = ref<DeliveryProfileId>(
+  isDeliveryProfileId(storedDeliveryProfile)
+    ? storedDeliveryProfile
+    : "none",
+);
+const selectedDeliveryProfile = computed(() =>
+  resolveDeliveryProfile(deliveryProfileId.value),
+);
 const analysisConcurrency = ref<1 | 2 | 3 | 4 | 5 | 6 | 7 | 8>(2);
 const analysisWorkerMemoryMb = ref<128 | 256 | 384 | 512>(256);
 const analysisFfmpegThreads = ref<1 | 2 | 4>(2);
@@ -1144,6 +1165,9 @@ watch(auditResultSort, () => {
   if (tableBody.value) tableBody.value.scrollTop = 0;
   scheduleTableViewportMeasurement();
 });
+watch(deliveryProfileId, (profileId) => {
+  localStorage.setItem("audio-v.delivery-profile-v1", profileId);
+});
 watch(activeWorkspace, (workspace) => {
   if (workspace === "library") void refreshFingerprintLibrary();
   if (workspace === "audit") scheduleTableViewportMeasurement();
@@ -1255,6 +1279,7 @@ onMounted(() => {
   void refreshAuditSessions();
   void refreshFingerprintLibrary();
   void refreshAuditStorageStatus();
+  void refreshAcceptanceRun();
   void loadExternalIdentityPreferences();
   void window.audioV?.externalIdentityServiceStatus().then((status) => {
     externalIdentityStatus.value = status;
@@ -1509,6 +1534,33 @@ async function exportDiagnostics(): Promise<void> {
   }
 }
 
+async function refreshAcceptanceRun(): Promise<void> {
+  if (!window.audioV) return;
+  try {
+    latestAcceptanceRun.value = await window.audioV.latestAcceptanceRun();
+  } catch (error) {
+    acceptanceRunMessage.value = desktopErrorMessage(
+      error,
+      "Acceptance evidence could not be loaded.",
+    );
+  }
+}
+
+async function exportAcceptanceRun(): Promise<void> {
+  if (!window.audioV || !latestAcceptanceRun.value) return;
+  try {
+    const result = await window.audioV.exportAcceptanceRun();
+    acceptanceRunMessage.value = result.canceled
+      ? "Acceptance evidence export canceled."
+      : `Privacy-safe acceptance evidence exported · ${result.filePath}`;
+  } catch (error) {
+    acceptanceRunMessage.value = desktopErrorMessage(
+      error,
+      "Acceptance evidence could not be exported.",
+    );
+  }
+}
+
 async function openApplicationLogs(): Promise<void> {
   if (!window.audioV) return;
   const opened = await window.audioV.openApplicationLogs();
@@ -1609,6 +1661,7 @@ async function scanSource(source: AudioSourceSelection): Promise<void> {
     ...source,
     mode,
     resourceLimits: requestedLimits,
+    deliveryProfile: selectedDeliveryProfile.value,
     externalLookup: {
       acoustIdEnabled: acoustIdEnabled.value,
       musicBrainzEnabled: musicBrainzEnabled.value,
@@ -1706,6 +1759,7 @@ async function scanSource(source: AudioSourceSelection): Promise<void> {
     isScanPaused.value = false;
     isScanCancelling.value = false;
     await refreshAuditSessions();
+    await refreshAcceptanceRun();
   }
 }
 
@@ -1884,6 +1938,8 @@ async function openAuditSession(sessionId: string): Promise<void> {
   try {
     const session = await window.audioV.openAuditSession(sessionId);
     scanMode.value = session.source.mode ?? "full-audit";
+    deliveryProfileId.value =
+      session.source.deliveryProfile?.id ?? "none";
     files.value = session.files;
     activeSessionId.value = session.id;
     sourceRoot.value = session.label;
@@ -1919,6 +1975,8 @@ async function resumeAuditSession(
     analysisFfmpegThreads.value = plan.targetResourceLimits.ffmpegThreads;
     analysisNativeMemoryMb.value =
       plan.targetResourceLimits.nativeProcessMemoryMb;
+    deliveryProfileId.value =
+      plan.source.deliveryProfile?.id ?? "none";
     sourceRoot.value = plan.source.label;
     historyOpen.value = false;
     scanMessage.value =
@@ -2496,9 +2554,10 @@ function assessmentStatusLabel(
   const assessment = file.oracle.assessments?.[lane];
   if (!assessment) return "Legacy result · re-run for v11 lanes";
   if (lane === "delivery") {
-    return assessment.status === "not-evaluated"
+    const delivery = file.oracle.assessments?.delivery;
+    return delivery?.status === "not-evaluated"
       ? "No delivery profile selected"
-      : assessment.status.replaceAll("-", " ");
+      : `${delivery?.status.replaceAll("-", " ") ?? "unavailable"} · ${delivery?.profile?.label ?? "profile unavailable"}`;
   }
   return assessment.status.replaceAll("-", " ");
 }
@@ -3873,7 +3932,13 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
                 <div><dt>Source declarations</dt><dd>{{ selected.oracle.technical.contentCredentials?.digitalSourceTypes.join(", ") || "None" }}</dd></div>
                 <div><dt>Metadata/signature indicators</dt><dd>{{ selected.oracle.technical.provenanceIndicators?.length ?? 0 }}</dd></div>
                 <div><dt>Fingerprint matches</dt><dd>{{ selected.oracle.technical.fingerprint?.matches.length ?? 0 }}</dd></div>
+                <div><dt>CD database eligibility</dt><dd>{{ selected.oracle.technical.discVerification?.status.replaceAll("-", " ") ?? "Not assessed" }}</dd></div>
+                <div><dt>Disc layout</dt><dd>{{ selected.oracle.technical.discVerification?.layout.replaceAll("-", " ") ?? "Not assessed" }}</dd></div>
               </dl>
+              <p v-if="selected.oracle.technical.discVerification">
+                {{ selected.oracle.technical.discVerification.summary }}
+                {{ selected.oracle.technical.discVerification.limitation }}
+              </p>
               <ul v-if="selected.oracle.technical.provenanceIndicators?.length">
                 <li v-for="indicator in selected.oracle.technical.provenanceIndicators" :key="`${indicator.type}-${indicator.identifier}-${indicator.source}`">
                   {{ indicator.identifier }} · {{ indicator.source }} · {{ indicator.interpretation }}
@@ -4551,12 +4616,32 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
           <article><span>Metadata workflow</span><strong>Explicit inventory mode</strong><p>Catalog declared format, codec, duration, bitrate, sample rate, bit depth, and channels without decoding. Files remain Not analyzed until a Full Oracle Audit runs.</p></article>
           <article><span>Signal analysis</span><strong>Measured PCM and spectrum</strong><p>Peak, RMS, clipping, DC offset, channel relationship, and a real STFT spectrogram come from decoded samples.</p></article>
           <article><span>Broadcast loudness</span><strong>EBU R128 / BS.1770</strong><p>Integrated LUFS, loudness range, and oversampled true peak are measured by the bundled engine.</p></article>
+          <article class="resource-controls delivery-profile-card">
+            <span>Delivery conformance</span>
+            <strong>Optional standards profile</strong>
+            <p>Selecting a profile makes loudness and true-peak limits part of the next audit. Outside-target audio becomes Review—not Failed—and the chosen standard, readings, limits, and qualification are preserved in evidence and reports.</p>
+            <label>Profile for future audits
+              <select v-model="deliveryProfileId" :disabled="isDiscovering">
+                <option value="none">None · measure only</option>
+                <option value="ebu-r128-programme">EBU R 128 programme QC</option>
+                <option value="atsc-a85">ATSC A/85 delivery</option>
+                <option value="aes-streaming-track">AES internet music · track</option>
+              </select>
+            </label>
+            <dl v-if="selectedDeliveryProfile" class="delivery-profile-targets">
+              <div><dt>Target</dt><dd>{{ selectedDeliveryProfile.targetLoudnessLufs.toFixed(1) }} LUFS</dd></div>
+              <div><dt>Accepted loudness</dt><dd>{{ selectedDeliveryProfile.minimumLoudnessLufs.toFixed(1) }} to {{ selectedDeliveryProfile.maximumLoudnessLufs.toFixed(1) }} LUFS</dd></div>
+              <div><dt>Maximum true peak</dt><dd>{{ selectedDeliveryProfile.maximumTruePeakDbtp.toFixed(1) }} dBTP</dd></div>
+              <div><dt>Reference</dt><dd><a :href="selectedDeliveryProfile.referenceUrl">{{ selectedDeliveryProfile.reference }}</a></dd></div>
+            </dl>
+            <small class="resource-budget-note">{{ selectedDeliveryProfile?.qualification ?? "No delivery target will affect the verdict. LUFS and dBTP remain measured evidence only." }}</small>
+          </article>
           <article><span>Codec integrity</span><strong>FLAC audio MD5</strong><p>The decoded PCM is independently compared with the checksum stored in STREAMINFO; mismatch is a deterministic failure.</p></article>
           <article><span>Spectral origin</span><strong>4,096-point multi-region classifier</strong><p>Strong Review requires a repeatable band edge and corroborating evidence. Ordinal rule strength, evidence coverage, regional stability, and limitations remain distinct.</p></article>
           <article><span>Content provenance</span><strong>Offline C2PA verification</strong><p>Content Credentials are cryptographically inspected with remote manifest and OCSP fetching disabled. Valid credentials record claims; they do not certify truth or human authorship.</p></article>
-          <article><span>Acoustic identity</span><strong>Chromaprint duplicates</strong><p>Local fingerprints identify same-recording and high-similarity candidates. Optional AcoustID lookup is session-only and never runs without a key and explicit opt-in.</p></article>
+          <article><span>Acoustic identity</span><strong>Chromaprint duplicates</strong><p>Local fingerprints identify same-recording and high-similarity candidates. Optional AcoustID lookup runs only after explicit opt-in; saved keys are protected by the operating system and never enter audit evidence.</p></article>
           <article><span>Metadata depth</span><strong>Tags, cue, ReplayGain</strong><p>Audio-V inventories identity tags, explains ReplayGain 2.0 album eligibility, and independently decodes cue INDEX 01 programme plus INDEX 00 pregap regions without becoming a tag editor.</p></article>
-          <article class="resource-controls">
+          <article class="resource-controls analysis-resource-card">
             <span>Analysis resources</span>
             <strong>Bounded worker controls</strong>
             <p>Changes apply to the next audit. These are per-file ceilings, not speed levels; Audio-V enforces an additional system-wide memory and CPU budget before creating workers.</p>
@@ -4701,6 +4786,23 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
                 </button>
               </div>
             </div>
+          </article>
+          <article class="acceptance-evidence-card">
+            <span>Acceptance and soak evidence</span>
+            <strong>{{ latestAcceptanceRun ? `${latestAcceptanceRun.status} · Audio-V ${latestAcceptanceRun.application.version}` : "Awaiting the first recorded audit" }}</strong>
+            <p>{{ acceptanceRunMessage }}</p>
+            <dl v-if="latestAcceptanceRun">
+              <div><dt>Platform</dt><dd>{{ latestAcceptanceRun.application.platform }} · {{ latestAcceptanceRun.application.architecture }} · {{ latestAcceptanceRun.application.packaged ? "packaged" : "source" }}</dd></div>
+              <div><dt>Workload</dt><dd>{{ latestAcceptanceRun.workload.completedCount.toLocaleString() }} / {{ latestAcceptanceRun.workload.discoveredCount.toLocaleString() }} files · {{ formatBytes(latestAcceptanceRun.workload.completedBytes) }}</dd></div>
+              <div><dt>Elapsed</dt><dd>{{ formatDuration(latestAcceptanceRun.timing.elapsedMilliseconds / 1000) }} · {{ latestAcceptanceRun.timing.filesPerMinute.toFixed(1) }} files/min</dd></div>
+              <div><dt>Peak sampled working set</dt><dd>{{ formatBytes(latestAcceptanceRun.resources.peakTotalWorkingSetBytes) }} across {{ latestAcceptanceRun.resources.sampleCount.toLocaleString() }} samples</dd></div>
+              <div><dt>Database growth</dt><dd>{{ latestAcceptanceRun.storage.databaseGrowthBytes === null ? "Unavailable" : formatBytes(Math.max(0, latestAcceptanceRun.storage.databaseGrowthBytes)) }}</dd></div>
+              <div><dt>Cancellation response</dt><dd>{{ latestAcceptanceRun.timing.cancellationLatencyMilliseconds === null ? "Not requested" : `${latestAcceptanceRun.timing.cancellationLatencyMilliseconds.toLocaleString()} ms` }}</dd></div>
+              <div><dt>Source</dt><dd>{{ latestAcceptanceRun.source.storageKind }} · {{ latestAcceptanceRun.source.mode }}</dd></div>
+              <div><dt>Recovery</dt><dd>{{ latestAcceptanceRun.recovery.strategy ?? "Not a recovery run" }}{{ latestAcceptanceRun.recovery.quarantinedCandidateCount ? ` · ${latestAcceptanceRun.recovery.quarantinedCandidateCount} quarantined` : "" }}</dd></div>
+            </dl>
+            <button class="secondary-action" :disabled="!latestAcceptanceRun" @click="exportAcceptanceRun">Export acceptance evidence</button>
+            <small>No filenames, paths, hashes, tags, audio evidence, or service credentials are included.</small>
           </article>
           <article><span>Support diagnostics</span><strong>Privacy-safe export and local application logs</strong><p>{{ diagnosticsMessage }}</p><div class="resource-presets"><button class="secondary-action" @click="exportDiagnostics">Export diagnostics</button><button class="secondary-action" @click="openApplicationLogs">Open log folder</button></div></article>
           <article><span>Keyboard workflow</span><strong>Fast navigation</strong><p>Use {{ primaryModifier }}+O for files, {{ primaryModifier }}+Shift+O for a folder, and {{ primaryModifier }}+1–6 for workspaces.</p></article>
