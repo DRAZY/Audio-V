@@ -35,4 +35,23 @@ describe("measureAlbumReplayGain", () => {
     expect(Number.isFinite(result.integratedLufs)).toBe(true);
     expect(result.gainDb).toBeCloseTo(-18 - result.integratedLufs, 2);
   });
+
+  it("supports digital album groups larger than the 99-track CD convention", async () => {
+    temporaryDirectory = await fs.mkdtemp(
+      path.join(process.cwd(), "tests", ".tmp-large-album-rg-"),
+    );
+    const file = path.join(temporaryDirectory, "track.wav");
+    await runEngine("ffmpeg", [
+      "-nostdin", "-hide_banner", "-v", "error",
+      "-f", "lavfi", "-i", "sine=frequency=440:duration=0.01",
+      "-c:a", "pcm_s16le", "-y", file,
+    ]);
+
+    const result = await measureAlbumReplayGain(
+      Array.from({ length: 154 }, () => file),
+    );
+
+    expect(Number.isFinite(result.integratedLufs)).toBe(true);
+    expect(result.gainDb).toBeCloseTo(-18 - result.integratedLufs, 2);
+  });
 });

@@ -52,7 +52,14 @@ const sourceRoot = ref("No source selected");
 const activeSessionId = ref("");
 const scanMessage = ref("Ready for files or a folder");
 const scanProgress = ref<ScanProgressUpdate | null>(null);
-const sourceWarnings = ref<string[]>([]);
+const auditNotices = ref<string[]>([]);
+const hasSourceAccessNotices = computed(() =>
+  auditNotices.value.some((notice) =>
+    /access was denied|external or network source is unavailable|could not be read/iu.test(
+      notice,
+    ),
+  ),
+);
 const scanFailureMessage = ref("");
 const resourcePolicyNotice = ref("");
 const sourceIoNotice = ref("");
@@ -1681,7 +1688,7 @@ async function scanSource(source: AudioSourceSelection): Promise<void> {
   };
   isScanPaused.value = false;
   isScanCancelling.value = false;
-  sourceWarnings.value = [];
+  auditNotices.value = [];
   scanFailureMessage.value = "";
   resourcePolicyNotice.value = "";
   sourceIoNotice.value = "";
@@ -1709,7 +1716,7 @@ async function scanSource(source: AudioSourceSelection): Promise<void> {
     progressFileIndexById = new Map(
       result.files.map((file, index) => [file.id, index]),
     );
-    sourceWarnings.value = result.warnings.filter(
+    auditNotices.value = result.warnings.filter(
       (warning) => warning !== resourcePolicyNotice.value,
     );
     const firstMeasured =
@@ -1729,8 +1736,8 @@ async function scanSource(source: AudioSourceSelection): Promise<void> {
     const analysisErrors = result.files.filter(
       (file) => oracleAnalysisState(file) === "error",
     ).length;
-    const warnings = result.warnings.length
-      ? ` · ${result.warnings.length} source warning${result.warnings.length === 1 ? "" : "s"}`
+    const warnings = auditNotices.value.length
+      ? ` · ${auditNotices.value.length} audit notice${auditNotices.value.length === 1 ? "" : "s"}`
       : "";
     scanMessage.value =
       `${result.files.length.toLocaleString()} files loaded` +
@@ -1746,7 +1753,7 @@ async function scanSource(source: AudioSourceSelection): Promise<void> {
     const message =
       error instanceof Error ? error.message : "The selected source could not be scanned.";
     if (isScanCancelling.value && /cancel(?:ed|led)/i.test(message)) {
-      sourceWarnings.value = [];
+      auditNotices.value = [];
       scanFailureMessage.value = "";
       scanMessage.value =
         `Audit canceled cleanly · ${files.value.length.toLocaleString()} completed result${files.value.length === 1 ? "" : "s"} preserved in History`;
@@ -1806,7 +1813,7 @@ async function clearAuditHistory(): Promise<void> {
       compareBId.value = "";
       reportSelectedId.value = "";
       scanProgress.value = null;
-      sourceWarnings.value = [];
+      auditNotices.value = [];
       scanFailureMessage.value = "";
       sourceRoot.value = "No source selected";
       scanMessage.value = "History cleared · ready for files or a folder";
@@ -3267,17 +3274,18 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
           <p>This is an application or processing failure, not evidence that the source is damaged or inaccessible.</p>
         </details>
         <details
-          v-if="sourceWarnings.length"
+          v-if="auditNotices.length"
           class="source-warnings"
           :open="!isDiscovering"
         >
           <summary>
-            {{ sourceWarnings.length }} source access warning{{ sourceWarnings.length === 1 ? "" : "s" }}
+            {{ auditNotices.length }} audit notice{{ auditNotices.length === 1 ? "" : "s" }}
           </summary>
           <ul>
-            <li v-for="warning in sourceWarnings" :key="warning">{{ warning }}</li>
+            <li v-for="notice in auditNotices" :key="notice">{{ notice }}</li>
           </ul>
-          <p>For mounted and network libraries, confirm the volume is connected, then re-select the folder so the operating system can grant this app access.</p>
+          <p v-if="hasSourceAccessNotices">For mounted and network libraries, confirm the volume is connected, then re-select the folder so the operating system can grant this app access.</p>
+          <p v-else>These notices describe optional or supplemental processing. They do not mean that the listed audio files failed integrity analysis.</p>
         </details>
         <div class="table-grid table-head">
           <span>File name</span><span>Format</span><span>Sample rate</span>

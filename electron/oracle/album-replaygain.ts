@@ -13,9 +13,6 @@ export async function measureAlbumReplayGain(
   if (filePaths.length < 2) {
     throw new Error("Album ReplayGain requires at least two tracks.");
   }
-  if (filePaths.length > 99) {
-    throw new Error("One album group cannot exceed 99 tracks.");
-  }
   const inputs = filePaths.flatMap((filePath) => ["-i", filePath]);
   const normalized = filePaths.map(
     (_, index) =>
