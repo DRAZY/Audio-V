@@ -4,18 +4,18 @@ A release candidate is evidence-backed, not simply a successful packaging comman
 
 ## Current readiness snapshot
 
-As of source version 0.4.34:
+As of source version 0.4.35:
 
 | Area | Current evidence | RC meaning |
 |---|---|---|
-| Source regression | 162 tests passed | Automated source behavior is green |
+| Source regression | 163 tests passed | Automated source behavior is green |
 | Build and UI | Type checks, production build, responsive-layout checks, and 41 accessibility rules passed | Repository-level UI gate is green |
 | Scale storage | 10,000-record persistence completed in 6.95 seconds; restore completed in 485 ms; cumulative 11,100-record database was 458.4 MB (437.1 MiB) | Synthetic dense-evidence storage budget is green |
 | macOS packages | Apple Silicon and Universal DMGs passed structure/signature checks; native packaged reference audit and clean Apple Silicon maintainer testing passed | Intel and the complete clean-environment journey remain open |
 | Windows packages | Installer and portable structure passed; the maintainer exercised the portable build natively on Windows | Clean installer, upgrade, uninstall, and formal parity evidence remain open |
 | Real-library scale | Maintainer witnessed a completed full audit of at least 6,000 files on native Windows | Platform and portable context are established; exact package version, timing, memory, and final database size were not captured |
 | Blocking defects | Versioned register contains one fixed P1 and zero unresolved P0/P1 defects | Known critical/high defects block release automatically |
-| Release assets | Four v0.4.34 application packages, checksums, block maps, and unsigned policy manifest were prepared, verified, and published | Current release distribution is complete |
+| Release assets | Four v0.4.35 application packages, checksums, block maps, and unsigned policy manifest were prepared, verified, and published together | Current release distribution is complete |
 | Instrumented acceptance | Every real audit records privacy-safe package, workload, throughput, sampled memory, storage growth, cancellation, source class, and recovery evidence | The next witnessed large-library run should export this record; earlier observations did not capture it |
 | Real-world origin calibration | Infrastructure is valid; licensed independent masters are absent | No probability-calibrated origin claim is allowed |
 
