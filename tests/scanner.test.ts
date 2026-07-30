@@ -2,7 +2,11 @@ import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { inspectAudioFile, scanSources } from "../electron/scanner";
+import {
+  attachFingerprintRelationships,
+  inspectAudioFile,
+  scanSources,
+} from "../electron/scanner";
 import { analyzeAudioFile } from "../electron/oracle/oracle-engine";
 import { oracleFailureResult } from "../electron/oracle/oracle-engine";
 import {
@@ -798,5 +802,167 @@ describe("scanSources", () => {
           file.oracle.technical?.fingerprint.matches[0]?.similarity === 1,
       ),
     ).toBe(true);
+  });
+
+  it("bounds historical fingerprint storage requests for a 640-file finalization", async () => {
+    const files = Array.from({ length: 640 }, (_, index) => ({
+      path: `/library/track-${index}.flac`,
+      name: `track-${index}.flac`,
+      oracle: {
+        technical: {
+          fingerprint: {
+            status: "measured",
+            fingerprintSha256: createHash("sha256")
+              .update(`fingerprint-${index}`)
+              .digest("hex"),
+            rawFingerprint: Array.from(
+              { length: 32 },
+              (_value, word) => index + word,
+            ),
+            durationSeconds: 180 + (index % 240),
+            matches: [],
+          },
+        },
+      },
+    })) as AudioFileRecord[];
+    let activeRequests = 0;
+    let maximumActiveRequests = 0;
+    const lookupModes: boolean[] = [];
+    const progress: number[] = [];
+
+    const result = await attachFingerprintRelationships(files, {
+      cache: {
+        get: async () => null,
+        set: async () => undefined,
+        flush: async () => undefined,
+        findFingerprintCandidates: async (
+          _filePath,
+          _limit,
+          _durationSeconds,
+          lookup,
+        ) => {
+          activeRequests += 1;
+          maximumActiveRequests = Math.max(
+            maximumActiveRequests,
+            activeRequests,
+          );
+          lookupModes.push(lookup?.exactOnly === true);
+          await new Promise((resolve) => setTimeout(resolve, 1));
+          activeRequests -= 1;
+          return [];
+        },
+      },
+      historicalConcurrency: 4,
+      onProgress: (completed) => progress.push(completed),
+    });
+
+    expect(result).toHaveLength(640);
+    expect(maximumActiveRequests).toBeLessThanOrEqual(4);
+    expect(lookupModes).toHaveLength(640);
+    expect(lookupModes.every(Boolean)).toBe(true);
+    expect(progress.at(-1)).toBe(640);
+  });
+
+  it("keeps the audit evidence complete when historical fingerprint enrichment fails", async () => {
+    const files = Array.from({ length: 8 }, (_, index) => ({
+      path: `/library/fallback-${index}.flac`,
+      name: `fallback-${index}.flac`,
+      oracle: {
+        technical: {
+          fingerprint: {
+            status: "measured",
+            fingerprintSha256: `fingerprint-${index}`,
+            rawFingerprint: Array.from(
+              { length: 32 },
+              (_value, word) => index + word,
+            ),
+            durationSeconds: 200 + index,
+            matches: [],
+          },
+        },
+      },
+    })) as AudioFileRecord[];
+    const warnings: string[] = [];
+    let requests = 0;
+
+    const result = await attachFingerprintRelationships(files, {
+      cache: {
+        get: async () => null,
+        set: async () => undefined,
+        flush: async () => undefined,
+        findFingerprintCandidates: async () => {
+          requests += 1;
+          throw new Error(
+            "Audit storage did not complete find-fingerprints within 30 seconds.",
+          );
+        },
+      },
+      warnings,
+      historicalConcurrency: 4,
+    });
+
+    expect(result).toHaveLength(files.length);
+    expect(requests).toBeLessThanOrEqual(4);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("Historical fingerprint enrichment was unavailable");
+    expect(warnings[0]).toContain("every Oracle verdict remain complete");
+  });
+
+  it("completes scan finalization when persistent fingerprint storage times out", async () => {
+    const directory = await makeTemporaryDirectory();
+    const audioPath = path.join(directory, "storage-timeout.flac");
+    await fs.copyFile(
+      path.join(
+        process.cwd(),
+        "tests",
+        "fixtures",
+        "fidelity-engine",
+        "wideband-source-44.flac",
+      ),
+      audioPath,
+    );
+    const finalizationProgress: Array<{ completed: number; total: number }> = [];
+
+    const result = await scanSources(
+      {
+        kind: "files",
+        label: "Fingerprint storage timeout",
+        paths: [audioPath],
+      },
+      (progress) => {
+        if (
+          progress.phase === "finalizing" &&
+          progress.finalization?.stage === "fingerprint-relationships"
+        ) {
+          finalizationProgress.push({
+            completed: progress.finalization.completed,
+            total: progress.finalization.total,
+          });
+        }
+      },
+      {
+        cache: {
+          get: async () => null,
+          set: async () => undefined,
+          flush: async () => undefined,
+          findFingerprintCandidates: async () => {
+            throw new Error(
+              "Audit storage did not complete find-fingerprints within 30 seconds.",
+            );
+          },
+        },
+      },
+    );
+
+    expect(result.files).toHaveLength(1);
+    expect(result.files[0].oracle.analysisState).toBe("completed");
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings[0]).toContain(
+      "Current-audit fingerprint relationships and every Oracle verdict remain complete",
+    );
+    expect(finalizationProgress.at(-1)).toEqual({
+      completed: 1,
+      total: 1,
+    });
   });
 });

@@ -24,7 +24,7 @@ export type StorageWorkerRequest =
   | { id: string; operation: "get-recovery-candidates"; sessionId: string }
   | { id: string; operation: "get-cached"; filePath: string }
   | { id: string; operation: "set-cached"; file: AudioFileRecord }
-  | { id: string; operation: "find-fingerprints"; filePath: string; limit?: number; durationSeconds?: number | null }
+  | { id: string; operation: "find-fingerprints"; filePath: string; limit?: number; durationSeconds?: number | null; lookup?: { exactOnly: boolean; fingerprintSha256: string | null } }
   | { id: string; operation: "list-fingerprint-library"; limit?: number }
   | { id: string; operation: "rebuild-fingerprint-library" }
   | { id: string; operation: "prune-fingerprint-library" }

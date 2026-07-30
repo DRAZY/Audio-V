@@ -2228,11 +2228,12 @@ app.whenReady().then(async () => {
     get: (filePath) => auditSessions.getCached(filePath),
     set: (record) => auditSessions.setCached(record),
     flush: async () => undefined,
-    findFingerprintCandidates: (filePath, limit, durationSeconds) =>
+    findFingerprintCandidates: (filePath, limit, durationSeconds, lookup) =>
       auditSessions.findFingerprintCandidates(
         filePath,
         limit,
         durationSeconds,
+        lookup,
       ),
   };
   oracleWorkers = new OracleWorkerPool(

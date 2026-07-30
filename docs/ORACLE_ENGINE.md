@@ -267,6 +267,11 @@ To keep large scans bounded:
   files or fewer and deferred for larger sources;
 - exact fingerprint duplicates remain linked in large libraries;
 - near-match expansion is deferred above 2,000 files;
+- historical fingerprint storage uses at most four outstanding requests;
+- selections above 100 files use indexed exact-history matching, while smaller
+  selections may also inspect near-duration candidates;
+- a supplemental history lookup failure becomes one audit notice and cannot
+  discard completed verdicts or prevent the session from closing;
 - finalization stages are named in the interface and application log.
 
 For album ReplayGain on a large collection, audit the album or a smaller

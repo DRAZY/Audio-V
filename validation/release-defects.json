@@ -1,7 +1,7 @@
 {
   "schema": "Audio-V release defect register v1",
-  "releaseVersion": "0.4.35",
-  "auditedAt": "2026-07-30T03:16:20.000Z",
+  "releaseVersion": "0.4.36",
+  "auditedAt": "2026-07-30T04:33:23.000Z",
   "repositoryIssueCountAtAudit": 0,
   "defects": [
     {
@@ -52,6 +52,13 @@
       "status": "fixed",
       "summary": "Album ReplayGain incorrectly rejected digital album groups above the 99-track audio-CD convention and presented the supplemental calculation failure as a source-access warning.",
       "verification": "tests/album-replaygain.test.ts executes exact album loudness measurement across the reported 154-track group size; the renderer now labels supplemental processing messages as audit notices and limits mounted/network remediation to actual source-access evidence."
+    },
+    {
+      "id": "AV-2026-008",
+      "severity": "P1",
+      "status": "fixed",
+      "summary": "A 640-file Windows audit completed every Oracle assessment but failed session finalization when hundreds of historical fingerprint requests started simultaneous 30-second timers against one serial SQLite storage worker.",
+      "verification": "tests/scanner.test.ts reproduces 640-file relationship finalization, enforces at most four outstanding storage lookups, verifies indexed exact-only history mode at scale, and proves a forced find-fingerprints timeout produces one supplemental notice while the full scan still completes; tests/audit-session-store.test.ts verifies exact-hash lookup and the duration/recency index."
     }
   ],
   "limitations": [

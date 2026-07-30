@@ -126,6 +126,8 @@ export class AuditSessionStore {
         ON fingerprint_index(fingerprint_sha256);
       CREATE INDEX IF NOT EXISTS fingerprint_index_last_seen
         ON fingerprint_index(last_seen_at DESC);
+      CREATE INDEX IF NOT EXISTS fingerprint_index_duration_last_seen
+        ON fingerprint_index(duration_seconds, last_seen_at DESC);
       CREATE TABLE IF NOT EXISTS application_metadata (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
@@ -815,9 +817,32 @@ export class AuditSessionStore {
     filePath: string,
     limit = 100,
     durationSeconds?: number | null,
+    lookup?: {
+      exactOnly: boolean;
+      fingerprintSha256: string | null;
+    },
   ): FingerprintIndexCandidate[] {
-    const rows = this.#database
-      .prepare(`
+    const boundedLimit = Math.max(1, Math.min(1_000, Math.trunc(limit)));
+    const normalizedPath = path.resolve(filePath);
+    const rows =
+      lookup?.exactOnly && lookup.fingerprintSha256
+        ? this.#database
+            .prepare(`
+              SELECT file_path, file_name, fingerprint_sha256,
+                raw_fingerprint_json, duration_seconds, last_seen_at
+              FROM fingerprint_index
+              WHERE file_path <> ?
+                AND fingerprint_sha256 = ?
+              ORDER BY last_seen_at DESC
+              LIMIT ?
+            `)
+            .all(
+              normalizedPath,
+              lookup.fingerprintSha256,
+              boundedLimit,
+            )
+        : this.#database
+            .prepare(`
         SELECT file_path, file_name, fingerprint_sha256,
           raw_fingerprint_json, duration_seconds, last_seen_at
         FROM fingerprint_index
@@ -829,25 +854,25 @@ export class AuditSessionStore {
         ORDER BY last_seen_at DESC
         LIMIT ?
       `)
-      .all(
-        path.resolve(filePath),
-        durationSeconds ?? null,
-        durationSeconds === null || durationSeconds === undefined
-          ? null
-          : Math.max(0, durationSeconds - 3),
-        durationSeconds === null || durationSeconds === undefined
-          ? null
-          : durationSeconds + 3,
-        Math.max(1, Math.min(1_000, Math.trunc(limit))),
-      ) as unknown as Array<{
+            .all(
+              normalizedPath,
+              durationSeconds ?? null,
+              durationSeconds === null || durationSeconds === undefined
+                ? null
+                : Math.max(0, durationSeconds - 3),
+              durationSeconds === null || durationSeconds === undefined
+                ? null
+                : durationSeconds + 3,
+              boundedLimit,
+            );
+    return (rows as unknown as Array<{
         file_path: string;
         file_name: string;
         fingerprint_sha256: string | null;
         raw_fingerprint_json: string;
         duration_seconds: number | null;
         last_seen_at: string;
-      }>;
-    return rows.map((row) => ({
+      }>).map((row) => ({
       filePath: row.file_path,
       fileName: row.file_name,
       fingerprintSha256: row.fingerprint_sha256,

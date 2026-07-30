@@ -493,14 +493,37 @@ describe("AuditSessionStore", () => {
       store.finish(sessionId, "completed", []);
       await Promise.all(result.files.map((file) => store.setCached(file)));
       const candidates = store.findFingerprintCandidates(firstPath);
+      const exactCandidates = store.findFingerprintCandidates(
+        firstPath,
+        100,
+        99_999,
+        {
+          exactOnly: true,
+          fingerprintSha256:
+            result.files[0].oracle.technical?.fingerprint
+              .fingerprintSha256 ?? null,
+        },
+      );
 
       expect(candidates).toHaveLength(1);
+      expect(exactCandidates).toHaveLength(1);
+      expect(exactCandidates[0].filePath).toBe(secondPath);
       expect(candidates[0]).toMatchObject({
         filePath: secondPath,
         fingerprintSha256:
           result.files[1].oracle.technical?.fingerprint.fingerprintSha256,
       });
       expect(candidates[0].rawFingerprint.length).toBeGreaterThan(20);
+      const inspection = new DatabaseSync(
+        path.join(directory, "sessions.sqlite3"),
+      );
+      const indexes = inspection
+        .prepare("PRAGMA index_list(fingerprint_index)")
+        .all() as unknown as Array<{ name: string }>;
+      inspection.close();
+      expect(indexes.map((index) => index.name)).toContain(
+        "fingerprint_index_duration_last_seen",
+      );
       const library = await store.listFingerprintLibrary();
       expect(library).toHaveLength(2);
       expect(library.every((entry) => entry.exactDuplicateCount === 1)).toBe(true);

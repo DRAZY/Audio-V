@@ -191,12 +191,17 @@ export class AuditStorageClient {
     filePath: string,
     limit?: number,
     durationSeconds?: number | null,
+    lookup?: {
+      exactOnly: boolean;
+      fingerprintSha256: string | null;
+    },
   ): Promise<FingerprintIndexCandidate[]> {
     return this.#request({
       operation: "find-fingerprints",
       filePath,
       limit,
       durationSeconds,
+      lookup,
     });
   }
 

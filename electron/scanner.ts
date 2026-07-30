@@ -52,6 +52,9 @@ import {
 const supportedExtensions = new Set<string>(AUDIO_EXTENSIONS);
 const DEFAULT_AUTOMATIC_ALBUM_REPLAYGAIN_FILE_LIMIT = 1_000;
 const DEFAULT_NEAR_FINGERPRINT_RELATIONSHIP_FILE_LIMIT = 2_000;
+const DEFAULT_HISTORICAL_FINGERPRINT_FILE_LIMIT = 1_000;
+const DEFAULT_HISTORICAL_NEAR_FINGERPRINT_FILE_LIMIT = 100;
+const DEFAULT_HISTORICAL_FINGERPRINT_CONCURRENCY = 4;
 const MAX_CURRENT_FINGERPRINT_CANDIDATES = 500;
 
 function throwIfCanceled(signal?: AbortSignal): void {
@@ -106,6 +109,10 @@ export interface OracleRecordCache {
     filePath: string,
     limit?: number,
     durationSeconds?: number | null,
+    lookup?: {
+      exactOnly: boolean;
+      fingerprintSha256: string | null;
+    },
   ): Promise<FingerprintIndexCandidate[]>;
 }
 
@@ -847,13 +854,33 @@ async function attachAlbumReplayGain(
   return files.map((file) => replacements.get(file.path) ?? file);
 }
 
-async function attachFingerprintRelationships(
+export interface FingerprintRelationshipOptions {
+  cache?: OracleRecordCache;
+  signal?: AbortSignal;
+  nearRelationshipFileLimit?: number;
+  historicalMatchFileLimit?: number;
+  historicalNearMatchFileLimit?: number;
+  historicalConcurrency?: number;
+  warnings?: string[];
+  onProgress?: (completed: number, total: number, explanation: string) => void;
+}
+
+export async function attachFingerprintRelationships(
   files: AudioFileRecord[],
-  cache?: OracleRecordCache,
-  signal?: AbortSignal,
-  nearRelationshipFileLimit =
-    DEFAULT_NEAR_FINGERPRINT_RELATIONSHIP_FILE_LIMIT,
+  options: FingerprintRelationshipOptions = {},
 ): Promise<AudioFileRecord[]> {
+  const {
+    cache,
+    signal,
+    warnings,
+    onProgress,
+    nearRelationshipFileLimit =
+      DEFAULT_NEAR_FINGERPRINT_RELATIONSHIP_FILE_LIMIT,
+    historicalMatchFileLimit = DEFAULT_HISTORICAL_FINGERPRINT_FILE_LIMIT,
+    historicalNearMatchFileLimit =
+      DEFAULT_HISTORICAL_NEAR_FINGERPRINT_FILE_LIMIT,
+    historicalConcurrency = DEFAULT_HISTORICAL_FINGERPRINT_CONCURRENCY,
+  } = options;
   const exactGroups = new Map<string, number[]>();
   const durationBuckets = new Map<number, number[]>();
   for (let index = 0; index < files.length; index += 1) {
@@ -875,8 +902,19 @@ async function attachFingerprintRelationships(
       durationBuckets.set(bucket, group);
     }
   }
-  const includeHistoricalMatches = files.length <= 1_000;
-  return Promise.all(files.map(async (file, index) => {
+  const includeHistoricalMatches = files.length <= historicalMatchFileLimit;
+  const includeHistoricalNearMatches =
+    files.length <= historicalNearMatchFileLimit;
+  const concurrency = Math.max(
+    1,
+    Math.min(8, Math.trunc(historicalConcurrency)),
+  );
+  let historicalMatchingAvailable = true;
+  let historicalWarningAdded = false;
+  const processFile = async (
+    file: AudioFileRecord,
+    index: number,
+  ): Promise<AudioFileRecord> => {
     throwIfCanceled(signal);
     const technical = file.oracle.technical;
     if (!technical || technical.fingerprint.status !== "measured") return file;
@@ -941,17 +979,39 @@ async function attachFingerprintRelationships(
         source: "current-audit" as const,
       }];
     });
-    const historical =
-      includeHistoricalMatches && cache?.findFingerprintCandidates
-      ? await abortable(
+    let historical: FingerprintIndexCandidate[] = [];
+    if (
+      includeHistoricalMatches &&
+      historicalMatchingAvailable &&
+      cache?.findFingerprintCandidates
+    ) {
+      try {
+        historical = await abortable(
           cache.findFingerprintCandidates(
             file.path,
             100,
             technical.fingerprint.durationSeconds,
+            {
+              exactOnly: !includeHistoricalNearMatches,
+              fingerprintSha256:
+                technical.fingerprint.fingerprintSha256,
+            },
           ),
           signal,
-        )
-      : [];
+        );
+      } catch (error) {
+        throwIfCanceled(signal);
+        historicalMatchingAvailable = false;
+        if (!historicalWarningAdded) {
+          historicalWarningAdded = true;
+          warnings?.push(
+            `Historical fingerprint enrichment was unavailable: ${
+              error instanceof Error ? error.message : "lookup failed"
+            } Current-audit fingerprint relationships and every Oracle verdict remain complete.`,
+          );
+        }
+      }
+    }
     throwIfCanceled(signal);
     const historicalMatches = historical.flatMap((candidate) => {
       if (currentMatches.some((match) => match.filePath === candidate.filePath)) {
@@ -1007,7 +1067,25 @@ async function attachFingerprintRelationships(
         },
       },
     };
-  }));
+  };
+  const results: AudioFileRecord[] = [];
+  for (let start = 0; start < files.length; start += concurrency) {
+    throwIfCanceled(signal);
+    const batch = files.slice(start, start + concurrency);
+    results.push(
+      ...(await Promise.all(
+        batch.map((file, offset) => processFile(file, start + offset)),
+      )),
+    );
+    const completed = Math.min(files.length, start + batch.length);
+    const historicalExplanation = !includeHistoricalMatches
+      ? `Historical enrichment is deferred above ${historicalMatchFileLimit.toLocaleString()} files; current-audit exact relationships remain complete.`
+      : includeHistoricalNearMatches
+        ? "Linking current and historical exact and near-similarity fingerprints through a bounded storage queue."
+        : `Linking indexed exact historical fingerprints through a bounded storage queue; historical near-similarity expansion is deferred above ${historicalNearMatchFileLimit.toLocaleString()} files.`;
+    onProgress?.(completed, files.length, historicalExplanation);
+  }
+  return results;
 }
 
 export async function inspectAudioFile(
@@ -1559,9 +1637,27 @@ export async function scanSources(
   const filesBeforeRelationships = files;
   files = await attachFingerprintRelationships(
     filesBeforeRelationships,
-    options?.cache,
-    options?.signal,
-    nearFingerprintRelationshipFileLimit,
+    {
+      cache: options?.cache,
+      signal: options?.signal,
+      nearRelationshipFileLimit: nearFingerprintRelationshipFileLimit,
+      warnings,
+      onProgress: (completed, total, explanation) =>
+        onProgress?.({
+          phase: "finalizing",
+          completed: files.length,
+          total: filePaths.length,
+          currentFile: null,
+          file: null,
+          fromCache: false,
+          finalization: {
+            stage: "fingerprint-relationships",
+            completed,
+            total,
+            explanation,
+          },
+        }),
+    },
   );
   await Promise.all(
     files.flatMap((file, index) =>

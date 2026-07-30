@@ -108,7 +108,7 @@ These limits keep completion time and stored evidence bounded.
 
 ## Identity library
 
-Identity lists Chromaprint entries retained from historical audits, exact-fingerprint peers, last-seen time, and whether the original source path still exists. **Rebuild from history** recreates the index from saved audit evidence. **Prune missing** removes only entries whose source path no longer exists. **Clear index** removes historical fingerprints after confirmation but leaves saved audit sessions intact, so a later rebuild can restore eligible entries.
+Identity lists Chromaprint entries retained from historical audits, exact-fingerprint peers, last-seen time, and whether the original source path still exists. Historical finalization uses a bounded storage queue: selections above 100 files use indexed exact-fingerprint lookup, smaller selections can also inspect near-duration candidates, and historical enrichment is deferred above 1,000 files. If supplemental history lookup becomes unavailable, Audio-V completes the audit and reports one notice; current-audit relationships and Oracle verdicts remain intact. **Rebuild from history** recreates the index from saved audit evidence. **Prune missing** removes only entries whose source path no longer exists. **Clear index** removes historical fingerprints after confirmation but leaves saved audit sessions intact, so a later rebuild can restore eligible entries.
 
 ## Origin Assessment
 

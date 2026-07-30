@@ -129,6 +129,7 @@ port.on("message", (request: StorageWorkerRequest) => {
           request.filePath,
           request.limit,
           request.durationSeconds,
+          request.lookup,
         );
       case "list-fingerprint-library":
         return store.listFingerprintLibrary(request.limit);

@@ -21,7 +21,7 @@ supportable general release is complete.
 | --- | ---: | ---: | --- |
 | Scientific validity and verdict semantics | 25% | 88% | Standards-based loudness and true peak, explicit EBU/ATSC/AES delivery profiles, complete decode, FLAC PCM MD5, versioned five-lane rules, explicit uncertainty |
 | Functional assessment completeness | 20% | 96% | Batch audit, metadata, signal, spectral, provenance, delivery profiles, comparison, reports, CLI, cue, ReplayGain, fingerprints, and disc-verification eligibility |
-| Reliability, scale, recovery, and cancellation | 20% | 93% | Bounded workers, SQLite checkpoints, adaptive resume, suspect isolation, privacy-safe acceptance evidence, 10,000-record storage benchmark, native-Windows 6,000-file completion, and measured page reclamation |
+| Reliability, scale, recovery, and cancellation | 20% | 93% | Bounded workers and fingerprint finalization, SQLite checkpoints, adaptive resume, suspect isolation, privacy-safe acceptance evidence, 10,000-record storage benchmark, native-Windows 6,000-file completion, and measured page reclamation |
 | Workflow, responsive UI, and accessibility | 15% | 92% | Evidence-first review, human disposition, scalable layouts, keyboard and automated accessibility gates |
 | Cross-platform acceptance | 10% | 82% | Four package targets exist; native Windows portable and clean Apple Silicon behavior are maintainer-witnessed, while the Windows installer, Intel Mac, assistive technology, and display-scale matrix remain incomplete |
 | Security, privacy, documentation, and release operations | 10% | 97% | Local-first analysis, opt-in AcoustID, bounded IPC, versioned P0/P1 defect gate, AGPL policy, checksums, unsigned-build disclosure, reproducible release scripts |
