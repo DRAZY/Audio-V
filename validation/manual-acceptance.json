@@ -2,26 +2,48 @@
   "schema": "Audio-V manual acceptance evidence v1",
   "evidence": [
     {
-      "id": "AV-MAINTAINER-LIBRARY-6000-2026-07-28",
-      "observedAt": "2026-07-28",
+      "id": "AV-MAINTAINER-WINDOWS-PORTABLE-6000-2026-07-29",
+      "observedAt": "2026-07-29",
       "kind": "real-library-full-audit",
       "observerRole": "project-maintainer",
       "outcome": "completed",
       "minimumFileCount": 6000,
-      "platform": "not-recorded",
-      "packageVersion": "development-build-version-not-recorded",
+      "platform": "windows-native-x64",
+      "packageVersion": "exact-build-not-independently-recorded",
       "verifiedClaims": [
-        "A real music library containing at least 6,000 files completed an Audio-V full audit."
+        "A real music library containing at least 6,000 files completed an Audio-V full audit on a native Windows PC.",
+        "The project maintainer exercised the Windows portable distribution and reported stable native behavior."
       ],
       "notCaptured": [
         "Exact file count",
-        "Operating-system and hardware profile",
         "Exact Audio-V package version",
+        "Windows version and hardware profile",
         "Wall time",
         "Peak resident memory",
         "Final database size",
         "Verdict distribution",
-        "Cancellation or crash-recovery timing"
+        "Cancellation or crash-recovery timing",
+        "Privacy-safe acceptance evidence export"
+      ]
+    },
+    {
+      "id": "AV-MAINTAINER-CLEAN-APPLE-SILICON-2026-07-29",
+      "observedAt": "2026-07-29",
+      "kind": "clean-platform-smoke",
+      "observerRole": "project-maintainer",
+      "outcome": "completed",
+      "platform": "darwin-arm64",
+      "packageVersion": "exact-build-not-independently-recorded",
+      "verifiedClaims": [
+        "Audio-V was exercised in a clean Apple Silicon environment and the project maintainer reported stable behavior."
+      ],
+      "notCaptured": [
+        "Exact Audio-V package version",
+        "macOS version and Apple Silicon model",
+        "Complete install, upgrade, removal, and Gatekeeper journey",
+        "Large-library workload and performance measurements",
+        "VoiceOver and scaled-display acceptance",
+        "Privacy-safe acceptance evidence export"
       ]
     }
   ]

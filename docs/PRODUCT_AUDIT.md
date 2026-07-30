@@ -91,12 +91,30 @@ Status meanings:
 
 No single competitor invalidates Audio-V, but the bar is substantially higher than a spectrogram plus metadata:
 
-- [Spek](https://www.spek.cc/about) is fast, cross-platform, supports FFmpeg formats, exports images, and makes spectrogram inspection immediate. It lacks a serious batch verdict and evidence workflow.
+- [Spek](https://www.spek.cc/about) is fast, cross-platform, supports FFmpeg formats, exports images, and makes spectrogram inspection immediate. Its published purpose is focused and approachable: show the acoustic spectrum of a file. Audio-V should preserve that clarity while serving the substantially larger batch-verdict and evidence workflow.
 - [MediaInfo](https://mediaarea.net/en/MediaInfo/Support/MediaInfo/Support/Tags) has deep, dependable container and stream metadata, multiple exports, and a library interface. It does not answer signal-authenticity questions.
-- [Sonic Visualiser](https://sonicvisualiser.org/features.html) is the benchmark for inspectable, adjustable visualization and responsive work on substantial audio. It is an expert analysis environment rather than a decisive library auditor.
+- [Sonic Visualiser](https://sonicvisualiser.org/features.html) is the benchmark for inspectable, adjustable visualization, layered annotations, plugin-derived features, and responsive work on substantial audio. It is an expert exploration environment rather than a guided library verdict system.
 - [Fakin’ The Funk](https://fakinthefunk.net/) is centered on batch quality estimation and frame scanning. Its value validates the use case, while its classifications also demonstrate why Audio-V needs inspectable evidence and explicit uncertainty.
-- [AudioAuditor](https://audioauditor.org/) currently has the broadest directly comparable feature list: spectral estimation, clipping, MQA, fake stereo, loudness, true peak, comparison, exports, batch tools, and a Windows GUI. Audio-V cannot compete by matching a checklist alone; it must win on cross-platform parity, scientific transparency, reproducibility, workflow focus, and validation quality.
+- [AudioAuditor](https://audioauditor.org/) currently has the broadest directly comparable feature list: spectral estimation, clipping, MQA, fake stereo, loudness, true peak, comparison, exports, batch tools, and a Windows GUI alongside a player, EQ, lyrics, metadata tools, and experimental AI detection. Audio-V cannot compete by copying breadth; it must stand out through cross-platform parity, scientific transparency, reproducibility, workflow focus, and validation quality.
 - [Lossless Audio Checker research](https://secure.aes.org/forum/pubs/conventions/?elib=17972) demonstrates that upscaling, upsampling, and some transcoding detection can be validated against ground truth. That is a better model than inventing an opaque “quality percentage.”
+
+### Market position
+
+Audio-V’s category is **evidence-backed audio library assessment**. It is not
+positioned as a replacement for every specialist:
+
+- Spek remains the quick single-file spectrum check.
+- Sonic Visualiser remains the deeper annotation and plugin laboratory.
+- CUETools and AccurateRip remain the authority for database-backed CD-rip
+  verification when complete disc context is available.
+- AudioAuditor remains a broader Windows media-and-analysis suite.
+
+Audio-V’s attention-worthy combination is full-stream integrity, conservative
+origin assessment, signal and delivery diagnostics, scientific file
+comparison, identity/provenance context, resumable large-library operation,
+human disposition, and durable reports under one versioned Oracle evidence
+model. The absence of playback, tag editing, lyrics, and generic AI badges is
+a product-focus decision rather than an unfinished feature list.
 
 ## Scientific and standards contract
 
@@ -158,7 +176,7 @@ Gate 1 is complete at the repository level. Compare uses bounded alignment estim
 
 These dense-evidence figures validate storage and compact state retrieval on the development Mac; they do not represent full audio decode throughput.
 
-Gate 2 is complete for the repository-level scale foundation. Market-readiness still requires hardware and clean-VM profiling on Apple Silicon macOS and supported Windows versions with real 100/1,000/10,000-file libraries, 1/10 GbE shares, removable/network volumes, long-duration files, constrained memory, cancellation under load, and thermal throttling. Discovery still retains a sorted path list, renderer filters remain linear in session size, and rich document exports remain whole-session operations inside the storage worker. Those are measured optimization candidates rather than hidden claims of unlimited scale.
+Gate 2 is complete for the repository-level scale foundation. The maintainer has additionally completed a native-Windows real-library audit of at least 6,000 files with the portable distribution. Exact package identity, timing, memory, database growth, and recovery measurements were not captured, so instrumented acceptance and clean-environment profiling remain open for supported Windows/macOS versions, 1/10 GbE shares, removable/network volumes, long-duration files, constrained memory, cancellation under load, and thermal throttling. Discovery still retains a sorted path list, renderer filters remain linear in session size, and rich document exports remain whole-session operations inside the storage worker. Those are measured optimization candidates rather than hidden claims of unlimited scale.
 
 ### Gate 3 implementation status
 
@@ -182,7 +200,7 @@ Gate 3 now has an enforceable validation foundation, but it is not statistically
 - Release publication is a local-build, direct-upload process modeled on Deemix Remastered. Tag/package version mismatch, missing project licensing, failed artifact inspection, or a failed release-candidate check blocks maintainer publication.
 - User documentation explains checksum verification, platform warnings, safe per-application approval, portable-state behavior, and why managed Windows policy may prevent unsigned execution.
 
-Gate 4 is complete at the repository and local-package level. Actual macOS-versus-Windows parity remains unproven until maintainers collect and compare native snapshots locally or explicitly dispatch the optional workflow; clean-VM installation/upgrade/uninstall testing remains a release-candidate activity. The former public-release license blocker is resolved by the Gate 5 `AGPL-3.0-only` decision.
+Gate 4 is complete at the repository and local-package level. Native Windows portable operation and clean Apple Silicon behavior are maintainer-witnessed. Actual macOS-versus-Windows Oracle parity remains unproven until maintainers collect and compare native snapshots; Windows installer upgrade/uninstall, detailed clean-macOS journeys, and Intel launch remain release-candidate acceptance. The former public-release license blocker is resolved by the Gate 5 `AGPL-3.0-only` decision.
 
 ### Gate 5 implementation status
 
@@ -195,7 +213,7 @@ Gate 4 is complete at the repository and local-package level. Actual macOS-versu
 - The beginner user journey, plain-language Oracle Engine and glossary, scientific methodology, privacy/security, unsigned-installation, release, contribution, and release-candidate documents cover the complete product workflow and limitations at different levels of depth.
 - `npm run verify:release-candidate` produces a machine-readable automated readiness result from licensing, documentation, accessibility, fidelity, scale, and artifact evidence.
 
-Gate 5 is complete for automated repository readiness and local macOS validation. It is not yet honest to call the application market-ready: the manual clean-environment matrix in `docs/RELEASE_CANDIDATE_CHECKLIST.md`, actual Windows packaged runtime, locally captured Windows/macOS parity evidence, Intel hardware launch, VoiceOver/Narrator workflow review, display scaling, upgrade/uninstall, and real-library performance remain external acceptance work. Signing/notarization is an explicit policy waiver rather than a failure.
+Gate 5 is complete for automated repository readiness and local-package validation. The application is release-candidate quality but not yet fully market-validated: the remaining matrix in `docs/RELEASE_CANDIDATE_CHECKLIST.md` includes the clean Windows installer lifecycle, Windows/macOS Oracle parity, Intel hardware launch, VoiceOver/Narrator workflow review, display scaling, and an exported instrumented real-library record. Signing/notarization is an explicit policy waiver rather than a failure.
 
 ### Real-world validation milestone status
 

@@ -7,12 +7,13 @@ AudioAuditor and Spek.
 
 ## Executive rating
 
-Audio-V is **90% GA-ready** on a weighted engineering and product rubric. It is
+Audio-V is **92% GA-ready** on a weighted engineering and product rubric. It is
 already stronger than a spectrogram-only utility and is broadly competitive
 with AudioAuditor's core assessment workflow. It should remain labeled a
-development release until the external acceptance gates below are witnessed.
+release candidate until the remaining external acceptance gates below are
+witnessed.
 
-The score is not an accuracy probability and does not mean that 89% of verdicts
+The score is not an accuracy probability and does not mean that 92% of verdicts
 are correct. It measures how much of the work required for a defensible,
 supportable general release is complete.
 
@@ -20,12 +21,12 @@ supportable general release is complete.
 | --- | ---: | ---: | --- |
 | Scientific validity and verdict semantics | 25% | 88% | Standards-based loudness and true peak, explicit EBU/ATSC/AES delivery profiles, complete decode, FLAC PCM MD5, versioned five-lane rules, explicit uncertainty |
 | Functional assessment completeness | 20% | 96% | Batch audit, metadata, signal, spectral, provenance, delivery profiles, comparison, reports, CLI, cue, ReplayGain, fingerprints, and disc-verification eligibility |
-| Reliability, scale, recovery, and cancellation | 20% | 93% | Bounded workers, SQLite checkpoints, adaptive resume, suspect isolation, privacy-safe acceptance telemetry, 10,000-record storage benchmark, witnessed 6,000-file completion, and measured page reclamation |
+| Reliability, scale, recovery, and cancellation | 20% | 93% | Bounded workers, SQLite checkpoints, adaptive resume, suspect isolation, privacy-safe acceptance evidence, 10,000-record storage benchmark, native-Windows 6,000-file completion, and measured page reclamation |
 | Workflow, responsive UI, and accessibility | 15% | 92% | Evidence-first review, human disposition, scalable layouts, keyboard and automated accessibility gates |
-| Cross-platform acceptance | 10% | 68% | Four package targets exist; native Windows, Intel Mac, clean-VM, assistive-technology, and display-scale witnessing remains incomplete |
+| Cross-platform acceptance | 10% | 82% | Four package targets exist; native Windows portable and clean Apple Silicon behavior are maintainer-witnessed, while the Windows installer, Intel Mac, assistive technology, and display-scale matrix remain incomplete |
 | Security, privacy, documentation, and release operations | 10% | 97% | Local-first analysis, opt-in AcoustID, bounded IPC, versioned P0/P1 defect gate, AGPL policy, checksums, unsigned-build disclosure, reproducible release scripts |
 
-Weighted result: **90.1%** (displayed as 90%).
+Weighted result: **91.5%** (displayed as 92%).
 
 ## What a verdict can and cannot mean
 
@@ -84,22 +85,23 @@ validation.
 
 ## Remaining GA blockers
 
-These cannot be closed honestly by more source code on the development Mac:
+These cannot be closed honestly by another broad feature pass:
 
-1. Run the packaged Windows installer and portable build on a native, clean
-   Windows system, including a 5,000–10,000-file local or mapped-drive audit,
-   cancel, crash recovery, resume, report export, and uninstall.
-2. Run Apple Silicon and Universal DMGs on clean macOS accounts; witness the
-   unsigned Gatekeeper path, mounted/removable volumes, a large-library audit,
-   cancel, recovery, report export, and upgrade.
+1. Complete a clean Windows installer, upgrade, retained-data, report-export,
+   and uninstall journey. Native Windows portable operation and a completed
+   6,000-file audit are already maintainer-witnessed.
+2. Complete and record the full Apple Silicon install, unsigned Gatekeeper,
+   mounted/removable source, cancel, recovery, report, and upgrade matrix.
+   Clean Apple Silicon operation is already maintainer-witnessed as stable.
 3. Run the Universal package on real Intel Mac hardware.
 4. Witness 100%, 125%, 150%, and 200% Windows display scaling plus macOS scaled
    displays and narrow snapped windows.
 5. Perform manual Narrator and VoiceOver journeys. Automated accessibility
    checks cannot prove assistive-technology usability.
-6. Repeat the completed 6,000-file real-library audit with platform/package
-   identity plus measured wall time, peak memory, final database size,
-   cancellation latency, and recovery behavior.
+6. Export an instrumented acceptance record from a large real-library run so
+   exact package identity, wall time, peak memory, final database size,
+   cancellation latency, and recovery behavior accompany the witnessed
+   completion claim.
 
 ## Scientific limit that remains
 
@@ -125,8 +127,9 @@ fabricated confidence percentage.
 
 ## Gold-release decision
 
-The source is feature-complete enough for a release candidate. A GA or gold
-label should require the six external acceptance gates above, zero unresolved
-P0/P1 defects, a clean full regression, verified four-package manifests, and a
+The source and current packages are feature-complete enough for a release
+candidate. A GA or gold label should require the six external acceptance gates
+above, zero unresolved P0/P1 defects, a clean full regression, verified
+four-package manifests, and a
 release candidate that survives a defined soak period without a data-loss,
 resume, cancellation, or verdict-classification regression.

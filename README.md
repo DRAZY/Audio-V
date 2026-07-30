@@ -1,18 +1,19 @@
 <div align="center">
   <img src="build/icon.png" alt="Audio-V logo" width="112">
   <h1>Audio-V</h1>
-  <p><strong>Know what is really happening inside your audio files.</strong></p>
-  <p>A friendly, evidence-based audio integrity and fidelity workstation powered by the Oracle Engine.</p>
+  <p><strong>Audit the file. See the evidence. Understand the verdict.</strong></p>
+  <p>A cross-platform audio integrity, fidelity, and comparison workstation powered by the Oracle Engine.</p>
 
   <p>
     <img alt="Locally verified builds" src="https://img.shields.io/badge/builds-locally%20verified-51e19b?style=for-the-badge">
-    <a href="https://github.com/DRAZY/Audio-V/releases/tag/v0.4.34"><img alt="Latest development release 0.4.34" src="https://img.shields.io/badge/latest-0.4.34-8b5cf6?style=for-the-badge"></a>
+    <a href="https://github.com/DRAZY/Audio-V/releases/latest"><img alt="Latest Audio-V release 0.4.34" src="https://img.shields.io/badge/latest-0.4.34-8b5cf6?style=for-the-badge"></a>
     <a href="LICENSE"><img alt="AGPL 3.0 only" src="https://img.shields.io/badge/license-AGPL--3.0--only-8b5cf6?style=for-the-badge"></a>
     <img alt="macOS and Windows" src="https://img.shields.io/badge/platforms-macOS%20%7C%20Windows-252532?style=for-the-badge">
   </p>
 
   <p>
     <a href="#download-audio-v">Download</a> ·
+    <a href="#why-audio-v-stands-out">Why Audio-V</a> ·
     <a href="#your-first-audit">First audit</a> ·
     <a href="#meet-the-oracle-engine">Oracle Engine</a> ·
     <a href="#understanding-the-verdict">Verdicts</a> ·
@@ -59,15 +60,63 @@ but the main workflow is designed to answer three simple questions:
 3. **What evidence produced the verdict?**
 
 > [!IMPORTANT]
-> Audio-V is currently a development preview being prepared for release-candidate
-> testing. A Clear verdict means the file passed the disclosed checks in this
-> Oracle Engine version. It does not certify an original studio master, prove
-> ownership, or guarantee that the audio was never transformed.
+> Audio-V is an unsigned open-source release still completing its broader
+> release-candidate acceptance matrix. A Clear verdict means the file passed
+> the disclosed checks in this Oracle Engine version. It does not certify an
+> original studio master, prove ownership, or guarantee that the audio was
+> never transformed.
+
+## Why Audio-V stands out
+
+Many audio tools answer one part of the question. A spectrogram viewer shows
+frequency energy. A metadata utility reports what the container declares. A
+CD verifier compares a properly assembled rip with a disc database. Audio-V
+connects those kinds of evidence into one non-destructive library workflow and
+explains what each result can—and cannot—establish.
+
+| Audio-V strength | What it gives you |
+|---|---|
+| **Complete-stream assessment** | The selected audio stream is decoded from beginning to end instead of judging a filename, header, or short visual sample |
+| **Narrow, explainable verdicts** | Clear, Review, and Failed follow disclosed precedence; measurements, heuristics, declarations, and deterministic checks remain visibly different |
+| **Library-scale operation** | Recursive folders, bounded workers, mounted-source staging, pause, prompt cancellation, checkpoints, adaptive recovery, cache reuse, and compact SQLite history |
+| **Deep visual inspection** | Measured waveform and 512–16,384-point spectrogram views with channel isolation, L−R, zoom, pan, regions, scientific palettes, and batch image export |
+| **Scientific A/B comparison** | Independent file loading, synchronized visual modes, alignment, gain and polarity estimation, explicit channel mapping, and full-overlap decoded null evidence |
+| **Integrity before speculation** | Full decoding, SHA-256 identity, FLAC audio-MD5 verification, external checksum manifests, failure stages, and exact evidence |
+| **Signal and delivery diagnostics** | LUFS, LRA, true peak, clipping events, click/pop and stuck-sample candidates, dropout, DC offset, dynamics, bit utilization, ReplayGain, and optional delivery profiles |
+| **Identity without verdict inflation** | Local Chromaprint relationships plus optional AcoustID and MusicBrainz context remain separate from audio-quality verdicts |
+| **Evidence you can keep** | Per-file inspection, human review disposition, resumable history, privacy-safe acceptance records, JSON automation, and PDF/XLSX/DOCX/CSV reports |
+| **Local-first design** | No player, account, advertising, telemetry, automatic upload, or source overwrite |
+
+### Friendly for beginners, deep enough for specialists
+
+| If you are… | Start with… | Go deeper with… |
+|---|---|---|
+| **A curious listener** | Plain-language verdict and “what to do next” guidance | Spectrogram, loudness, and glossary |
+| **A music collector** | Folder audit, verdict sorting, duplicates, and history | Checksums, origin evidence, cue context, and identity services |
+| **An audiophile** | Effective bandwidth, bit utilization, clipping, true peak, and channel behavior | High-resolution channel spectrograms, null comparison, and delivery profiles |
+| **An archivist or librarian** | Recursive ingest, metadata inventory, hashes, reports, and resumable sessions | External manifests, persistent fingerprints, CLI JSON, and acceptance evidence |
+| **A producer, DJ, or engineer** | Loudness, dynamics, defects, Compare, and safe-copy remediation | Region comparison, per-channel diagnostics, ReplayGain, and profile-specific delivery checks |
+
+### Where Audio-V fits
+
+This is positioning, not a claim that one tool replaces every other:
+
+| Tool | Its published center of gravity | Audio-V’s different job |
+|---|---|---|
+| [Spek](https://www.spek.cc/about) | Fast, approachable single-file spectrogram viewing and image export | Turn one or thousands of files into integrity, signal, origin, provenance, delivery, and reportable verdict evidence |
+| [Sonic Visualiser](https://sonicvisualiser.org/features.html) | Highly configurable visualization, annotation, layers, playback, and plugin research | Provide a guided audit and decision workflow without requiring plugin selection or becoming an annotation environment |
+| [AudioAuditor](https://audioauditor.org/) | Broad Windows toolkit combining analysis with playback, EQ, lyrics, metadata tools, and experimental detection | Stay cross-platform and assessment-focused, keeping every verdict reproducible and every uncertain claim explicitly limited |
+| [CUETools/CTDB](https://cue.tools/wiki/CUETools_Database) and [AccurateRip](https://accuraterip.com/) | Specialized verification of properly contextualized audio-CD extractions against shared databases | Assess ordinary files and libraries broadly; identify disc-verification eligibility without pretending eligibility is a database match |
+
+Audio-V is deliberately not the player, tag editor, or mastering suite in this
+list. Its job is to be the evidence desk you can trust before deciding whether
+a file is clear, needs review, should be replaced, or deserves a closer
+comparison.
 
 ## Download Audio-V
 
-The current locally built development release is
-**[Audio-V 0.4.34](https://github.com/DRAZY/Audio-V/releases/tag/v0.4.34)**.
+The current locally built and verified release is
+**[Audio-V 0.4.34](https://github.com/DRAZY/Audio-V/releases/latest)**.
 
 | Your computer | Download | What you receive |
 |---|---|---|
@@ -440,6 +489,9 @@ independent challenge set satisfy the documented thresholds.
 - Source files are never overwritten by Repair.
 - Privacy-safe diagnostic exports omit filenames, paths, hashes, tags, and
   report evidence.
+- Privacy-safe acceptance exports record workload, throughput, sampled memory,
+  storage growth, cancellation, source class, and recovery without exposing
+  filenames, paths, hashes, tags, or audio evidence.
 - Local rotating logs may contain filenames and paths so a failed file can be
   identified; they stay on the user’s computer unless deliberately shared.
 
