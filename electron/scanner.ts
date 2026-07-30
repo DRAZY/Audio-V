@@ -672,6 +672,21 @@ export async function attachExternalIdentityEvidence(
   };
 }
 
+function externalIdentityEvidencePending(
+  file: AudioFileRecord,
+  source: AudioSourceSelection,
+): boolean {
+  const technical = file.oracle.technical;
+  if (!technical) return false;
+  return Boolean(
+    (source.externalLookup?.acoustIdEnabled &&
+      source.externalLookup.acoustIdApiKey &&
+      technical.fingerprint.acoustIdLookup.status === "not-requested") ||
+      (source.externalLookup?.musicBrainzEnabled &&
+        !technical.musicBrainzEnrichment),
+  );
+}
+
 function popcount32(value: number): number {
   let candidate = value >>> 0;
   candidate -= (candidate >>> 1) & 0x55555555;
@@ -1522,7 +1537,22 @@ export async function scanSources(
           await staged.cleanup();
         }
         })();
-      const { file: baseFile, fromCache } = analyzed;
+      let { file: baseFile } = analyzed;
+      const { fromCache } = analyzed;
+      if (
+        !inventoryOnly &&
+        externalIdentityEvidencePending(baseFile, source)
+      ) {
+        baseFile = await attachExternalIdentityEvidence(
+          baseFile,
+          source,
+          options?.signal,
+        );
+        await abortable(
+          Promise.resolve(options?.cache?.set(baseFile)),
+          options?.signal,
+        );
+      }
       const file = {
         ...baseFile,
         oracle: applyDeliveryProfile(

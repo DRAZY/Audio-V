@@ -21,6 +21,7 @@ let lastAcoustIdRequestAt = 0;
 const musicBrainzRecordingIdPattern =
   /^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/iu;
 const musicBrainzRequestIntervalMilliseconds = 1_100;
+const musicBrainzMaximumAttempts = 3;
 const musicBrainzRecordingCache = new Map<
   string,
   Promise<MusicBrainzEnrichment>
@@ -118,10 +119,6 @@ async function requestMusicBrainzRecording(
   source: NonNullable<MusicBrainzEnrichment["source"]>,
   signal?: AbortSignal,
 ): Promise<MusicBrainzEnrichment> {
-  await waitForMusicBrainzTurn(signal);
-  const requestSignal = signal
-    ? AbortSignal.any([signal, AbortSignal.timeout(15_000)])
-    : AbortSignal.timeout(15_000);
   const url = new URL(
     `https://musicbrainz.org/ws/2/recording/${recordingId}`,
   );
@@ -130,14 +127,50 @@ async function requestMusicBrainzRecording(
     "artist-credits+isrcs+releases+release-groups",
   );
   url.searchParams.set("fmt", "json");
-  const response = await fetch(url, {
-    method: "GET",
-    signal: requestSignal,
-    headers: {
-      Accept: "application/json",
-      "User-Agent": "Audio-V/0.4 (https://github.com/DRAZY/Audio-V)",
-    },
-  });
+  let response!: Response;
+  for (let attempt = 1; attempt <= musicBrainzMaximumAttempts; attempt += 1) {
+    await waitForMusicBrainzTurn(signal);
+    const requestSignal = signal
+      ? AbortSignal.any([signal, AbortSignal.timeout(15_000)])
+      : AbortSignal.timeout(15_000);
+    try {
+      response = await fetch(url, {
+        method: "GET",
+        signal: requestSignal,
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "Audio-V/0.4 (https://github.com/DRAZY/Audio-V)",
+        },
+      });
+    } catch (error) {
+      if (signal?.aborted || attempt === musicBrainzMaximumAttempts) {
+        throw error;
+      }
+      await waitForMusicBrainzRetry(
+        musicBrainzRequestIntervalMilliseconds * 2 ** (attempt - 1),
+        signal,
+      );
+      continue;
+    }
+    if (
+      ![429, 502, 503, 504].includes(response.status) ||
+      attempt === musicBrainzMaximumAttempts
+    ) {
+      break;
+    }
+    await response.body?.cancel();
+    const retryAfterSeconds = Number(response.headers.get("retry-after"));
+    const retryDelay = Number.isFinite(retryAfterSeconds)
+      ? Math.min(
+          15_000,
+          Math.max(
+            musicBrainzRequestIntervalMilliseconds,
+            retryAfterSeconds * 1_000,
+          ),
+        )
+      : musicBrainzRequestIntervalMilliseconds * 2 ** (attempt - 1);
+    await waitForMusicBrainzRetry(retryDelay, signal);
+  }
   const declaredBytes = Number(response.headers.get("content-length"));
   if (
     Number.isFinite(declaredBytes) &&
@@ -212,6 +245,26 @@ async function requestMusicBrainzRecording(
     error: null,
     limitation: musicBrainzLimitation,
   };
+}
+
+async function waitForMusicBrainzRetry(
+  milliseconds: number,
+  signal?: AbortSignal,
+): Promise<void> {
+  if (signal?.aborted) throw new Error("MusicBrainz lookup canceled.");
+  await new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(done, milliseconds);
+    const abort = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", abort);
+      reject(new Error("MusicBrainz lookup canceled."));
+    };
+    function done(): void {
+      signal?.removeEventListener("abort", abort);
+      resolve();
+    }
+    signal?.addEventListener("abort", abort, { once: true });
+  });
 }
 
 export async function lookupMusicBrainzRecording(

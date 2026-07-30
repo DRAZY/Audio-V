@@ -1,7 +1,7 @@
 {
   "schema": "Audio-V release defect register v1",
-  "releaseVersion": "0.4.36",
-  "auditedAt": "2026-07-30T04:33:23.000Z",
+  "releaseVersion": "0.4.37",
+  "auditedAt": "2026-07-30T05:36:04.000Z",
   "repositoryIssueCountAtAudit": 0,
   "defects": [
     {
@@ -59,6 +59,20 @@
       "status": "fixed",
       "summary": "A 640-file Windows audit completed every Oracle assessment but failed session finalization when hundreds of historical fingerprint requests started simultaneous 30-second timers against one serial SQLite storage worker.",
       "verification": "tests/scanner.test.ts reproduces 640-file relationship finalization, enforces at most four outstanding storage lookups, verifies indexed exact-only history mode at scale, and proves a forced find-fingerprints timeout produces one supplemental notice while the full scan still completes; tests/audit-session-store.test.ts verifies exact-hash lookup and the duration/recency index."
+    },
+    {
+      "id": "AV-2026-009",
+      "severity": "P2",
+      "status": "fixed",
+      "summary": "A full audit could begin during asynchronous identity-preference restoration, and an isolated cached record could retain ambiguous not-requested identity evidence even though AcoustID and MusicBrainz were enabled.",
+      "verification": "The renderer now blocks audit startup on preference restoration; electron/scanner.ts enforces enabled identity evidence before persistence; tests/scanner.test.ts verifies a cached record transitions from not-requested to matched AcoustID and MusicBrainz evidence."
+    },
+    {
+      "id": "AV-2026-010",
+      "severity": "P2",
+      "status": "fixed",
+      "summary": "MusicBrainz transient 503 throttling, busy-server responses, gateway failures, and request timeouts were recorded immediately as final service errors during large identity-enabled audits.",
+      "verification": "electron/oracle/analysis-tools.ts retains the 1.1-second global scheduler margin and adds at most three bounded attempts with Retry-After-aware backoff; tests/analysis-tools.test.ts verifies a throttled lookup recovers to matched evidence."
     }
   ],
   "limitations": [

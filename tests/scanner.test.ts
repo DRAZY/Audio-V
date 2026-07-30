@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   attachFingerprintRelationships,
   inspectAudioFile,
@@ -768,6 +768,105 @@ describe("scanSources", () => {
           finding.summary.includes("EBU R 128"),
       ),
     ).toBe(false);
+  });
+
+  it("does not leave cached files unrequested when identity services are enabled", async () => {
+    const directory = await makeTemporaryDirectory();
+    const audioPath = path.join(directory, "cached-identity.flac");
+    await fs.copyFile(
+      path.join(
+        process.cwd(),
+        "tests",
+        "fixtures",
+        "fidelity-engine",
+        "wideband-source-44.flac",
+      ),
+      audioPath,
+    );
+    let cached: AudioFileRecord | null = null;
+    const cache = {
+      get: async () => cached,
+      set: async (file: AudioFileRecord) => {
+        cached = file;
+      },
+      flush: async () => undefined,
+    };
+    await scanSources(
+      { kind: "files", label: "offline identity", paths: [audioPath] },
+      undefined,
+      { cache },
+    );
+    expect(
+      cached?.oracle.technical?.fingerprint.acoustIdLookup.status,
+    ).toBe("not-requested");
+    expect(cached?.oracle.technical?.musicBrainzEnrichment).toBeUndefined();
+
+    const recordingId = "00000000-0000-4000-8000-000000000001";
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(
+      async (request) => {
+        const url = String(request);
+        const body = url.includes("api.acoustid.org")
+          ? {
+              status: "ok",
+              results: [{
+                id: "cached-identity-match",
+                score: 0.96,
+                recordings: [{
+                  id: recordingId,
+                  title: "Cached identity fixture",
+                }],
+              }],
+            }
+          : {
+              id: recordingId,
+              title: "Cached identity fixture",
+              "artist-credit": [{ name: "Audio-V fixture" }],
+              isrcs: [],
+              releases: [],
+            };
+        const serialized = JSON.stringify(body);
+        return new Response(serialized, {
+          status: 200,
+          headers: {
+            "content-length": String(Buffer.byteLength(serialized)),
+          },
+        });
+      },
+    );
+    try {
+      const result = await scanSources(
+        {
+          kind: "files",
+          label: "online identity",
+          paths: [audioPath],
+          externalLookup: {
+            acoustIdEnabled: true,
+            acoustIdApiKey: "Abcdef1234",
+            musicBrainzEnabled: true,
+          },
+        },
+        undefined,
+        { cache },
+      );
+
+      expect(
+        result.files[0].oracle.technical?.fingerprint.acoustIdLookup.error,
+      ).toBeNull();
+      expect(result.files[0].oracle.technical?.fingerprint.acoustIdLookup)
+        .toMatchObject({
+          status: "matched",
+          acoustId: "cached-identity-match",
+        });
+      expect(
+        result.files[0].oracle.technical?.musicBrainzEnrichment,
+      ).toMatchObject({
+        status: "matched",
+        recordingId,
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      fetchMock.mockRestore();
+    }
   });
 
   it("links copied recordings by their local Chromaprint identity", async () => {

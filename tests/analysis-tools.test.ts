@@ -310,6 +310,59 @@ describe("provenance and fingerprint tools", () => {
     }
   });
 
+  it("retries transient MusicBrainz throttling before recording a service error", async () => {
+    const recordingId = "00000000-0000-4000-8000-000000000002";
+    const successBody = JSON.stringify({
+      id: recordingId,
+      title: "Recovered MusicBrainz lookup",
+      "artist-credit": [],
+      isrcs: [],
+      releases: [],
+    });
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            error: "Your requests are exceeding the allowable rate limit.",
+          }),
+          {
+            status: 503,
+            headers: { "retry-after": "0" },
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(successBody, {
+          status: 200,
+          headers: {
+            "content-length": String(Buffer.byteLength(successBody)),
+          },
+        }),
+      );
+    try {
+      await expect(
+        lookupMusicBrainzRecording(
+          [recordingId],
+          {
+            status: "not-requested",
+            acoustId: null,
+            score: null,
+            recordingIds: [],
+            recordingTitles: [],
+            error: null,
+          },
+        ),
+      ).resolves.toMatchObject({
+        status: "matched",
+        recordingId,
+        title: "Recovered MusicBrainz lookup",
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      fetchMock.mockRestore();
+    }
+  });
+
   it("keeps MusicBrainz enrichment neutral without a valid recording ID", async () => {
     await expect(
       lookupMusicBrainzRecording(

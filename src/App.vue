@@ -110,9 +110,11 @@ const acoustIdEnabled = ref(false);
 const acoustIdApiKey = ref("");
 const musicBrainzEnabled = ref(false);
 const identityPreferencesSaving = ref(false);
+const identityPreferencesLoaded = ref(false);
 const identityPreferencesMessage = ref(
   "Loading saved external identity preferences…",
 );
+let identityPreferencesLoadPromise: Promise<void> | null = null;
 let identityPreferencesRequest = 0;
 const acoustIdValidationState = ref<"idle" | "checking" | "valid" | "error">(
   "idle",
@@ -585,6 +587,35 @@ function decodeStatusLabel(file: AudioFileRecord): string {
   if (state === "not-analyzed") return "Not run";
   if (state === "error") return `Error · ${failureStageLabel(file)}`;
   return "Failed integrity";
+}
+
+function acoustIdStatusLabel(file: AudioFileRecord): string {
+  const status = file.oracle.technical?.fingerprint?.acoustIdLookup.status;
+  if (status === "not-requested" || !status) {
+    if (scanMode.value === "metadata-inventory") {
+      return "Not run · metadata inventory does not fingerprint audio";
+    }
+    return acoustIdEnabled.value
+      ? "Queued for recognition · re-identify if this remains"
+      : "Disabled for this audit";
+  }
+  return status.replaceAll("-", " ");
+}
+
+function musicBrainzStatusLabel(file: AudioFileRecord): string {
+  const status = file.oracle.technical?.musicBrainzEnrichment?.status;
+  if (!status) {
+    if (scanMode.value === "metadata-inventory") {
+      return "Not run · metadata inventory uses local tags only";
+    }
+    return musicBrainzEnabled.value
+      ? "Waiting for a recording identifier"
+      : "Disabled for this audit";
+  }
+  if (status === "no-identifier") {
+    return "No recording identifier available";
+  }
+  return status.replaceAll("-", " ");
 }
 
 function spectralColor(
@@ -1287,7 +1318,7 @@ onMounted(() => {
   void refreshFingerprintLibrary();
   void refreshAuditStorageStatus();
   void refreshAcceptanceRun();
-  void loadExternalIdentityPreferences();
+  void ensureExternalIdentityPreferencesLoaded();
   void window.audioV?.externalIdentityServiceStatus().then((status) => {
     externalIdentityStatus.value = status;
     if (status.officialClientConfigured) {
@@ -1424,7 +1455,20 @@ async function loadExternalIdentityPreferences(): Promise<void> {
       error,
       "Saved external identity preferences could not be loaded.",
     );
+  } finally {
+    identityPreferencesLoaded.value = true;
   }
+}
+
+async function ensureExternalIdentityPreferencesLoaded(): Promise<void> {
+  if (identityPreferencesLoaded.value) return;
+  if (!identityPreferencesLoadPromise) {
+    identityPreferencesLoadPromise =
+      loadExternalIdentityPreferences().finally(() => {
+        identityPreferencesLoadPromise = null;
+      });
+  }
+  await identityPreferencesLoadPromise;
 }
 
 async function saveExternalIdentityPreferences(
@@ -1617,6 +1661,7 @@ async function optimizeAuditStorage(): Promise<void> {
 }
 
 async function scanSource(source: AudioSourceSelection): Promise<void> {
+  await ensureExternalIdentityPreferencesLoaded();
   if (acoustIdEnabled.value) {
     if (!window.audioV) return;
     const normalizedApiKey = acoustIdApiKey.value.trim();
@@ -3839,8 +3884,8 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
               <div><dt>Content Credentials</dt><dd>{{ selected.oracle.technical?.contentCredentials?.status?.replaceAll("-", " ") ?? "Not inspected" }}</dd></div>
               <div><dt>Chromaprint</dt><dd>{{ selected.oracle.technical?.fingerprint?.status ?? "Not measured" }}</dd></div>
               <div><dt>Acoustic matches</dt><dd>{{ selected.oracle.technical?.fingerprint?.matches.length ?? 0 }}</dd></div>
-              <div><dt>AcoustID</dt><dd>{{ selected.oracle.technical?.fingerprint?.acoustIdLookup.status?.replaceAll("-", " ") ?? "Not requested" }}</dd></div>
-              <div><dt>MusicBrainz</dt><dd>{{ selected.oracle.technical?.musicBrainzEnrichment?.status?.replaceAll("-", " ") ?? "Not requested" }}</dd></div>
+              <div><dt>AcoustID</dt><dd>{{ acoustIdStatusLabel(selected) }}</dd></div>
+              <div><dt>MusicBrainz</dt><dd>{{ musicBrainzStatusLabel(selected) }}</dd></div>
               <div><dt>Identity result</dt><dd>{{ selected.oracle.technical?.identityAssessment?.status?.replaceAll("-", " ") ?? "Not assessed" }}</dd></div>
               <div><dt>ReplayGain</dt><dd>{{ selected.metadata?.replayGain.trackGainDb === null || selected.metadata?.replayGain.trackGainDb === undefined ? "Not tagged" : `${selected.metadata.replayGain.trackGainDb.toFixed(2)} dB track gain` }}</dd></div>
               <div><dt>Calculated ReplayGain</dt><dd>{{ selected.oracle.measurements?.replayGain?.trackGainDb === null || selected.oracle.measurements?.replayGain?.trackGainDb === undefined ? "Not measured" : `${selected.oracle.measurements.replayGain.trackGainDb.toFixed(2)} dB track${selected.oracle.measurements.replayGain.albumGainDb === null ? "" : ` · ${selected.oracle.measurements.replayGain.albumGainDb.toFixed(2)} dB album`}` }}</dd></div>
