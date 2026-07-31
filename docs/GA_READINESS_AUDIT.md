@@ -107,11 +107,22 @@ These cannot be closed honestly by another broad feature pass:
 
 The origin classifier is a conservative, versioned heuristic with synthetic
 regression controls. It is not a calibrated probability of source history.
-Professional references and scientific rules constrain the claims, but they do
-not substitute for a legally usable, provenance-labeled, held-out music corpus.
-Until that corpus exists, Audio-V should continue saying **possible** and
-**inconclusive**, publishing rule strength and evidence coverage rather than a
-fabricated confidence percentage.
+Audio-V now has a five-source external dataset registry, license-aware import
+adapters, source-level 60/20/20 partitioning, 36 controlled transformation
+recipes, bounded deterministic 60-second analysis windows, exact tool provenance, and
+per-dataset/split/recipe scorecards. Those controls make a real external
+evaluation reproducible without requiring private studio masters. Until the
+public-reference target and held-out challenge evaluation are populated,
+Audio-V should continue saying **possible** and **inconclusive**, publishing
+rule strength and evidence coverage rather than a fabricated confidence
+percentage.
+
+The first external scorecard adds 20 independent MUSAN references and 540
+controlled edge cases. All 540 safely abstained and none produced a transcode
+or upsample advisory. This is useful false-advisory evidence, not an origin
+sensitivity score: MUSAN’s selected 16-kHz material is intentionally excluded
+from wideband transcode/upsample recall and precision calculations. Slakh2100
+remains the next required public wideband baseline.
 
 ## Post-1.0 opportunities
 

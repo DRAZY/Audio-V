@@ -18,13 +18,13 @@
         "required": ["id", "truthClass", "acceptedClassifications", "description"],
         "properties": {
           "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
-          "truthClass": { "enum": ["native-control", "lossy-to-lossless", "upsample", "intentional-lowpass", "clipping", "channel-transformation", "deterministic-corruption"] },
+          "truthClass": { "enum": ["native-control", "lossy-to-lossless", "multi-generation-lossy", "upsample", "intentional-lowpass", "bit-depth-conversion", "clipping", "channel-transformation", "deterministic-corruption"] },
           "acceptedClassifications": {
             "type": "array",
             "minItems": 0,
             "uniqueItems": true,
             "items": {
-              "enum": ["no-strong-spectral-anomaly", "bandwidth-limited", "possible-lossy-transcode", "possible-upsample", "inconclusive"]
+              "enum": ["no-strong-spectral-anomaly", "bandwidth-limited", "possible-lossy-transcode", "possible-upsample", "inconclusive", "not-assessed"]
             }
           },
           "expected": {

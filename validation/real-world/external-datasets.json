@@ -1,0 +1,238 @@
+{
+  "$schema": "./schemas/external-datasets.schema.json",
+  "schemaVersion": 1,
+  "registryVersion": "1.0.0",
+  "selectionPolicy": {
+    "publicReferenceTarget": 50,
+    "developmentPercent": 60,
+    "calibrationPercent": 20,
+    "testPercent": 20,
+    "neverBundleAudioWithApplication": true,
+    "requireSourceLevelPartitioning": true
+  },
+  "datasets": [
+    {
+      "id": "slakh2100",
+      "displayName": "Slakh2100 Redux",
+      "priority": 1,
+      "role": "controlled-source",
+      "version": "redux-2021",
+      "status": "ready",
+      "license": {
+        "identifier": "CC-BY-4.0",
+        "name": "Creative Commons Attribution 4.0 International",
+        "url": "https://creativecommons.org/licenses/by/4.0/",
+        "redistributableInCorpus": true,
+        "commercialUsePermitted": true,
+        "notes": "Dataset audio is CC BY 4.0. Audio-V records attribution and never bundles corpus audio with the desktop application."
+      },
+      "official": {
+        "homepage": "https://www.slakh.com/",
+        "download": "https://zenodo.org/records/4599666",
+        "archiveUrl": "https://zenodo.org/api/records/4599666/files/slakh2100_flac_redux.tar.gz/content",
+        "archiveBytes": 104322767708,
+        "archiveChecksum": "md5:f4b71b6c45ac9b506f59788456b3f0c4",
+        "access": "direct"
+      },
+      "audio": {
+        "lossless": true,
+        "formats": ["flac"],
+        "sampleRates": [44100],
+        "bitDepths": [16],
+        "notes": "Synthesized multitrack mixtures. Use mix.flac as an independent controlled source and retain the Track ID."
+      },
+      "import": {
+        "adapter": "slakh2100",
+        "defaultLimit": 30,
+        "include": ["**/Track*/mix.flac"],
+        "sourceIdentity": "Track directory"
+      },
+      "recommendedUse": [
+        "Controlled lossy-to-lossless transformations",
+        "Controlled sample-rate and bit-depth transformations",
+        "Public reproducible baseline"
+      ],
+      "limitations": [
+        "Synthesized material is not representative of every microphone, acoustic space, recording era, or mastering process.",
+        "Known duplicate MIDI sources must stay in one partition; Slakh Redux is preferred because it removes duplicate MIDI entries."
+      ]
+    },
+    {
+      "id": "musan",
+      "displayName": "MUSAN",
+      "priority": 2,
+      "role": "edge-control",
+      "version": "SLR17",
+      "status": "ready",
+      "license": {
+        "identifier": "CC-BY-4.0",
+        "name": "Creative Commons Attribution 4.0 International",
+        "url": "https://creativecommons.org/licenses/by/4.0/",
+        "redistributableInCorpus": true,
+        "commercialUsePermitted": true,
+        "notes": "OpenSLR identifies SLR17 as CC BY 4.0. The importer additionally hashes the nearest component LICENSE file and attaches that evidence to every imported reference."
+      },
+      "official": {
+        "homepage": "https://www.openslr.org/17/",
+        "download": "https://www.openslr.org/17/",
+        "archiveUrl": "https://www.openslr.org/resources/17/musan.tar.gz",
+        "archiveBytes": 11086114085,
+        "access": "direct"
+      },
+      "audio": {
+        "lossless": true,
+        "formats": ["wav"],
+        "sampleRates": [],
+        "bitDepths": [],
+        "notes": "Music, speech, and noise recordings with heterogeneous source characteristics."
+      },
+      "import": {
+        "adapter": "musan",
+        "defaultLimit": 20,
+        "include": ["music/**/*.wav", "speech/**/*.wav", "noise/**/*.wav"],
+        "sourceIdentity": "Relative recording path"
+      },
+      "recommendedUse": [
+        "False-positive and abstention testing",
+        "Speech, noise, and narrow-band controls",
+        "Public edge-condition population"
+      ],
+      "limitations": [
+        "MUSAN is an edge-condition collection, not proof that a recording is a native studio master.",
+        "Source characteristics vary and must be reported by category."
+      ]
+    },
+    {
+      "id": "maestro-v3",
+      "displayName": "MAESTRO v3.0.0",
+      "priority": 3,
+      "role": "real-recording-challenge",
+      "version": "3.0.0",
+      "status": "ready-research-only",
+      "license": {
+        "identifier": "CC-BY-NC-SA-4.0",
+        "name": "Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International",
+        "url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+        "redistributableInCorpus": false,
+        "commercialUsePermitted": false,
+        "notes": "Use as a separately acquired local challenge set. Do not publish or package MAESTRO audio through Audio-V."
+      },
+      "official": {
+        "homepage": "https://magenta.withgoogle.com/datasets/maestro",
+        "download": "https://storage.googleapis.com/magentadata/datasets/maestro/v3.0.0/maestro-v3.0.0.zip",
+        "archiveUrl": "https://storage.googleapis.com/magentadata/datasets/maestro/v3.0.0/maestro-v3.0.0.zip",
+        "archiveBytes": 108445099632,
+        "archiveChecksum": "sha256:6680fea5be2339ea15091a249fbd70e49551246ddbd5ca50f1b2352c08c95291",
+        "access": "direct"
+      },
+      "audio": {
+        "lossless": true,
+        "formats": ["wav"],
+        "sampleRates": [44100, 48000],
+        "bitDepths": [16],
+        "notes": "About 200 hours of real piano performances with aligned metadata and a composition-aware split."
+      },
+      "import": {
+        "adapter": "maestro",
+        "defaultLimit": 15,
+        "include": ["**/*.wav"],
+        "sourceIdentity": "Composition identity from maestro-v3.0.0.json"
+      },
+      "recommendedUse": [
+        "Natural recorded-music false-positive testing",
+        "Intentional bandwidth and dynamics confounders",
+        "Held-out research challenge set"
+      ],
+      "limitations": [
+        "Piano-only repertoire limits genre breadth.",
+        "The NonCommercial ShareAlike license keeps these references outside the redistributable Audio-V corpus."
+      ]
+    },
+    {
+      "id": "ebu-sqam",
+      "displayName": "EBU SQAM",
+      "priority": 4,
+      "role": "standardized-test",
+      "version": "2008-flac",
+      "status": "manual-terms-review",
+      "license": {
+        "identifier": "EBU-SQAM-TEST-MATERIAL",
+        "name": "EBU Sound Quality Assessment Material terms",
+        "url": "https://tech.ebu.ch/publications/sqamcd",
+        "redistributableInCorpus": false,
+        "commercialUsePermitted": false,
+        "notes": "Use locally for testing and evaluation after reviewing the EBU handbook and download terms. Do not redistribute through Audio-V."
+      },
+      "official": {
+        "homepage": "https://tech.ebu.ch/publications/sqamcd",
+        "download": "https://tech.ebu.ch/news/ebu-cds-now-online-31oct08",
+        "access": "manual"
+      },
+      "audio": {
+        "lossless": true,
+        "formats": ["flac"],
+        "sampleRates": [44100],
+        "bitDepths": [16],
+        "notes": "Standardized speech, music, and test excerpts supplied for subjective audio-system assessment."
+      },
+      "import": {
+        "adapter": "ebu-sqam",
+        "defaultLimit": 10,
+        "include": ["**/*.flac", "**/*.wav"],
+        "sourceIdentity": "SQAM track filename"
+      },
+      "recommendedUse": [
+        "Codec and resampler comparison",
+        "Standardized spectral edge cases",
+        "Local research challenge set"
+      ],
+      "limitations": [
+        "Test/evaluation material is not a general-purpose open music catalog.",
+        "Access and use terms must be reviewed by the operator before import."
+      ]
+    },
+    {
+      "id": "musdb18-hq",
+      "displayName": "MUSDB18-HQ",
+      "priority": 5,
+      "role": "academic-challenge",
+      "version": "1.0.0",
+      "status": "manual-approval",
+      "license": {
+        "identifier": "MUSDB18-HQ-PER-TRACK",
+        "name": "MUSDB18-HQ academic and per-track terms",
+        "url": "https://sigsep.github.io/datasets/musdb.html",
+        "redistributableInCorpus": false,
+        "commercialUsePermitted": false,
+        "notes": "Access is approved for academic use and licenses differ by track. Keep audio local and preserve the supplied per-track license record."
+      },
+      "official": {
+        "homepage": "https://sigsep.github.io/datasets/musdb.html",
+        "download": "https://zenodo.org/records/3338373",
+        "access": "approval"
+      },
+      "audio": {
+        "lossless": true,
+        "formats": ["wav"],
+        "sampleRates": [44100],
+        "bitDepths": [],
+        "notes": "150 full-length stereo tracks with mixture and isolated stems in uncompressed WAV."
+      },
+      "import": {
+        "adapter": "musdb18-hq",
+        "defaultLimit": 10,
+        "include": ["train/*/mixture.wav", "test/*/mixture.wav"],
+        "sourceIdentity": "Track directory and per-track license"
+      },
+      "recommendedUse": [
+        "Multi-genre natural music challenge testing",
+        "Stem-versus-mixture controls",
+        "False-positive investigation"
+      ],
+      "limitations": [
+        "The dataset requires access approval and is limited to academic use.",
+        "Track licenses vary; no entry may become a public corpus reference without separate rights review."
+      ]
+    }
+  ]
+}

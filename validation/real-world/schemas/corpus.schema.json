@@ -14,16 +14,22 @@
     "policy": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["splitStrategy", "pilotIndependentMasters", "targetIndependentMasters", "minimumCasesPerMaster", "publicLicenses"],
+      "required": ["splitStrategy", "pilotIndependentMasters", "targetIndependentMasters", "minimumCasesPerMaster", "analysisWindowSeconds", "publicLicenses"],
       "properties": {
-        "splitStrategy": { "const": "contributor-group-sha256-v1" },
+        "splitStrategy": { "enum": ["contributor-group-sha256-v1", "source-group-sha256-v1"] },
         "pilotIndependentMasters": { "type": "integer", "minimum": 1 },
         "targetIndependentMasters": { "type": "integer", "minimum": 1 },
         "minimumCasesPerMaster": { "type": "integer", "minimum": 1 },
+        "analysisWindowSeconds": { "type": "integer", "minimum": 30, "maximum": 600 },
         "publicLicenses": {
           "type": "array",
           "items": { "type": "string" },
           "minItems": 1,
+          "uniqueItems": true
+        },
+        "researchLicenses": {
+          "type": "array",
+          "items": { "type": "string" },
           "uniqueItems": true
         }
       }
@@ -46,12 +52,36 @@
         "artist": { "type": "string", "minLength": 1 },
         "file": { "type": "string", "pattern": "^\\.audio/masters/" },
         "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "dataset": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "version", "sourceId", "category", "stratum", "role", "officialUrl"],
+          "properties": {
+            "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+            "version": { "type": "string", "minLength": 1 },
+            "sourceId": { "type": "string", "minLength": 1 },
+            "category": { "type": "string", "minLength": 1 },
+            "stratum": { "type": "string", "minLength": 1 },
+            "role": { "enum": ["controlled-source", "edge-control", "real-recording-challenge", "standardized-test", "academic-challenge"] },
+            "officialUrl": { "type": "string", "format": "uri" }
+            ,
+            "licenseEvidence": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["file", "sha256"],
+              "properties": {
+                "file": { "type": "string", "minLength": 1 },
+                "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+              }
+            }
+          }
+        },
         "rights": {
           "type": "object",
           "additionalProperties": false,
           "required": ["license", "agreementId", "acceptedAt", "redistributable", "attribution"],
           "properties": {
-            "license": { "enum": ["CC0-1.0", "CC-BY-4.0", "Audio-V-CCA-1.0"] },
+            "license": { "enum": ["CC0-1.0", "CC-BY-4.0", "Audio-V-CCA-1.0", "CC-BY-NC-SA-4.0", "EBU-SQAM-TEST-MATERIAL", "MUSDB18-HQ-PER-TRACK"] },
             "agreementId": { "type": "string", "minLength": 3 },
             "acceptedAt": { "type": "string", "format": "date" },
             "redistributable": { "type": "boolean" },

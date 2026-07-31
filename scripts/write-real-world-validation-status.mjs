@@ -3,11 +3,13 @@ import path from "node:path";
 import {
   corpusPath,
   countBy,
+  externalDatasetsPath,
   generatedCasesPath,
   readJson,
   recipesPath,
   root,
   validateCorpus,
+  validateExternalDatasets,
   validateRecipes,
   writeJson,
 } from "./lib/validation-corpus.mjs";
@@ -21,15 +23,23 @@ const scorecardPath = path.join(
 const corpus = await readJson(corpusPath);
 const validation = validateCorpus(corpus);
 const recipes = await readJson(recipesPath);
+const externalDatasets = await readJson(externalDatasetsPath);
 validation.errors.push(
   ...validateRecipes(recipes, corpus.policy.minimumCasesPerMaster).errors,
+  ...validateExternalDatasets(externalDatasets).errors,
 );
 const requiredInfrastructure = [
   "CORPUS_CONTRIBUTION_AGREEMENT.md",
   "docs/VALIDATION_CORPUS.md",
   "validation/real-world/schemas/corpus.schema.json",
   "validation/real-world/schemas/recipes.schema.json",
-  "scripts/import-validation-master.mjs",
+  "validation/real-world/schemas/external-datasets.schema.json",
+  "validation/real-world/external-datasets.json",
+  "scripts/import-validation-reference.mjs",
+  "scripts/import-external-dataset.mjs",
+  "scripts/plan-validation-corpus.mjs",
+  "scripts/verify-external-dataset-archive.mjs",
+  "scripts/publish-validation-scorecard.mjs",
   "scripts/generate-real-world-corpus.mjs",
   "scripts/evaluate-real-world-corpus.mjs",
 ];
@@ -61,20 +71,41 @@ const independentMasters = corpus.masters.length;
 const publicMasters = corpus.masters.filter(
   (master) => master.rights.redistributable && master.split !== "challenge",
 );
-const splits = countBy(publicMasters, "split");
+const publicSourceGroups = new Set(publicMasters.map((master) => master.groupId));
+const originEligibleSourceGroups = new Set(
+  publicMasters
+    .filter(
+      (master) =>
+        master.dataset?.role === "controlled-source" &&
+        master.technical.sampleRate >= 44100,
+    )
+    .map((master) => master.groupId),
+);
+const challengeMasters = corpus.masters.filter(
+  (master) => !master.rights.redistributable || master.split === "challenge",
+);
+const challengeSourceGroups = new Set(
+  challengeMasters.map((master) => master.groupId),
+);
+const splits = countBy(
+  [...publicSourceGroups].map((groupId) =>
+    publicMasters.find((master) => master.groupId === groupId),
+  ),
+  "split",
+);
 const requiredPartitionsPresent = ["development", "calibration", "test"].every(
   (split) => (splits[split] ?? 0) > 0,
 );
-let readiness = "awaiting-source-masters";
-if (publicMasters.length > 0) readiness = "pilot-building";
+let readiness = "awaiting-external-references";
+if (publicSourceGroups.size > 0) readiness = "pilot-building";
 if (
-  publicMasters.length >= corpus.policy.pilotIndependentMasters &&
+  publicSourceGroups.size >= corpus.policy.pilotIndependentMasters &&
   requiredPartitionsPresent
 ) {
   readiness = "pilot-ready";
 }
 if (
-  publicMasters.length >= corpus.policy.targetIndependentMasters &&
+  publicSourceGroups.size >= corpus.policy.targetIndependentMasters &&
   requiredPartitionsPresent
 ) {
   readiness = "target-corpus-ready";
@@ -88,21 +119,30 @@ const report = {
   infrastructurePassed: validation.errors.length === 0,
   milestoneAchieved: readiness === "target-corpus-ready",
   claimLevel:
-    publicMasters.length === 0
+    publicSourceGroups.size === 0
       ? "synthetic-regression-only"
+      : originEligibleSourceGroups.size === 0
+        ? "edge-control-evidence-only"
       : readiness === "target-corpus-ready"
         ? "real-world-corpus-present-not-probability-calibrated"
         : "pilot-real-world-evidence",
   counts: {
     independentMasters,
+    independentReferences: validation.groupCount,
     publicIndependentMasters: publicMasters.length,
-    privateChallengeMasters: corpus.masters.filter(
-      (master) => !master.rights.redistributable || master.split === "challenge",
-    ).length,
+    publicIndependentReferences: publicSourceGroups.size,
+    originEligibleReferences: originEligibleSourceGroups.size,
+    privateChallengeMasters: challengeMasters.length,
+    challengeReferences: challengeSourceGroups.size,
     contributorGroups: validation.groupCount,
+    sourceGroups: validation.groupCount,
     redistributableMasters: corpus.masters.filter(
       (master) => master.rights.redistributable,
     ).length,
+    byDataset: countBy(
+      corpus.masters,
+      (master) => master.dataset?.id ?? "manual-import",
+    ),
     generatedCases: generatedCases.length,
     bySplit: splits,
   },
@@ -123,15 +163,18 @@ const report = {
   infrastructure,
   errors: validation.errors,
   limitations: [
-    publicMasters.length === 0
-      ? "No licensed, provenance-labeled source masters have been imported. Oracle origin rules remain synthetic-regression tested only."
+    publicSourceGroups.size === 0
+      ? "No licensed, provenance-labeled external reference recordings have been imported. Oracle origin rules remain synthetic-regression tested only."
+      : originEligibleSourceGroups.size === 0
+        ? "The imported external references validate safe abstention on narrow-band edge material; they do not yet measure transcode or upsample sensitivity."
       : "Real-world recordings are present, but claims remain limited to the disclosed corpus and scorecard.",
-    "Synthetic fixtures and derivatives do not increase the independent-master count.",
+    "Synthetic fixtures and derivatives do not increase the independent-reference count.",
+    "External dataset audio remains local, license-governed, and excluded from application packages.",
     "Target-corpus readiness does not by itself establish probability calibration or universal provenance accuracy.",
   ],
 };
 await writeJson(outputPath, report);
 console.log(
-  `Real-world validation: ${readiness}; ${publicMasters.length}/${corpus.policy.targetIndependentMasters} public independent masters; infrastructure ${report.infrastructurePassed ? "valid" : "invalid"}.`,
+  `Real-world validation: ${readiness}; ${publicSourceGroups.size}/${corpus.policy.targetIndependentMasters} public independent references; infrastructure ${report.infrastructurePassed ? "valid" : "invalid"}.`,
 );
 if (!report.infrastructurePassed) process.exitCode = 1;

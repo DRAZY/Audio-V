@@ -245,14 +245,15 @@ Gate 5 is complete for automated repository readiness and local-package validati
 
 ### Real-world validation milestone status
 
-- Corpus governance is separated from the software CLA through `CORPUS_CONTRIBUTION_AGREEMENT.md`.
-- The source-master registry enforces rights records, SHA-256 identity, chain of custody, public-versus-private disposition, and contributor-group partitions.
-- Deterministic recipes generate at least ten native, lossy-transcode, upsample, and intentional-filter cases per imported master.
-- Evaluation records accepted classifications, detector confusion counts, inconclusive behavior, and exact 95% Clopper-Pearson binomial intervals.
-- Settings reads the exact status shipped with the package and exposes master, contributor-group, case, corpus-version, and claim-level information.
+- The versioned five-source registry covers Slakh2100, MUSAN, MAESTRO, EBU SQAM, and MUSDB18-HQ with official URLs, access rules, license boundaries, expected audio properties, and intended validation roles.
+- Dataset-specific adapters discover eligible recordings, prevent duplicate source identities, record SHA-256 and decoded technical properties, and keep restricted references challenge-only.
+- The external-reference registry enforces rights records, SHA-256 identity, public-versus-challenge disposition, and source-group partitions.
+- Deterministic recipes generate at least ten native, lossy-transcode, upsample, and intentional-filter cases per imported reference.
+- Evaluation records accepted classifications, detector confusion counts, inconclusive behavior, and exact 95% Clopper-Pearson binomial intervals grouped by dataset, source category/subcollection, split, recipe, and truth class.
+- Settings reads the exact status shipped with the package and exposes public-reference, source-group, case, corpus-version, and claim-level information.
 - Reports state that heuristic rule strength is not a probability-calibrated provenance claim.
 
-Infrastructure is complete, while source acquisition remains factual external work. With no licensed masters present, the enforced state is `awaiting-source-masters` and the claim level is `synthetic-regression-only`.
+Infrastructure is complete and the first external milestone is measured: 20 independent MUSAN references produce 540 accepted narrow-band edge-control cases with 100% safe abstention and no origin advisories. The packaged claim level is `edge-control-evidence-only`, because MUSAN does not populate the eligible wideband transcode/upsample sensitivity lanes. Slakh2100 remains the next public baseline.
 
 ### Provenance, automation, and identity milestone status
 

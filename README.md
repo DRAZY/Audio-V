@@ -515,9 +515,20 @@ Audio-V does not:
 - upload selected audio or collect telemetry.
 
 The project has deterministic synthetic regression fixtures and a complete
-real-world corpus framework. It does not publish real-world false-positive or
-false-negative rates until licensed, provenance-labeled masters and an
-independent challenge set satisfy the documented thresholds.
+external-corpus framework. The first acquisition plan covers Slakh2100, MUSAN,
+MAESTRO, EBU SQAM, and MUSDB18-HQ without requiring private studio masters or
+maintainer-created recordings. Dataset audio remains local and license-governed;
+the repository stores official source records, source-level partitions,
+controlled transformation recipes, checksums, and aggregate scorecards. Audio-V
+does not publish real-world false-positive or false-negative rates until enough
+independent external references and a held-out challenge set satisfy the
+documented thresholds.
+
+The first external milestone now contains 20 independent MUSAN references and
+540 controlled edge cases. Every case safely abstained and none produced an
+origin advisory. That validates conservative handling of narrow-band material;
+it is not presented as transcode or upsample accuracy. Slakh2100 is the next
+wideband controlled-source milestone.
 
 ## Privacy
 

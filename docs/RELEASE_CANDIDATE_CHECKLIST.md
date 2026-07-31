@@ -17,7 +17,7 @@ As of source version 0.4.38:
 | Blocking defects | Versioned register contains fixed P1/P2 defects and zero unresolved P0/P1 defects | Known critical/high defects block release automatically |
 | Release assets | Four v0.4.38 application packages, checksums, block maps, and unsigned policy manifest are prepared and verified together | Current release distribution remains a single versioned set |
 | Instrumented acceptance | Every real audit records privacy-safe package, workload, throughput, sampled memory, storage growth, cancellation, source class, and recovery evidence | The next witnessed large-library run should export this record; earlier observations did not capture it |
-| Real-world origin calibration | Infrastructure is valid; licensed independent masters are absent | No probability-calibrated origin claim is allowed |
+| Real-world origin calibration | External-dataset infrastructure is valid; licensed independent references may still be absent | No probability-calibrated origin claim is allowed |
 
 The automated readiness command reports 17/17 repository evidence categories,
 and Audio-V is published as the current unsigned open-source release. Its
@@ -79,4 +79,4 @@ Developer ID/Authenticode certificate signing and Apple notarization are not rel
 
 Statistically calibrated provenance probability is not claimed. The release must retain conservative rule-strength, evidence-coverage, and inconclusive language until a representative real-music corpus exists.
 
-The Settings validation card and exported origin limitations must agree with `build/real-world-validation-latest.json`. An unsigned release may report `awaiting-source-masters`, but it must not imply that synthetic fixtures are independent real-world evidence.
+The Settings validation card and exported origin limitations must agree with `build/real-world-validation-latest.json`. A release may report external references pending, but it must not imply that synthetic fixtures or controlled derivatives are independent real-world evidence.

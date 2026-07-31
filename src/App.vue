@@ -204,10 +204,11 @@ const primaryModifier = navigator.platform.includes("Mac") ? "⌘" : "Ctrl";
 
 const validationStatusLabel = computed(() => {
   const labels: Record<OracleValidationStatus["readiness"], string> = {
-    "awaiting-source-masters": "Infrastructure ready · masters pending",
-    "pilot-building": "Real-world pilot building",
-    "pilot-ready": "Real-world pilot ready",
-    "target-corpus-ready": "Target corpus ready",
+    "awaiting-external-references": "External corpus ready · references pending",
+    "awaiting-source-masters": "External corpus ready · references pending",
+    "pilot-building": "External validation pilot building",
+    "pilot-ready": "External validation pilot ready",
+    "target-corpus-ready": "External target corpus ready",
   };
   return validationStatus.value
     ? labels[validationStatus.value.readiness]
@@ -218,7 +219,8 @@ const validationProgress = computed(() => {
   if (!status) return 0;
   return Math.min(
     100,
-    (status.counts.publicIndependentMasters /
+    ((status.counts.publicIndependentReferences ??
+      status.counts.publicIndependentMasters) /
       status.thresholds.targetIndependentMasters) *
       100,
   );
@@ -4864,17 +4866,17 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
           <article class="validation-disclosure">
             <span>Oracle validation basis</span>
             <strong>{{ validationStatusLabel }}</strong>
-            <div class="validation-progress" role="progressbar" aria-label="Public independent licensed source masters acquired" :aria-valuenow="validationStatus?.counts.publicIndependentMasters ?? 0" aria-valuemin="0" :aria-valuemax="validationStatus?.thresholds.targetIndependentMasters ?? 50">
+            <div class="validation-progress" role="progressbar" aria-label="Public independent licensed external references acquired" :aria-valuenow="validationStatus?.counts.publicIndependentReferences ?? validationStatus?.counts.publicIndependentMasters ?? 0" aria-valuemin="0" :aria-valuemax="validationStatus?.thresholds.targetIndependentMasters ?? 50">
               <i :style="{ width: `${validationProgress}%` }"></i>
             </div>
             <dl>
-              <div><dt>Public masters</dt><dd>{{ validationStatus?.counts.publicIndependentMasters ?? 0 }} / {{ validationStatus?.thresholds.targetIndependentMasters ?? 50 }}</dd></div>
-              <div><dt>Contributor groups</dt><dd>{{ validationStatus?.counts.contributorGroups ?? 0 }}</dd></div>
+              <div><dt>Public references</dt><dd>{{ validationStatus?.counts.publicIndependentReferences ?? validationStatus?.counts.publicIndependentMasters ?? 0 }} / {{ validationStatus?.thresholds.targetIndependentMasters ?? 50 }}</dd></div>
+              <div><dt>Source groups</dt><dd>{{ validationStatus?.counts.sourceGroups ?? validationStatus?.counts.contributorGroups ?? 0 }}</dd></div>
               <div><dt>Controlled cases</dt><dd>{{ validationStatus?.counts.generatedCases ?? 0 }}</dd></div>
-              <div><dt>Current claim</dt><dd>{{ validationStatus?.claimLevel === "synthetic-regression-only" ? "Regression tested only" : validationStatus?.claimLevel === "pilot-real-world-evidence" ? "Pilot evidence" : "Corpus present · not calibrated" }}</dd></div>
+              <div><dt>Current claim</dt><dd>{{ validationStatus?.claimLevel === "synthetic-regression-only" ? "Regression tested only" : validationStatus?.claimLevel === "edge-control-evidence-only" ? "Edge abstention validated" : validationStatus?.claimLevel === "pilot-real-world-evidence" ? "Pilot origin evidence" : "Corpus present · not calibrated" }}</dd></div>
             </dl>
             <p>{{ validationStatus?.limitations[0] ?? "Audio-V is loading the packaged corpus and scorecard disclosure." }}</p>
-            <small>Corpus {{ validationStatus?.corpusVersion ?? "—" }} · Synthetic fixtures and derivatives never increase the independent-master count.</small>
+            <small>Corpus {{ validationStatus?.corpusVersion ?? "—" }} · Synthetic fixtures and derivatives never increase the independent-reference count.</small>
           </article>
           <article><span>Open-source license</span><strong>AGPL-3.0-only</strong><p>Code remains available under strong copyleft. Audio-V and Oracle Engine names and artwork remain governed by the trademark policy.</p></article>
           <article class="storage-maintenance">

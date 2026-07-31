@@ -2,18 +2,825 @@
   "$schema": "./schemas/corpus.schema.json",
   "schemaVersion": 1,
   "corpusId": "audio-v-real-world",
-  "corpusVersion": "0.1.0",
-  "description": "Licensed, provenance-labeled source masters for real-world Oracle Engine validation. Synthetic fixtures are not registered here.",
+  "corpusVersion": "0.2.0",
+  "description": "Licensed, provenance-labeled external reference recordings for real-world Oracle Engine validation. Synthetic fixtures are not registered here.",
   "policy": {
-    "splitStrategy": "contributor-group-sha256-v1",
+    "splitStrategy": "source-group-sha256-v1",
     "pilotIndependentMasters": 25,
     "targetIndependentMasters": 50,
     "minimumCasesPerMaster": 10,
+    "analysisWindowSeconds": 60,
     "publicLicenses": [
       "CC0-1.0",
       "CC-BY-4.0",
       "Audio-V-CCA-1.0"
+    ],
+    "researchLicenses": [
+      "CC-BY-NC-SA-4.0",
+      "EBU-SQAM-TEST-MATERIAL",
+      "MUSDB18-HQ-PER-TRACK"
     ]
   },
-  "masters": []
+  "masters": [
+    {
+      "id": "AVC-M-MUSAN-170A2824C4377FB0",
+      "groupId": "musan:noise/free-sound/noise-free-sound-0005.wav",
+      "split": "development",
+      "title": "noise-free-sound-0005",
+      "artist": "MUSAN",
+      "file": ".audio/masters/AVC-M-MUSAN-170A2824C4377FB0.wav",
+      "sha256": "71a5ca36940fc9ee6ba1571c7f36b30bf192ddf1783bd31d1205acfb9fea5bf6",
+      "dataset": {
+        "id": "musan",
+        "version": "SLR17",
+        "sourceId": "noise/free-sound/noise-free-sound-0005.wav",
+        "category": "noise",
+        "stratum": "noise:free-sound",
+        "role": "edge-control",
+        "officialUrl": "https://www.openslr.org/17/",
+        "licenseEvidence": {
+          "file": "noise/free-sound/LICENSE",
+          "sha256": "2976652933421a46f0d2099811529973adc385113b21802cc7b5c764829a672d"
+        }
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-musan",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "MUSAN · noise/free-sound/noise-free-sound-0005.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MUSAN SLR17 dataset; source identity noise/free-sound/noise-free-sound-0005.wav; category noise."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 16000,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-MUSAN-1A450B8145A59AE7",
+      "groupId": "musan:music/fma-western-art/music-fma-wa-0018.wav",
+      "split": "calibration",
+      "title": "music-fma-wa-0018",
+      "artist": "MUSAN",
+      "file": ".audio/masters/AVC-M-MUSAN-1A450B8145A59AE7.wav",
+      "sha256": "4024459ce522f2b3f018cee4e15538fb3dbc6b0e8b4323a356b79dc39169b82b",
+      "dataset": {
+        "id": "musan",
+        "version": "SLR17",
+        "sourceId": "music/fma-western-art/music-fma-wa-0018.wav",
+        "category": "music",
+        "stratum": "music:fma-western-art",
+        "role": "edge-control",
+        "officialUrl": "https://www.openslr.org/17/",
+        "licenseEvidence": {
+          "file": "music/fma-western-art/LICENSE",
+          "sha256": "00bdd7fe1270fb85a3f9a36ce6e8102b67f6e19707c32183d3c60b53abff4fec"
+        }
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-musan",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "MUSAN · music/fma-western-art/music-fma-wa-0018.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MUSAN SLR17 dataset; source identity music/fma-western-art/music-fma-wa-0018.wav; category music."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 16000,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-MUSAN-1D56FC83338C4BC5",
+      "groupId": "musan:noise/sound-bible/noise-sound-bible-0001.wav",
+      "split": "test",
+      "title": "noise-sound-bible-0001",
+      "artist": "MUSAN",
+      "file": ".audio/masters/AVC-M-MUSAN-1D56FC83338C4BC5.wav",
+      "sha256": "1f7429e143f22d9e498e1b3ae5a4ba5e578450613b31817a2c9289a245a7fa26",
+      "dataset": {
+        "id": "musan",
+        "version": "SLR17",
+        "sourceId": "noise/sound-bible/noise-sound-bible-0001.wav",
+        "category": "noise",
+        "stratum": "noise:sound-bible",
+        "role": "edge-control",
+        "officialUrl": "https://www.openslr.org/17/",
+        "licenseEvidence": {
+          "file": "noise/sound-bible/LICENSE",
+          "sha256": "2df0991bf3b3866bef669f49adab165c23769d60d432cedb4195851c7c1214ec"
+        }
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-musan",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "MUSAN · noise/sound-bible/noise-sound-bible-0001.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MUSAN SLR17 dataset; source identity noise/sound-bible/noise-sound-bible-0001.wav; category noise."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 16000,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-MUSAN-288F96AA5950DADA",
+      "groupId": "musan:noise/sound-bible/noise-sound-bible-0000.wav",
+      "split": "development",
+      "title": "noise-sound-bible-0000",
+      "artist": "MUSAN",
+      "file": ".audio/masters/AVC-M-MUSAN-288F96AA5950DADA.wav",
+      "sha256": "8eafea0f12eb0f7cd9710aa6d01d350463016534b5bc0512f358b0ba0aea8209",
+      "dataset": {
+        "id": "musan",
+        "version": "SLR17",
+        "sourceId": "noise/sound-bible/noise-sound-bible-0000.wav",
+        "category": "noise",
+        "stratum": "noise:sound-bible",
+        "role": "edge-control",
+        "officialUrl": "https://www.openslr.org/17/",
+        "licenseEvidence": {
+          "file": "noise/sound-bible/LICENSE",
+          "sha256": "2df0991bf3b3866bef669f49adab165c23769d60d432cedb4195851c7c1214ec"
+        }
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-musan",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "MUSAN · noise/sound-bible/noise-sound-bible-0000.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MUSAN SLR17 dataset; source identity noise/sound-bible/noise-sound-bible-0000.wav; category noise."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 16000,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-MUSAN-3F86D4050569135B",
+      "groupId": "musan:speech/us-gov/speech-us-gov-0000.wav",
+      "split": "development",
+      "title": "speech-us-gov-0000",
+      "artist": "MUSAN",
+      "file": ".audio/masters/AVC-M-MUSAN-3F86D4050569135B.wav",
+      "sha256": "93e5bbbe9d123ee781d652057691363845ca3bd91a17a0301d2b7d85b22900c6",
+      "dataset": {
+        "id": "musan",
+        "version": "SLR17",
+        "sourceId": "speech/us-gov/speech-us-gov-0000.wav",
+        "category": "speech",
+        "stratum": "speech:us-gov",
+        "role": "edge-control",
+        "officialUrl": "https://www.openslr.org/17/",
+        "licenseEvidence": {
+          "file": "speech/us-gov/LICENSE",
+          "sha256": "b834b444c03d4a80cbd8d209aced3bfd4b8f1f1d57c4407c848996ceefd4b54a"
+        }
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-musan",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "MUSAN · speech/us-gov/speech-us-gov-0000.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MUSAN SLR17 dataset; source identity speech/us-gov/speech-us-gov-0000.wav; category speech."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 16000,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-MUSAN-4F467D01CFF61E81",
+      "groupId": "musan:music/fma/music-fma-0000.wav",
+      "split": "test",
+      "title": "music-fma-0000",
+      "artist": "MUSAN",
+      "file": ".audio/masters/AVC-M-MUSAN-4F467D01CFF61E81.wav",
+      "sha256": "0f7abd39d9a044e89966d3ff5a60ca0ccdedd076546068af2fb4226e9f774afc",
+      "dataset": {
+        "id": "musan",
+        "version": "SLR17",
+        "sourceId": "music/fma/music-fma-0000.wav",
+        "category": "music",
+        "stratum": "music:fma",
+        "role": "edge-control",
+        "officialUrl": "https://www.openslr.org/17/",
+        "licenseEvidence": {
+          "file": "music/fma/LICENSE",
+          "sha256": "5d2d8fd19fc343419dc779e9b2a472fbc9dd8aa92384d9f431936c1d170333c0"
+        }
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-musan",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "MUSAN · music/fma/music-fma-0000.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MUSAN SLR17 dataset; source identity music/fma/music-fma-0000.wav; category music."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 16000,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-MUSAN-55ACC8BA5113024B",
+      "groupId": "musan:speech/librivox/speech-librivox-0001.wav",
+      "split": "development",
+      "title": "speech-librivox-0001",
+      "artist": "MUSAN",
+      "file": ".audio/masters/AVC-M-MUSAN-55ACC8BA5113024B.wav",
+      "sha256": "aa31bcba6049760ee64468437cc11a3d9359a71310f403c27d69ca2f25e9ed12",
+      "dataset": {
+        "id": "musan",
+        "version": "SLR17",
+        "sourceId": "speech/librivox/speech-librivox-0001.wav",
+        "category": "speech",
+        "stratum": "speech:librivox",
+        "role": "edge-control",
+        "officialUrl": "https://www.openslr.org/17/",
+        "licenseEvidence": {
+          "file": "speech/librivox/LICENSE",
+          "sha256": "d4abe70829d91b3bf1e40f1d9108f811a10b0ff6c2cfe53fb659ba4eb2f703b7"
+        }
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-musan",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "MUSAN · speech/librivox/speech-librivox-0001.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MUSAN SLR17 dataset; source identity speech/librivox/speech-librivox-0001.wav; category speech."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 16000,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-MUSAN-5A2A991A9F8A9D95",
+      "groupId": "musan:noise/sound-bible/noise-sound-bible-0002.wav",
+      "split": "development",
+      "title": "noise-sound-bible-0002",
+      "artist": "MUSAN",
+      "file": ".audio/masters/AVC-M-MUSAN-5A2A991A9F8A9D95.wav",
+      "sha256": "3da37952a96cd0fbe259557c8084150f20f58e5c76c6f406343722d0dfdeaa7c",
+      "dataset": {
+        "id": "musan",
+        "version": "SLR17",
+        "sourceId": "noise/sound-bible/noise-sound-bible-0002.wav",
+        "category": "noise",
+        "stratum": "noise:sound-bible",
+        "role": "edge-control",
+        "officialUrl": "https://www.openslr.org/17/",
+        "licenseEvidence": {
+          "file": "noise/sound-bible/LICENSE",
+          "sha256": "2df0991bf3b3866bef669f49adab165c23769d60d432cedb4195851c7c1214ec"
+        }
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-musan",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "MUSAN · noise/sound-bible/noise-sound-bible-0002.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MUSAN SLR17 dataset; source identity noise/sound-bible/noise-sound-bible-0002.wav; category noise."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 16000,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-MUSAN-6D6BD2BCC9C124D2",
+      "groupId": "musan:noise/free-sound/noise-free-sound-0000.wav",
+      "split": "test",
+      "title": "noise-free-sound-0000",
+      "artist": "MUSAN",
+      "file": ".audio/masters/AVC-M-MUSAN-6D6BD2BCC9C124D2.wav",
+      "sha256": "38624671753649af38f97b5872463017badcb3e29411787a95f6f2beb9edbfec",
+      "dataset": {
+        "id": "musan",
+        "version": "SLR17",
+        "sourceId": "noise/free-sound/noise-free-sound-0000.wav",
+        "category": "noise",
+        "stratum": "noise:free-sound",
+        "role": "edge-control",
+        "officialUrl": "https://www.openslr.org/17/",
+        "licenseEvidence": {
+          "file": "noise/free-sound/LICENSE",
+          "sha256": "2976652933421a46f0d2099811529973adc385113b21802cc7b5c764829a672d"
+        }
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-musan",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "MUSAN · noise/free-sound/noise-free-sound-0000.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MUSAN SLR17 dataset; source identity noise/free-sound/noise-free-sound-0000.wav; category noise."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 16000,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-MUSAN-7514F3B456C4FD3C",
+      "groupId": "musan:speech/librivox/speech-librivox-0011.wav",
+      "split": "calibration",
+      "title": "speech-librivox-0011",
+      "artist": "MUSAN",
+      "file": ".audio/masters/AVC-M-MUSAN-7514F3B456C4FD3C.wav",
+      "sha256": "4810b7b7c24cd0863d64b868f663c0b488ca7af2fc2bc32e0c77722813c6ce48",
+      "dataset": {
+        "id": "musan",
+        "version": "SLR17",
+        "sourceId": "speech/librivox/speech-librivox-0011.wav",
+        "category": "speech",
+        "stratum": "speech:librivox",
+        "role": "edge-control",
+        "officialUrl": "https://www.openslr.org/17/",
+        "licenseEvidence": {
+          "file": "speech/librivox/LICENSE",
+          "sha256": "d4abe70829d91b3bf1e40f1d9108f811a10b0ff6c2cfe53fb659ba4eb2f703b7"
+        }
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-musan",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "MUSAN · speech/librivox/speech-librivox-0011.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MUSAN SLR17 dataset; source identity speech/librivox/speech-librivox-0011.wav; category speech."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 16000,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-MUSAN-79C768893BF4BF0A",
+      "groupId": "musan:music/fma-western-art/music-fma-wa-0000.wav",
+      "split": "development",
+      "title": "music-fma-wa-0000",
+      "artist": "MUSAN",
+      "file": ".audio/masters/AVC-M-MUSAN-79C768893BF4BF0A.wav",
+      "sha256": "924bc0e0c9403b9b923898ebe77d92972a156e7fdf5b431191be44ed8c9e1d30",
+      "dataset": {
+        "id": "musan",
+        "version": "SLR17",
+        "sourceId": "music/fma-western-art/music-fma-wa-0000.wav",
+        "category": "music",
+        "stratum": "music:fma-western-art",
+        "role": "edge-control",
+        "officialUrl": "https://www.openslr.org/17/",
+        "licenseEvidence": {
+          "file": "music/fma-western-art/LICENSE",
+          "sha256": "00bdd7fe1270fb85a3f9a36ce6e8102b67f6e19707c32183d3c60b53abff4fec"
+        }
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-musan",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "MUSAN · music/fma-western-art/music-fma-wa-0000.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MUSAN SLR17 dataset; source identity music/fma-western-art/music-fma-wa-0000.wav; category music."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 16000,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-MUSAN-8E6481CAD8534426",
+      "groupId": "musan:speech/us-gov/speech-us-gov-0002.wav",
+      "split": "development",
+      "title": "speech-us-gov-0002",
+      "artist": "MUSAN",
+      "file": ".audio/masters/AVC-M-MUSAN-8E6481CAD8534426.wav",
+      "sha256": "86fa5f01bcefc7b93fda2e194418f69c6503780801c4e5f715f61f88fd5410fc",
+      "dataset": {
+        "id": "musan",
+        "version": "SLR17",
+        "sourceId": "speech/us-gov/speech-us-gov-0002.wav",
+        "category": "speech",
+        "stratum": "speech:us-gov",
+        "role": "edge-control",
+        "officialUrl": "https://www.openslr.org/17/",
+        "licenseEvidence": {
+          "file": "speech/us-gov/LICENSE",
+          "sha256": "b834b444c03d4a80cbd8d209aced3bfd4b8f1f1d57c4407c848996ceefd4b54a"
+        }
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-musan",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "MUSAN · speech/us-gov/speech-us-gov-0002.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MUSAN SLR17 dataset; source identity speech/us-gov/speech-us-gov-0002.wav; category speech."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 16000,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-MUSAN-90F669D8CD603FBE",
+      "groupId": "musan:speech/librivox/speech-librivox-0000.wav",
+      "split": "development",
+      "title": "speech-librivox-0000",
+      "artist": "MUSAN",
+      "file": ".audio/masters/AVC-M-MUSAN-90F669D8CD603FBE.wav",
+      "sha256": "6a74f9d017dacbae23e1d6a42f5e29afa52cbc21a4c08e30e86879890e8ad5a8",
+      "dataset": {
+        "id": "musan",
+        "version": "SLR17",
+        "sourceId": "speech/librivox/speech-librivox-0000.wav",
+        "category": "speech",
+        "stratum": "speech:librivox",
+        "role": "edge-control",
+        "officialUrl": "https://www.openslr.org/17/",
+        "licenseEvidence": {
+          "file": "speech/librivox/LICENSE",
+          "sha256": "d4abe70829d91b3bf1e40f1d9108f811a10b0ff6c2cfe53fb659ba4eb2f703b7"
+        }
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-musan",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "MUSAN · speech/librivox/speech-librivox-0000.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MUSAN SLR17 dataset; source identity speech/librivox/speech-librivox-0000.wav; category speech."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 16000,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-MUSAN-9133CD333D15880A",
+      "groupId": "musan:music/fma/music-fma-0001.wav",
+      "split": "development",
+      "title": "music-fma-0001",
+      "artist": "MUSAN",
+      "file": ".audio/masters/AVC-M-MUSAN-9133CD333D15880A.wav",
+      "sha256": "ff51c346d1b8663ce83991dcfafd3b91ed5611ba4b7f33d5dfd01ee2c26e557b",
+      "dataset": {
+        "id": "musan",
+        "version": "SLR17",
+        "sourceId": "music/fma/music-fma-0001.wav",
+        "category": "music",
+        "stratum": "music:fma",
+        "role": "edge-control",
+        "officialUrl": "https://www.openslr.org/17/",
+        "licenseEvidence": {
+          "file": "music/fma/LICENSE",
+          "sha256": "5d2d8fd19fc343419dc779e9b2a472fbc9dd8aa92384d9f431936c1d170333c0"
+        }
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-musan",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "MUSAN · music/fma/music-fma-0001.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MUSAN SLR17 dataset; source identity music/fma/music-fma-0001.wav; category music."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 16000,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-MUSAN-9A8C9F7072A9F61D",
+      "groupId": "musan:noise/free-sound/noise-free-sound-0004.wav",
+      "split": "development",
+      "title": "noise-free-sound-0004",
+      "artist": "MUSAN",
+      "file": ".audio/masters/AVC-M-MUSAN-9A8C9F7072A9F61D.wav",
+      "sha256": "d30cf3f64630d7fe1f3628253ee3e012d2296ea813b0e3f70d4a8b4d402d0d54",
+      "dataset": {
+        "id": "musan",
+        "version": "SLR17",
+        "sourceId": "noise/free-sound/noise-free-sound-0004.wav",
+        "category": "noise",
+        "stratum": "noise:free-sound",
+        "role": "edge-control",
+        "officialUrl": "https://www.openslr.org/17/",
+        "licenseEvidence": {
+          "file": "noise/free-sound/LICENSE",
+          "sha256": "2976652933421a46f0d2099811529973adc385113b21802cc7b5c764829a672d"
+        }
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-musan",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "MUSAN · noise/free-sound/noise-free-sound-0004.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MUSAN SLR17 dataset; source identity noise/free-sound/noise-free-sound-0004.wav; category noise."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 16000,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-MUSAN-B1CF74553710BA10",
+      "groupId": "musan:music/fma/music-fma-0004.wav",
+      "split": "calibration",
+      "title": "music-fma-0004",
+      "artist": "MUSAN",
+      "file": ".audio/masters/AVC-M-MUSAN-B1CF74553710BA10.wav",
+      "sha256": "c06bdd62189d8d385c31835295b42ed18db4193e561333e1555ca517d7c18026",
+      "dataset": {
+        "id": "musan",
+        "version": "SLR17",
+        "sourceId": "music/fma/music-fma-0004.wav",
+        "category": "music",
+        "stratum": "music:fma",
+        "role": "edge-control",
+        "officialUrl": "https://www.openslr.org/17/",
+        "licenseEvidence": {
+          "file": "music/fma/LICENSE",
+          "sha256": "5d2d8fd19fc343419dc779e9b2a472fbc9dd8aa92384d9f431936c1d170333c0"
+        }
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-musan",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "MUSAN · music/fma/music-fma-0004.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MUSAN SLR17 dataset; source identity music/fma/music-fma-0004.wav; category music."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 16000,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-MUSAN-C12BB2C1B6B7BF83",
+      "groupId": "musan:music/hd-classical/music-hd-0002.wav",
+      "split": "development",
+      "title": "music-hd-0002",
+      "artist": "MUSAN",
+      "file": ".audio/masters/AVC-M-MUSAN-C12BB2C1B6B7BF83.wav",
+      "sha256": "6e578596c6897a816c962f356b07b70dcf224a2fae75cc07210f2d4c29586c07",
+      "dataset": {
+        "id": "musan",
+        "version": "SLR17",
+        "sourceId": "music/hd-classical/music-hd-0002.wav",
+        "category": "music",
+        "stratum": "music:hd-classical",
+        "role": "edge-control",
+        "officialUrl": "https://www.openslr.org/17/",
+        "licenseEvidence": {
+          "file": "music/hd-classical/LICENSE",
+          "sha256": "26bf3ffd3f02cf5f9d1a30db049ecd68b8517cf39cc63d65ea54cfb598d58fc7"
+        }
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-musan",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "MUSAN · music/hd-classical/music-hd-0002.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MUSAN SLR17 dataset; source identity music/hd-classical/music-hd-0002.wav; category music."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 16000,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-MUSAN-D3EB0BD23F71EDA6",
+      "groupId": "musan:music/jamendo/music-jamendo-0000.wav",
+      "split": "development",
+      "title": "music-jamendo-0000",
+      "artist": "MUSAN",
+      "file": ".audio/masters/AVC-M-MUSAN-D3EB0BD23F71EDA6.wav",
+      "sha256": "2e51b39d532683b051e01f6f8a2cf18f7fc07744eae69c60be46bee89f614e2c",
+      "dataset": {
+        "id": "musan",
+        "version": "SLR17",
+        "sourceId": "music/jamendo/music-jamendo-0000.wav",
+        "category": "music",
+        "stratum": "music:jamendo",
+        "role": "edge-control",
+        "officialUrl": "https://www.openslr.org/17/",
+        "licenseEvidence": {
+          "file": "music/jamendo/LICENSE",
+          "sha256": "60b41530772d2fa63b423898e9650c7ad60cde022849abec3b5a542db838371e"
+        }
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-musan",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "MUSAN · music/jamendo/music-jamendo-0000.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MUSAN SLR17 dataset; source identity music/jamendo/music-jamendo-0000.wav; category music."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 16000,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-MUSAN-E327F957601DC342",
+      "groupId": "musan:noise/free-sound/noise-free-sound-0001.wav",
+      "split": "calibration",
+      "title": "noise-free-sound-0001",
+      "artist": "MUSAN",
+      "file": ".audio/masters/AVC-M-MUSAN-E327F957601DC342.wav",
+      "sha256": "757966dde40b87b2862013eaf0808e47a560e1d3bc9e75167df292313328ab56",
+      "dataset": {
+        "id": "musan",
+        "version": "SLR17",
+        "sourceId": "noise/free-sound/noise-free-sound-0001.wav",
+        "category": "noise",
+        "stratum": "noise:free-sound",
+        "role": "edge-control",
+        "officialUrl": "https://www.openslr.org/17/",
+        "licenseEvidence": {
+          "file": "noise/free-sound/LICENSE",
+          "sha256": "2976652933421a46f0d2099811529973adc385113b21802cc7b5c764829a672d"
+        }
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-musan",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "MUSAN · noise/free-sound/noise-free-sound-0001.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MUSAN SLR17 dataset; source identity noise/free-sound/noise-free-sound-0001.wav; category noise."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 16000,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-MUSAN-E40529A364B13B89",
+      "groupId": "musan:speech/librivox/speech-librivox-0004.wav",
+      "split": "test",
+      "title": "speech-librivox-0004",
+      "artist": "MUSAN",
+      "file": ".audio/masters/AVC-M-MUSAN-E40529A364B13B89.wav",
+      "sha256": "76965f20b10ce0ed48beed1670d8c5ed81182a2bc797ed5e4d7dbe24c4c58ae8",
+      "dataset": {
+        "id": "musan",
+        "version": "SLR17",
+        "sourceId": "speech/librivox/speech-librivox-0004.wav",
+        "category": "speech",
+        "stratum": "speech:librivox",
+        "role": "edge-control",
+        "officialUrl": "https://www.openslr.org/17/",
+        "licenseEvidence": {
+          "file": "speech/librivox/LICENSE",
+          "sha256": "d4abe70829d91b3bf1e40f1d9108f811a10b0ff6c2cfe53fb659ba4eb2f703b7"
+        }
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-musan",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "MUSAN · speech/librivox/speech-librivox-0004.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MUSAN SLR17 dataset; source identity speech/librivox/speech-librivox-0004.wav; category speech."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 16000,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    }
+  ]
 }

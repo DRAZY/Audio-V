@@ -1027,6 +1027,7 @@ export interface OracleValidationStatus {
   generatedAt: string;
   corpusVersion: string;
   readiness:
+    | "awaiting-external-references"
     | "awaiting-source-masters"
     | "pilot-building"
     | "pilot-ready"
@@ -1035,16 +1036,23 @@ export interface OracleValidationStatus {
   milestoneAchieved: boolean;
   claimLevel:
     | "synthetic-regression-only"
+    | "edge-control-evidence-only"
     | "pilot-real-world-evidence"
     | "real-world-corpus-present-not-probability-calibrated";
   counts: {
     independentMasters: number;
+    independentReferences: number;
     publicIndependentMasters: number;
+    publicIndependentReferences: number;
+    originEligibleReferences: number;
     privateChallengeMasters: number;
+    challengeReferences: number;
     contributorGroups: number;
+    sourceGroups: number;
     redistributableMasters: number;
     generatedCases: number;
     bySplit: Record<string, number>;
+    byDataset: Record<string, number>;
   };
   thresholds: {
     pilotIndependentMasters: number;

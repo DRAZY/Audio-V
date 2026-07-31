@@ -132,7 +132,7 @@ Oracle rules are implementation policy built on disclosed measurements, not a cl
 - Koops et al., [Robust Lossy Audio Compression Identification](https://arxiv.org/abs/2407.21545), for the evidence that compression-history identification is a multi-feature classification problem rather than a universal cutoff test.
 - Esquef et al., [Automatic detection of audio defects using deep anomaly detection](https://link.springer.com/article/10.1186/s13636-024-00389-9), for contemporary defect-detection framing. Audio-V does not reproduce that neural model; its bounded local residual detector remains deterministic, disclosed, and corpus-gated.
 
-These references constrain measurement and claim language. They do not replace validation: synthetic fixtures prove regression behavior, while published false-positive and false-negative rates still require a legally usable labeled corpus.
+These references constrain measurement and claim language. They do not replace validation: synthetic fixtures prove regression behavior, while published false-positive and false-negative rates still require a legally usable labeled corpus. Audio-V’s external-corpus workflow now registers Slakh2100, MUSAN, MAESTRO, EBU SQAM, and MUSDB18-HQ by exact version, license, access boundary, and intended role. Dataset-specific adapters select independent source groups into leakage-safe development, calibration, test, or challenge partitions; 36 controlled recipes retain source hashes, deterministic 60-second windows, tool versions, arguments, and output hashes. Until the public-reference and held-out challenge thresholds are populated, these controls improve reproducibility but do not justify a probability claim.
 
 ## Non-destructive level remediation
 

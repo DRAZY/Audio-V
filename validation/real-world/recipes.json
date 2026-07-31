@@ -1,13 +1,19 @@
 {
   "$schema": "./schemas/recipes.schema.json",
   "schemaVersion": 1,
-  "recipeSetVersion": "0.1.0",
+  "recipeSetVersion": "0.2.0",
   "recipes": [
     {
       "id": "native-flac-control",
       "truthClass": "native-control",
       "acceptedClassifications": ["no-strong-spectral-anomaly", "bandwidth-limited", "inconclusive"],
       "description": "Lossless FLAC container conversion without an intentional bandwidth change."
+    },
+    {
+      "id": "mp3-64-to-flac",
+      "truthClass": "lossy-to-lossless",
+      "acceptedClassifications": ["possible-lossy-transcode"],
+      "description": "LAME 64 kbps MP3 intermediate converted to FLAC."
     },
     {
       "id": "mp3-96-to-flac",
@@ -28,6 +34,36 @@
       "description": "LAME 192 kbps MP3 intermediate converted to FLAC."
     },
     {
+      "id": "mp3-256-to-flac",
+      "truthClass": "lossy-to-lossless",
+      "acceptedClassifications": ["possible-lossy-transcode", "no-strong-spectral-anomaly", "inconclusive"],
+      "description": "LAME 256 kbps MP3 intermediate converted to FLAC; high-bitrate concealment is measured without forcing a positive result."
+    },
+    {
+      "id": "mp3-320-to-flac",
+      "truthClass": "lossy-to-lossless",
+      "acceptedClassifications": ["possible-lossy-transcode", "no-strong-spectral-anomaly", "inconclusive"],
+      "description": "LAME 320 kbps MP3 intermediate converted to FLAC; high-bitrate concealment is measured without forcing a positive result."
+    },
+    {
+      "id": "mp3-vbr-v2-to-flac",
+      "truthClass": "lossy-to-lossless",
+      "acceptedClassifications": ["possible-lossy-transcode", "no-strong-spectral-anomaly", "inconclusive"],
+      "description": "LAME VBR V2 MP3 intermediate converted to FLAC."
+    },
+    {
+      "id": "mp3-vbr-v0-to-flac",
+      "truthClass": "lossy-to-lossless",
+      "acceptedClassifications": ["possible-lossy-transcode", "no-strong-spectral-anomaly", "inconclusive"],
+      "description": "LAME VBR V0 MP3 intermediate converted to FLAC."
+    },
+    {
+      "id": "aac-64-to-flac",
+      "truthClass": "lossy-to-lossless",
+      "acceptedClassifications": ["possible-lossy-transcode"],
+      "description": "AAC-LC 64 kbps intermediate converted to FLAC."
+    },
+    {
       "id": "aac-96-to-flac",
       "truthClass": "lossy-to-lossless",
       "acceptedClassifications": ["possible-lossy-transcode"],
@@ -46,16 +82,94 @@
       "description": "AAC 192 kbps intermediate converted to FLAC."
     },
     {
+      "id": "aac-256-to-flac",
+      "truthClass": "lossy-to-lossless",
+      "acceptedClassifications": ["possible-lossy-transcode", "no-strong-spectral-anomaly", "inconclusive"],
+      "description": "AAC-LC 256 kbps intermediate converted to FLAC."
+    },
+    {
+      "id": "opus-64-to-flac",
+      "truthClass": "lossy-to-lossless",
+      "acceptedClassifications": ["possible-lossy-transcode", "no-strong-spectral-anomaly", "inconclusive"],
+      "description": "Opus 64 kbps intermediate converted to FLAC."
+    },
+    {
       "id": "opus-96-to-flac",
       "truthClass": "lossy-to-lossless",
       "acceptedClassifications": ["possible-lossy-transcode"],
       "description": "Opus 96 kbps intermediate converted to FLAC."
     },
     {
+      "id": "opus-160-to-flac",
+      "truthClass": "lossy-to-lossless",
+      "acceptedClassifications": ["possible-lossy-transcode", "no-strong-spectral-anomaly", "inconclusive"],
+      "description": "Opus 160 kbps intermediate converted to FLAC."
+    },
+    {
+      "id": "opus-255-to-flac",
+      "truthClass": "lossy-to-lossless",
+      "acceptedClassifications": ["possible-lossy-transcode", "no-strong-spectral-anomaly", "inconclusive"],
+      "description": "Opus 255 kbps intermediate converted to FLAC at the encoder's supported ceiling."
+    },
+    {
+      "id": "vorbis-q2-to-flac",
+      "truthClass": "lossy-to-lossless",
+      "acceptedClassifications": ["possible-lossy-transcode", "no-strong-spectral-anomaly", "inconclusive"],
+      "description": "Vorbis quality 2 intermediate converted to FLAC."
+    },
+    {
+      "id": "vorbis-q5-to-flac",
+      "truthClass": "lossy-to-lossless",
+      "acceptedClassifications": ["possible-lossy-transcode", "no-strong-spectral-anomaly", "inconclusive"],
+      "description": "Vorbis quality 5 intermediate converted to FLAC."
+    },
+    {
+      "id": "vorbis-q8-to-flac",
+      "truthClass": "lossy-to-lossless",
+      "acceptedClassifications": ["possible-lossy-transcode", "no-strong-spectral-anomaly", "inconclusive"],
+      "description": "Vorbis quality 8 intermediate converted to FLAC."
+    },
+    {
+      "id": "aac-128-mp3-192-to-flac",
+      "truthClass": "multi-generation-lossy",
+      "acceptedClassifications": ["possible-lossy-transcode", "no-strong-spectral-anomaly", "inconclusive"],
+      "description": "AAC-LC 128 kbps followed by MP3 192 kbps and converted to FLAC."
+    },
+    {
+      "id": "upsample-to-48k",
+      "truthClass": "upsample",
+      "acceptedClassifications": ["possible-upsample", "no-strong-spectral-anomaly", "inconclusive"],
+      "description": "Source normalized through 44.1 kHz and resampled to 48 kHz."
+    },
+    {
+      "id": "upsample-to-88k",
+      "truthClass": "upsample",
+      "acceptedClassifications": ["possible-upsample", "no-strong-spectral-anomaly", "inconclusive"],
+      "description": "Source normalized through 44.1 kHz and resampled to 88.2 kHz."
+    },
+    {
       "id": "upsample-to-96k",
       "truthClass": "upsample",
       "acceptedClassifications": ["possible-upsample"],
       "description": "Source resampled to 96 kHz without creating new high-frequency information."
+    },
+    {
+      "id": "upsample-to-192k",
+      "truthClass": "upsample",
+      "acceptedClassifications": ["possible-upsample"],
+      "description": "Source normalized through 44.1 kHz and resampled to 192 kHz without new high-frequency information."
+    },
+    {
+      "id": "intentional-lowpass-12k",
+      "truthClass": "intentional-lowpass",
+      "acceptedClassifications": ["bandwidth-limited", "no-strong-spectral-anomaly", "inconclusive"],
+      "description": "Native lossless material intentionally low-pass filtered at 12 kHz as a false-positive control."
+    },
+    {
+      "id": "intentional-lowpass-15k",
+      "truthClass": "intentional-lowpass",
+      "acceptedClassifications": ["bandwidth-limited", "no-strong-spectral-anomaly", "inconclusive"],
+      "description": "Native lossless material intentionally low-pass filtered at 15 kHz as a false-positive control."
     },
     {
       "id": "intentional-lowpass-16k",
@@ -68,6 +182,30 @@
       "truthClass": "intentional-lowpass",
       "acceptedClassifications": ["bandwidth-limited", "no-strong-spectral-anomaly", "inconclusive"],
       "description": "Native lossless material intentionally low-pass filtered at 18 kHz as a false-positive control."
+    },
+    {
+      "id": "intentional-lowpass-20k",
+      "truthClass": "intentional-lowpass",
+      "acceptedClassifications": ["bandwidth-limited", "no-strong-spectral-anomaly", "inconclusive"],
+      "description": "Native lossless material intentionally low-pass filtered at 20 kHz as a false-positive control."
+    },
+    {
+      "id": "bit-depth-pad-to-24",
+      "truthClass": "bit-depth-conversion",
+      "acceptedClassifications": [],
+      "expected": {
+        "analysisStates": ["completed"]
+      },
+      "description": "Lossless sample padding into a 24-bit FLAC container without adding signal information."
+    },
+    {
+      "id": "bit-depth-dither-to-16",
+      "truthClass": "bit-depth-conversion",
+      "acceptedClassifications": [],
+      "expected": {
+        "analysisStates": ["completed"]
+      },
+      "description": "TPDF-dithered conversion to 16-bit FLAC for bit-utilization and false-positive testing."
     },
     {
       "id": "hard-clipping-control",

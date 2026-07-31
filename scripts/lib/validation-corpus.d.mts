@@ -14,6 +14,10 @@ export function validateRecipes(
   errors: string[];
 };
 
+export function validateExternalDatasets(registry: unknown): {
+  errors: string[];
+};
+
 export function clopperPearson(
   successes: number,
   total: number,

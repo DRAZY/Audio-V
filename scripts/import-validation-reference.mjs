@@ -50,10 +50,10 @@ if (corpus.masters.some((master) => master.id === id)) {
 }
 
 const sourceStat = await fs.stat(sourcePath);
-if (!sourceStat.isFile()) throw new Error("The source master must be a file.");
+if (!sourceStat.isFile()) throw new Error("The source reference must be a file.");
 const extension = path.extname(sourcePath).toLowerCase();
 if (![".wav", ".wave", ".flac", ".aif", ".aiff"].includes(extension)) {
-  throw new Error("Validation masters must be WAV, FLAC, AIFF, or AIF.");
+  throw new Error("Validation references must be WAV, FLAC, AIFF, or AIF.");
 }
 
 const probe = JSON.parse(
@@ -84,7 +84,7 @@ if (
   requestedSplit !== splitForGroup(groupId)
 ) {
   throw new Error(
-    `--split must be challenge or the deterministic ${splitForGroup(groupId)} partition for this contributor group.`,
+    `--split must be challenge or the deterministic ${splitForGroup(groupId)} partition for this source group.`,
   );
 }
 const split =
