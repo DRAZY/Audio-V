@@ -81,7 +81,7 @@ function summarize(records) {
 }
 
 const args = argumentsMap(process.argv.slice(2));
-const splitLabel = args.get("splits") ?? "development";
+const splitLabel = args.get("label") ?? args.get("splits") ?? "development";
 const inputPath = path.join(
   root,
   "build",
@@ -96,6 +96,8 @@ const report = {
   engineVersion: matrix.engineVersion,
   corpusVersion: matrix.corpusVersion,
   recipeSetVersion: matrix.recipeSetVersion,
+  population: matrix.population ?? "controlled",
+  datasets: matrix.datasets ?? [],
   splits: matrix.splits,
   independenceUnit: "source-group",
   records: matrix.records.length,

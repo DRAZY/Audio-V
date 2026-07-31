@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   currentRuleBlockers,
   eligibleOriginCalibrationCase,
+  eligibleOriginObservationalCase,
   originFeatureRecord,
 } from "../scripts/lib/origin-calibration.mjs";
 
@@ -79,6 +80,36 @@ describe("origin calibration evidence", () => {
       eligibleOriginCalibrationCase(
         { ...calibrationCase, truthClass: "clipping" },
         new Set(["development"]),
+      ),
+    ).toBe(false);
+  });
+
+  it("requires an explicit dataset and negative-only status for observations", () => {
+    const observationalCase = {
+      ...calibrationCase,
+      datasetId: "maestro-v3",
+      split: "challenge",
+      originDetectorEligibility: "negative-only",
+    };
+    expect(
+      eligibleOriginObservationalCase(
+        observationalCase,
+        new Set(["challenge"]),
+        new Set(["maestro-v3"]),
+      ),
+    ).toBe(true);
+    expect(
+      eligibleOriginObservationalCase(
+        observationalCase,
+        new Set(["challenge"]),
+        new Set(["musdb18-hq"]),
+      ),
+    ).toBe(false);
+    expect(
+      eligibleOriginObservationalCase(
+        { ...observationalCase, originDetectorEligibility: "positive-and-negative" },
+        new Set(["challenge"]),
+        new Set(["maestro-v3"]),
       ),
     ).toBe(false);
   });

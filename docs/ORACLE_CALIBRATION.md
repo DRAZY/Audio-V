@@ -148,3 +148,43 @@ MAESTRO is suitable for this confirmation role because its publisher documents
 uncompressed 44.1–48 kHz PCM recordings, but Audio-V will not silently claim
 that this proves every file's complete pre-dataset mastering history:
 https://magenta.tensorflow.org/datasets/maestro
+
+## MAESTRO observational confirmation result
+
+The guarded observational exporter analyzed 330 origin-relevant derivatives
+from all 15 acquired MAESTRO source groups. The exporter required the explicit
+`maestro-v3` allowlist, accepted `challenge` only in observational mode,
+verified every derivative SHA-256, and kept this population separate from
+controlled sensitivity metrics.
+
+Run the reproducible local workflow with:
+
+```bash
+npm run build:electron
+AUDIO_V_CALIBRATION_CONCURRENCY=8 npm run calibration:export:maestro
+npm run calibration:separation:maestro
+```
+
+The result did not confirm edge contrast as a general lossy-history rule:
+
+- native median edge contrast was 2.480 dB;
+- combined lossy median edge contrast was 3.360 dB;
+- intentional-low-pass median edge contrast was 3.420 dB;
+- upsample median edge contrast was 2.855 dB.
+
+Low-bitrate Opus retained partial separation, with recipe medians of 12.940 dB
+at 64 kbps and 11.640 dB at 96 kbps. AAC and Vorbis recipes substantially
+overlapped native controls. The 99% rolloff and fixed-frequency high-band
+energy measurements also overlapped the compared classes.
+
+All 330 cases remained `inconclusive` under Oracle v12. That outcome is not an
+analysis failure: it prevents an observational dataset and a
+non-generalizing feature from creating false certainty. No production verdict
+rule changed. The concise evidence is published at
+`validation/real-world/calibration/oracle-v12-maestro-observational-feature-separation.json`.
+
+The next research stage must investigate codec-artifact evidence that does not
+depend on a single spectral edge, such as time-frequency texture or block-level
+residual structure. Any such measurement remains diagnostic until it separates
+independent development groups and protects native and intentional-processing
+controls.

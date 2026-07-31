@@ -28,6 +28,15 @@ export function eligibleOriginCalibrationCase(item, splits) {
   );
 }
 
+export function eligibleOriginObservationalCase(item, splits, datasets) {
+  return (
+    item.originDetectorEligibility === "negative-only" &&
+    calibrationTruthClasses.has(item.truthClass) &&
+    splits.has(item.split) &&
+    datasets.has(item.datasetId)
+  );
+}
+
 export function originFeatureRecord(item, analysis) {
   const spectrum =
     analysis.measurements?.originSpectrumSummary ??

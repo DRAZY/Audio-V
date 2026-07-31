@@ -47,6 +47,8 @@
     "calibration:export:development": "node scripts/export-origin-calibration-features.mjs --splits development",
     "calibration:analyze:development": "node scripts/analyze-origin-calibration-features.mjs --splits development",
     "calibration:separation:development": "node scripts/analyze-origin-feature-separation.mjs --splits development",
+    "calibration:export:maestro": "node scripts/export-origin-calibration-features.mjs --population observational --datasets maestro-v3 --splits challenge --label maestro-observational",
+    "calibration:separation:maestro": "node scripts/analyze-origin-feature-separation.mjs --label maestro-observational",
     "validation:status": "node scripts/write-real-world-validation-status.mjs",
     "validate:real-world": "npm run build:electron && node scripts/evaluate-real-world-corpus.mjs && node scripts/write-real-world-validation-status.mjs",
     "validate:platform": "npm run build:electron && node scripts/write-platform-validation.mjs",

@@ -1,0 +1,106 @@
+{
+  "schema": "Audio-V origin observational feature separation summary v1",
+  "generatedAt": "2026-07-31T15:02:54.923Z",
+  "engineVersion": "0.10.0-oracle-v12",
+  "corpusVersion": "0.5.0",
+  "recipeSetVersion": "0.2.0",
+  "population": "observational",
+  "dataset": "maestro-v3",
+  "split": "challenge",
+  "independenceUnit": "source-group",
+  "cases": 330,
+  "sourceGroups": 15,
+  "verdictImpact": "none",
+  "observedClassifications": {
+    "inconclusive": 330
+  },
+  "sourceGroupMedianPercentiles": {
+    "native-control": {
+      "spectralRolloff99Hz": {
+        "p10": 1527,
+        "p50": 1798,
+        "p90": 2259.4
+      },
+      "energyAbove20kDb": {
+        "p10": -74.334,
+        "p50": -72.51,
+        "p90": -66.006
+      },
+      "effectiveBandwidthEdgeDropDb": {
+        "p10": 0.68,
+        "p50": 2.48,
+        "p90": 6.19
+      }
+    },
+    "intentional-lowpass": {
+      "spectralRolloff99Hz": {
+        "p10": 1527,
+        "p50": 1798,
+        "p90": 2266.6
+      },
+      "energyAbove20kDb": {
+        "p10": -82.028,
+        "p50": -74.71,
+        "p90": -71.018
+      },
+      "effectiveBandwidthEdgeDropDb": {
+        "p10": 1.442,
+        "p50": 3.42,
+        "p90": 6.162
+      }
+    },
+    "lossy-to-lossless": {
+      "spectralRolloff99Hz": {
+        "p10": 1522.6,
+        "p50": 1792.5,
+        "p90": 2236.4
+      },
+      "energyAbove20kDb": {
+        "p10": -81.925,
+        "p50": -74.655,
+        "p90": -70.893
+      },
+      "effectiveBandwidthEdgeDropDb": {
+        "p10": 0.685,
+        "p50": 3.36,
+        "p90": 5.85
+      }
+    },
+    "upsample": {
+      "spectralRolloff99Hz": {
+        "p10": 1592.6,
+        "p50": 1818.5,
+        "p90": 2250
+      },
+      "energyAbove20kDb": {
+        "p10": -71.883,
+        "p50": -66.315,
+        "p90": -64.333
+      },
+      "effectiveBandwidthEdgeDropDb": {
+        "p10": -0.008,
+        "p50": 2.855,
+        "p90": 6.132
+      }
+    }
+  },
+  "selectedRecipeEdgeDropMedianDb": {
+    "aac-64-to-flac": 2.95,
+    "aac-96-to-flac": 2.68,
+    "aac-128-to-flac": 2.86,
+    "aac-256-to-flac": 2.77,
+    "opus-64-to-flac": 12.94,
+    "opus-96-to-flac": 11.64,
+    "opus-160-to-flac": 3.88,
+    "opus-255-to-flac": 1.71,
+    "vorbis-q2-to-flac": 4.46,
+    "vorbis-q8-to-flac": 2.73
+  },
+  "decision": {
+    "spectralRolloff": "confirmed-unsuitable-as-verdict-input",
+    "fixedHighBandEnergy": "confirmed-unsuitable-as-standalone-verdict-input",
+    "effectiveBandwidthEdgeDrop": "failed-generalization-as-universal-rule",
+    "productionRuleChange": "not-justified"
+  },
+  "interpretation": "The edge-contrast separation observed across combined Slakh lossy recipes did not generalize to MAESTRO. Low-bitrate Opus retains partial separation, but AAC, Vorbis, intentional low-pass, upsample, and native controls overlap. All 330 outcomes remained inconclusive, which is conservative and correct for this observational population."
+}

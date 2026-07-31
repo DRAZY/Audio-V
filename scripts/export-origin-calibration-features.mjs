@@ -15,6 +15,7 @@ import {
 } from "./lib/validation-corpus.mjs";
 import {
   eligibleOriginCalibrationCase,
+  eligibleOriginObservationalCase,
   originFeatureRecord,
 } from "./lib/origin-calibration.mjs";
 
@@ -33,13 +34,33 @@ function argumentsMap(values) {
 }
 
 const args = argumentsMap(process.argv.slice(2));
+const population = args.get("population") ?? "controlled";
+if (!["controlled", "observational"].includes(population)) {
+  throw new Error("--population must be controlled or observational.");
+}
+const requestedDatasets = new Set(
+  (args.get("datasets") ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean),
+);
+if (population === "observational" && requestedDatasets.size === 0) {
+  throw new Error(
+    "Observational export requires an explicit --datasets allowlist.",
+  );
+}
 const requestedSplits = new Set(
   (args.get("splits") ?? "development")
     .split(",")
     .map((value) => value.trim())
     .filter(Boolean),
 );
-const allowedSplits = new Set(["development", "calibration", "test"]);
+const allowedSplits = new Set([
+  "development",
+  "calibration",
+  "test",
+  ...(population === "observational" ? ["challenge"] : []),
+]);
 for (const split of requestedSplits) {
   if (!allowedSplits.has(split)) {
     throw new Error(
@@ -49,9 +70,19 @@ for (const split of requestedSplits) {
 }
 const generated = await readJson(generatedCasesPath);
 const selectedCases = generated.cases.filter((item) =>
-  eligibleOriginCalibrationCase(item, requestedSplits),
+  population === "controlled"
+    ? eligibleOriginCalibrationCase(item, requestedSplits)
+    : eligibleOriginObservationalCase(
+        item,
+        requestedSplits,
+        requestedDatasets,
+      ),
 );
-const splitLabel = [...requestedSplits].sort().join("-");
+const splitLabel =
+  args.get("label") ??
+  (population === "controlled"
+    ? [...requestedSplits].sort().join("-")
+    : `${[...requestedDatasets].sort().join("-")}-observational`);
 const outputPath = path.join(
   root,
   "build",
@@ -72,6 +103,9 @@ for (const candidatePath of [outputPath, checkpointPath]) {
     const candidate = await readJson(candidatePath);
     if (
       candidate.schema === matrixSchema &&
+      candidate.population === population &&
+      JSON.stringify(candidate.datasets ?? []) ===
+        JSON.stringify([...requestedDatasets].sort()) &&
       candidate.engineVersion === engineVersion &&
       candidate.corpusVersion === generated.corpusVersion &&
       candidate.recipeSetVersion === generated.recipeSetVersion
@@ -98,6 +132,8 @@ function matrix(completedRecords) {
     engineVersion,
     corpusVersion: generated.corpusVersion,
     recipeSetVersion: generated.recipeSetVersion,
+    population,
+    datasets: [...requestedDatasets].sort(),
     splits: [...requestedSplits].sort(),
     independenceUnit: "source-group",
     records: completedRecords,
@@ -146,7 +182,7 @@ async function worker() {
 }
 
 console.log(
-  `Exporting ${selectedCases.length} controlled-origin cases from ` +
+  `Exporting ${selectedCases.length} ${population} origin cases from ` +
     `${[...requestedSplits].sort().join(", ")} with ${concurrency} bounded worker(s).`,
 );
 await Promise.all(
