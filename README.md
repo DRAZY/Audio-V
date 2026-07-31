@@ -6,9 +6,18 @@
 
   <p>
     <img alt="Locally verified builds" src="https://img.shields.io/badge/builds-locally%20verified-51e19b?style=for-the-badge">
-    <a href="https://github.com/DRAZY/Audio-V/releases/latest"><img alt="Latest Audio-V release 0.4.42" src="https://img.shields.io/badge/latest-0.4.42-8b5cf6?style=for-the-badge"></a>
+    <a href="https://github.com/DRAZY/Audio-V/releases/latest"><img alt="Latest Audio-V release" src="https://img.shields.io/github/v/release/DRAZY/Audio-V?style=for-the-badge&label=latest&color=8b5cf6"></a>
+    <a href="https://github.com/DRAZY/Audio-V/releases"><img alt="Total downloads" src="https://img.shields.io/github/downloads/DRAZY/Audio-V/total?style=for-the-badge&label=downloads&color=8b5cf6"></a>
     <a href="LICENSE"><img alt="AGPL 3.0 only" src="https://img.shields.io/badge/license-AGPL--3.0--only-8b5cf6?style=for-the-badge"></a>
     <img alt="macOS and Windows" src="https://img.shields.io/badge/platforms-macOS%20%7C%20Windows-252532?style=for-the-badge">
+  </p>
+
+  <p>
+    <a href="https://github.com/DRAZY/Audio-V/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/DRAZY/Audio-V?style=for-the-badge&color=51e19b"></a>
+    <img alt="Last commit" src="https://img.shields.io/github/last-commit/DRAZY/Audio-V?style=for-the-badge&color=51e19b">
+    <img alt="Electron" src="https://img.shields.io/badge/Electron-39-47848F?style=for-the-badge&logo=electron&logoColor=white">
+    <img alt="Vue" src="https://img.shields.io/badge/Vue-3-4FC08D?style=for-the-badge&logo=vue.js&logoColor=white">
+    <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5-3178C6?style=for-the-badge&logo=typescript&logoColor=white">
   </p>
 
   <p>
