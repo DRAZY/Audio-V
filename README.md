@@ -410,6 +410,34 @@ Audio-V accepts 39 FFmpeg-backed audio and container extensions. Examples
 include FLAC, WAV, AIFF, ALAC, MP3, AAC/M4A, OGG, Opus, WavPack, APE, DSF,
 Matroska/WebM, WMA, AC-3, and E-AC-3.
 
+### Format and bitrate mode: CBR or VBR, measured not declared
+
+Audio-V reports container and codec, sample rate, bit depth, channel count and
+layout, duration, and average bitrate. For MP3 it additionally parses the frame
+headers directly for MPEG version, layer, and the encoded channel mode, so a
+joint-stereo file is not reported as plain stereo.
+
+Bitrate mode is **measured rather than read from a declared field**. Audio-V
+probes every audio packet in the stream, builds the per-packet bitrate
+distribution, and classifies from its spread:
+
+- packet count, and how much of the stream's duration those packets cover;
+- minimum, maximum, and mean per-packet bitrate;
+- the 5th and 95th percentiles, and the standard deviation;
+- **CBR** when the P05–P95 spread and the coefficient of variation are both
+  within 3% of the mean, otherwise **VBR**.
+
+Two consequences worth knowing. First, this works for any codec FFmpeg can
+demux, not only MP3, so AAC, Opus, and Vorbis get a real bitrate-mode answer
+instead of a shrug. Second, a file whose header or tags advertise one mode
+while the packets say otherwise is reported as what the packets actually are.
+The underlying distribution is exported alongside the verdict, so the
+classification can be checked rather than taken on trust.
+
+Bitrate mode appears next to the bitrate in Quick Inspect and on the technical
+detail panel, and is included in exported reports. When packet probing is
+unavailable for a stream it reads "Not probed" rather than guessing.
+
 ### Spectrogram: see frequency energy over time
 
 Choose 512, 2,048, 4,096, or 16,384-point inspection; combined, left, right,
