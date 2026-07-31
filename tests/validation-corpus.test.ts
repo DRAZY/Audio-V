@@ -495,6 +495,89 @@ describe("external dataset registry and adapters", () => {
     }
   });
 
+  it("selectively extracts balanced MUSDB mixtures without stems", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "audio-v-musdb-archive-"));
+    const source = path.join(root, "source", "musdb18hq");
+    const destination = path.join(root, "selected");
+    const archive = path.join(root, "musdb.zip");
+    try {
+      for (const [partition, track] of [
+        ["train", "Train One"],
+        ["train", "Train Two"],
+        ["test", "Test One"],
+        ["test", "Test Two"],
+      ]) {
+        const trackRoot = path.join(source, partition, track);
+        await fs.mkdir(trackRoot, { recursive: true });
+        await fs.writeFile(path.join(trackRoot, "mixture.wav"), "mixture");
+        await fs.writeFile(path.join(trackRoot, "vocals.wav"), "stem");
+      }
+      await fs.writeFile(path.join(source, "README.md"), "Academic terms");
+      execFileSync("zip", ["-qr", archive, "musdb18hq"], {
+        cwd: path.join(root, "source"),
+      });
+      execFileSync(
+        process.execPath,
+        [
+          "scripts/extract-external-dataset.mjs",
+          "--dataset",
+          "musdb18-hq",
+          "--file",
+          archive,
+          "--root",
+          destination,
+          "--candidate-limit",
+          "2",
+        ],
+        { cwd: process.cwd() },
+      );
+      const receipt = JSON.parse(
+        await fs.readFile(
+          path.join(destination, ".audio-v-extraction.json"),
+          "utf8",
+        ),
+      );
+      expect(receipt.discoveredEligibleEntries).toBe(4);
+      expect(
+        receipt.selectedEntries.filter((entry: string) =>
+          entry.endsWith("/mixture.wav"),
+        ),
+      ).toHaveLength(2);
+      expect(
+        receipt.selectedEntries.some((entry: string) =>
+          /\/train\/.*\/mixture\.wav$/u.test(entry),
+        ),
+      ).toBe(true);
+      expect(
+        receipt.selectedEntries.some((entry: string) =>
+          /\/test\/.*\/mixture\.wav$/u.test(entry),
+        ),
+      ).toBe(true);
+      expect(
+        receipt.selectedEntries.some((entry: string) =>
+          entry.endsWith("/vocals.wav"),
+        ),
+      ).toBe(false);
+      const candidates = await discoverDatasetCandidates(
+        {
+          id: "musdb18-hq",
+          displayName: "MUSDB18-HQ",
+          import: { adapter: "musdb18-hq" },
+        },
+        destination,
+      );
+      expect(candidates).toHaveLength(2);
+      expect(new Set(candidates.map((candidate) => candidate.category))).toEqual(
+        new Set(["mixture-train", "mixture-test"]),
+      );
+      expect(candidates.every((candidate) => candidate.licenseEvidence)).toBe(
+        true,
+      );
+    } finally {
+      await fs.rm(root, { recursive: true, force: true });
+    }
+  });
+
   it("attaches the nearest MUSAN component license evidence", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "audio-v-musan-"));
     try {

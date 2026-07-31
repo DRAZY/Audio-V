@@ -2,7 +2,7 @@
   "$schema": "./schemas/corpus.schema.json",
   "schemaVersion": 1,
   "corpusId": "audio-v-real-world",
-  "corpusVersion": "0.4.0",
+  "corpusVersion": "0.5.0",
   "description": "Licensed, provenance-labeled external reference recordings for real-world Oracle Engine validation. Synthetic fixtures are not registered here.",
   "policy": {
     "splitStrategy": "source-group-sha256-v1",
@@ -1870,6 +1870,426 @@
         "sampleRate": 16000,
         "bitDepth": 16,
         "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-MUSDB18HQ-1757878A918964AB",
+      "groupId": "musdb18-hq:music delta - rockabilly",
+      "split": "challenge",
+      "title": "Music Delta - Rockabilly",
+      "artist": "MUSDB18-HQ",
+      "file": ".audio/masters/AVC-M-MUSDB18HQ-1757878A918964AB.wav",
+      "sha256": "c6587d5efd41efa9f97b3794f9325088c9d7667c6b462a78e3b05b5b8ad2d70d",
+      "dataset": {
+        "id": "musdb18-hq",
+        "version": "1.0.0",
+        "sourceId": "train/Music Delta - Rockabilly/mixture.wav",
+        "category": "mixture-train",
+        "stratum": "mixture-train",
+        "role": "academic-challenge",
+        "officialUrl": "https://sigsep.github.io/datasets/musdb.html",
+        "licenseEvidence": {
+          "file": "zenodo-record.json",
+          "sha256": "68e1c319f358e1c2b809a268917a125c6351c4e20d60d271f2463c9624788419",
+          "reviewedUrl": "https://sigsep.github.io/datasets/musdb.html",
+          "acceptedAt": "2026-07-31"
+        }
+      },
+      "rights": {
+        "license": "MUSDB18-HQ-PER-TRACK",
+        "agreementId": "DATASET-REGISTRY-1.0.0-musdb18-hq",
+        "acceptedAt": "2026-07-31",
+        "redistributable": false,
+        "attribution": "MUSDB18-HQ · train/Music Delta - Rockabilly/mixture.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MUSDB18-HQ 1.0.0 dataset; source identity train/Music Delta - Rockabilly/mixture.wav; category mixture-train."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 2
+      }
+    },
+    {
+      "id": "AVC-M-MUSDB18HQ-1AD27F3F9D894B8A",
+      "groupId": "musdb18-hq:speak softly - like horses",
+      "split": "challenge",
+      "title": "Speak Softly - Like Horses",
+      "artist": "MUSDB18-HQ",
+      "file": ".audio/masters/AVC-M-MUSDB18HQ-1AD27F3F9D894B8A.wav",
+      "sha256": "fb3f97407001dfb48266476ea9dcc4b8ed00fb244b8edc6c758ef37c4bb36668",
+      "dataset": {
+        "id": "musdb18-hq",
+        "version": "1.0.0",
+        "sourceId": "test/Speak Softly - Like Horses/mixture.wav",
+        "category": "mixture-test",
+        "stratum": "mixture-test",
+        "role": "academic-challenge",
+        "officialUrl": "https://sigsep.github.io/datasets/musdb.html",
+        "licenseEvidence": {
+          "file": "zenodo-record.json",
+          "sha256": "68e1c319f358e1c2b809a268917a125c6351c4e20d60d271f2463c9624788419",
+          "reviewedUrl": "https://sigsep.github.io/datasets/musdb.html",
+          "acceptedAt": "2026-07-31"
+        }
+      },
+      "rights": {
+        "license": "MUSDB18-HQ-PER-TRACK",
+        "agreementId": "DATASET-REGISTRY-1.0.0-musdb18-hq",
+        "acceptedAt": "2026-07-31",
+        "redistributable": false,
+        "attribution": "MUSDB18-HQ · test/Speak Softly - Like Horses/mixture.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MUSDB18-HQ 1.0.0 dataset; source identity test/Speak Softly - Like Horses/mixture.wav; category mixture-test."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 2
+      }
+    },
+    {
+      "id": "AVC-M-MUSDB18HQ-321372164414FCBB",
+      "groupId": "musdb18-hq:bks - too much",
+      "split": "challenge",
+      "title": "BKS - Too Much",
+      "artist": "MUSDB18-HQ",
+      "file": ".audio/masters/AVC-M-MUSDB18HQ-321372164414FCBB.wav",
+      "sha256": "6cff57b76182fcce9c221d9892272afafc8c68f723c3971e1b43fe42ca1ddd6e",
+      "dataset": {
+        "id": "musdb18-hq",
+        "version": "1.0.0",
+        "sourceId": "test/BKS - Too Much/mixture.wav",
+        "category": "mixture-test",
+        "stratum": "mixture-test",
+        "role": "academic-challenge",
+        "officialUrl": "https://sigsep.github.io/datasets/musdb.html",
+        "licenseEvidence": {
+          "file": "zenodo-record.json",
+          "sha256": "68e1c319f358e1c2b809a268917a125c6351c4e20d60d271f2463c9624788419",
+          "reviewedUrl": "https://sigsep.github.io/datasets/musdb.html",
+          "acceptedAt": "2026-07-31"
+        }
+      },
+      "rights": {
+        "license": "MUSDB18-HQ-PER-TRACK",
+        "agreementId": "DATASET-REGISTRY-1.0.0-musdb18-hq",
+        "acceptedAt": "2026-07-31",
+        "redistributable": false,
+        "attribution": "MUSDB18-HQ · test/BKS - Too Much/mixture.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MUSDB18-HQ 1.0.0 dataset; source identity test/BKS - Too Much/mixture.wav; category mixture-test."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 2
+      }
+    },
+    {
+      "id": "AVC-M-MUSDB18HQ-78485AEF70484A71",
+      "groupId": "musdb18-hq:remember december - c u next time",
+      "split": "challenge",
+      "title": "Remember December - C U Next Time",
+      "artist": "MUSDB18-HQ",
+      "file": ".audio/masters/AVC-M-MUSDB18HQ-78485AEF70484A71.wav",
+      "sha256": "ccc7abe91407108bd198fd630474f8ee1fcecd26e54a2ca8ffb60f87652e81cf",
+      "dataset": {
+        "id": "musdb18-hq",
+        "version": "1.0.0",
+        "sourceId": "train/Remember December - C U Next Time/mixture.wav",
+        "category": "mixture-train",
+        "stratum": "mixture-train",
+        "role": "academic-challenge",
+        "officialUrl": "https://sigsep.github.io/datasets/musdb.html",
+        "licenseEvidence": {
+          "file": "zenodo-record.json",
+          "sha256": "68e1c319f358e1c2b809a268917a125c6351c4e20d60d271f2463c9624788419",
+          "reviewedUrl": "https://sigsep.github.io/datasets/musdb.html",
+          "acceptedAt": "2026-07-31"
+        }
+      },
+      "rights": {
+        "license": "MUSDB18-HQ-PER-TRACK",
+        "agreementId": "DATASET-REGISTRY-1.0.0-musdb18-hq",
+        "acceptedAt": "2026-07-31",
+        "redistributable": false,
+        "attribution": "MUSDB18-HQ · train/Remember December - C U Next Time/mixture.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MUSDB18-HQ 1.0.0 dataset; source identity train/Remember December - C U Next Time/mixture.wav; category mixture-train."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 2
+      }
+    },
+    {
+      "id": "AVC-M-MUSDB18HQ-7871131D794A7926",
+      "groupId": "musdb18-hq:clara berry and wooldog - waltz for my victims",
+      "split": "challenge",
+      "title": "Clara Berry And Wooldog - Waltz For My Victims",
+      "artist": "MUSDB18-HQ",
+      "file": ".audio/masters/AVC-M-MUSDB18HQ-7871131D794A7926.wav",
+      "sha256": "d9bae53f038eed5a596d0ab5a6e8852e99bd3a205c75e630f4cf764a3d093382",
+      "dataset": {
+        "id": "musdb18-hq",
+        "version": "1.0.0",
+        "sourceId": "train/Clara Berry And Wooldog - Waltz For My Victims/mixture.wav",
+        "category": "mixture-train",
+        "stratum": "mixture-train",
+        "role": "academic-challenge",
+        "officialUrl": "https://sigsep.github.io/datasets/musdb.html",
+        "licenseEvidence": {
+          "file": "zenodo-record.json",
+          "sha256": "68e1c319f358e1c2b809a268917a125c6351c4e20d60d271f2463c9624788419",
+          "reviewedUrl": "https://sigsep.github.io/datasets/musdb.html",
+          "acceptedAt": "2026-07-31"
+        }
+      },
+      "rights": {
+        "license": "MUSDB18-HQ-PER-TRACK",
+        "agreementId": "DATASET-REGISTRY-1.0.0-musdb18-hq",
+        "acceptedAt": "2026-07-31",
+        "redistributable": false,
+        "attribution": "MUSDB18-HQ · train/Clara Berry And Wooldog - Waltz For My Victims/mixture.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MUSDB18-HQ 1.0.0 dataset; source identity train/Clara Berry And Wooldog - Waltz For My Victims/mixture.wav; category mixture-train."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 2
+      }
+    },
+    {
+      "id": "AVC-M-MUSDB18HQ-7B521E1EDD4E50FB",
+      "groupId": "musdb18-hq:the easton ellises - falcon 69",
+      "split": "challenge",
+      "title": "The Easton Ellises - Falcon 69",
+      "artist": "MUSDB18-HQ",
+      "file": ".audio/masters/AVC-M-MUSDB18HQ-7B521E1EDD4E50FB.wav",
+      "sha256": "999ad32bd3cef63f320e750c70158693aa80bda240c9efa0f6b6f9e7d36a472c",
+      "dataset": {
+        "id": "musdb18-hq",
+        "version": "1.0.0",
+        "sourceId": "test/The Easton Ellises - Falcon 69/mixture.wav",
+        "category": "mixture-test",
+        "stratum": "mixture-test",
+        "role": "academic-challenge",
+        "officialUrl": "https://sigsep.github.io/datasets/musdb.html",
+        "licenseEvidence": {
+          "file": "zenodo-record.json",
+          "sha256": "68e1c319f358e1c2b809a268917a125c6351c4e20d60d271f2463c9624788419",
+          "reviewedUrl": "https://sigsep.github.io/datasets/musdb.html",
+          "acceptedAt": "2026-07-31"
+        }
+      },
+      "rights": {
+        "license": "MUSDB18-HQ-PER-TRACK",
+        "agreementId": "DATASET-REGISTRY-1.0.0-musdb18-hq",
+        "acceptedAt": "2026-07-31",
+        "redistributable": false,
+        "attribution": "MUSDB18-HQ · test/The Easton Ellises - Falcon 69/mixture.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MUSDB18-HQ 1.0.0 dataset; source identity test/The Easton Ellises - Falcon 69/mixture.wav; category mixture-test."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 2
+      }
+    },
+    {
+      "id": "AVC-M-MUSDB18HQ-AC0066D4929E5FE3",
+      "groupId": "musdb18-hq:signe jakobsen - what have you done to me",
+      "split": "challenge",
+      "title": "Signe Jakobsen - What Have You Done To Me",
+      "artist": "MUSDB18-HQ",
+      "file": ".audio/masters/AVC-M-MUSDB18HQ-AC0066D4929E5FE3.wav",
+      "sha256": "50cfe9a5b056bc6ba95f4e9416c2f3158350b854171a65403034e0b559279cf5",
+      "dataset": {
+        "id": "musdb18-hq",
+        "version": "1.0.0",
+        "sourceId": "test/Signe Jakobsen - What Have You Done To Me/mixture.wav",
+        "category": "mixture-test",
+        "stratum": "mixture-test",
+        "role": "academic-challenge",
+        "officialUrl": "https://sigsep.github.io/datasets/musdb.html",
+        "licenseEvidence": {
+          "file": "zenodo-record.json",
+          "sha256": "68e1c319f358e1c2b809a268917a125c6351c4e20d60d271f2463c9624788419",
+          "reviewedUrl": "https://sigsep.github.io/datasets/musdb.html",
+          "acceptedAt": "2026-07-31"
+        }
+      },
+      "rights": {
+        "license": "MUSDB18-HQ-PER-TRACK",
+        "agreementId": "DATASET-REGISTRY-1.0.0-musdb18-hq",
+        "acceptedAt": "2026-07-31",
+        "redistributable": false,
+        "attribution": "MUSDB18-HQ · test/Signe Jakobsen - What Have You Done To Me/mixture.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MUSDB18-HQ 1.0.0 dataset; source identity test/Signe Jakobsen - What Have You Done To Me/mixture.wav; category mixture-test."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 2
+      }
+    },
+    {
+      "id": "AVC-M-MUSDB18HQ-BCE709B26EB27AD2",
+      "groupId": "musdb18-hq:port st willow - stay even",
+      "split": "challenge",
+      "title": "Port St Willow - Stay Even",
+      "artist": "MUSDB18-HQ",
+      "file": ".audio/masters/AVC-M-MUSDB18HQ-BCE709B26EB27AD2.wav",
+      "sha256": "d2197853813bf29ca1dffe7aa8e675696ef2565f9e40c6fcff04cb60a7112267",
+      "dataset": {
+        "id": "musdb18-hq",
+        "version": "1.0.0",
+        "sourceId": "train/Port St Willow - Stay Even/mixture.wav",
+        "category": "mixture-train",
+        "stratum": "mixture-train",
+        "role": "academic-challenge",
+        "officialUrl": "https://sigsep.github.io/datasets/musdb.html",
+        "licenseEvidence": {
+          "file": "zenodo-record.json",
+          "sha256": "68e1c319f358e1c2b809a268917a125c6351c4e20d60d271f2463c9624788419",
+          "reviewedUrl": "https://sigsep.github.io/datasets/musdb.html",
+          "acceptedAt": "2026-07-31"
+        }
+      },
+      "rights": {
+        "license": "MUSDB18-HQ-PER-TRACK",
+        "agreementId": "DATASET-REGISTRY-1.0.0-musdb18-hq",
+        "acceptedAt": "2026-07-31",
+        "redistributable": false,
+        "attribution": "MUSDB18-HQ · train/Port St Willow - Stay Even/mixture.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MUSDB18-HQ 1.0.0 dataset; source identity train/Port St Willow - Stay Even/mixture.wav; category mixture-train."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 2
+      }
+    },
+    {
+      "id": "AVC-M-MUSDB18HQ-E6430C221F49CF76",
+      "groupId": "musdb18-hq:secretariat - borderline",
+      "split": "challenge",
+      "title": "Secretariat - Borderline",
+      "artist": "MUSDB18-HQ",
+      "file": ".audio/masters/AVC-M-MUSDB18HQ-E6430C221F49CF76.wav",
+      "sha256": "808f6f3258c9ed9ad505f67b5f2492f192cefdbbed516a05d1914f075967d3c0",
+      "dataset": {
+        "id": "musdb18-hq",
+        "version": "1.0.0",
+        "sourceId": "test/Secretariat - Borderline/mixture.wav",
+        "category": "mixture-test",
+        "stratum": "mixture-test",
+        "role": "academic-challenge",
+        "officialUrl": "https://sigsep.github.io/datasets/musdb.html",
+        "licenseEvidence": {
+          "file": "zenodo-record.json",
+          "sha256": "68e1c319f358e1c2b809a268917a125c6351c4e20d60d271f2463c9624788419",
+          "reviewedUrl": "https://sigsep.github.io/datasets/musdb.html",
+          "acceptedAt": "2026-07-31"
+        }
+      },
+      "rights": {
+        "license": "MUSDB18-HQ-PER-TRACK",
+        "agreementId": "DATASET-REGISTRY-1.0.0-musdb18-hq",
+        "acceptedAt": "2026-07-31",
+        "redistributable": false,
+        "attribution": "MUSDB18-HQ · test/Secretariat - Borderline/mixture.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MUSDB18-HQ 1.0.0 dataset; source identity test/Secretariat - Borderline/mixture.wav; category mixture-test."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 2
+      }
+    },
+    {
+      "id": "AVC-M-MUSDB18HQ-FAB529DC5BD1923F",
+      "groupId": "musdb18-hq:alexander ross - velvet curtain",
+      "split": "challenge",
+      "title": "Alexander Ross - Velvet Curtain",
+      "artist": "MUSDB18-HQ",
+      "file": ".audio/masters/AVC-M-MUSDB18HQ-FAB529DC5BD1923F.wav",
+      "sha256": "95218137ee364f0d0e3858070fc5ff988069e91459c677944b3fab5514f3d1ae",
+      "dataset": {
+        "id": "musdb18-hq",
+        "version": "1.0.0",
+        "sourceId": "train/Alexander Ross - Velvet Curtain/mixture.wav",
+        "category": "mixture-train",
+        "stratum": "mixture-train",
+        "role": "academic-challenge",
+        "officialUrl": "https://sigsep.github.io/datasets/musdb.html",
+        "licenseEvidence": {
+          "file": "zenodo-record.json",
+          "sha256": "68e1c319f358e1c2b809a268917a125c6351c4e20d60d271f2463c9624788419",
+          "reviewedUrl": "https://sigsep.github.io/datasets/musdb.html",
+          "acceptedAt": "2026-07-31"
+        }
+      },
+      "rights": {
+        "license": "MUSDB18-HQ-PER-TRACK",
+        "agreementId": "DATASET-REGISTRY-1.0.0-musdb18-hq",
+        "acceptedAt": "2026-07-31",
+        "redistributable": false,
+        "attribution": "MUSDB18-HQ · train/Alexander Ross - Velvet Curtain/mixture.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MUSDB18-HQ 1.0.0 dataset; source identity train/Alexander Ross - Velvet Curtain/mixture.wav; category mixture-train."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 2
       }
     },
     {

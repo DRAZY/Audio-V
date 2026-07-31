@@ -117,12 +117,14 @@ Audio-V should continue saying **possible** and **inconclusive**, publishing
 rule strength and evidence coverage rather than a fabricated confidence
 percentage.
 
-The first external scorecard adds 20 independent MUSAN references and 540
-controlled edge cases. All 540 safely abstained and none produced a transcode
-or upsample advisory. This is useful false-advisory evidence, not an origin
-sensitivity score: MUSAN’s selected 16-kHz material is intentionally excluded
-from wideband transcode/upsample recall and precision calculations. Slakh2100
-remains the next required public wideband baseline.
+The current external scorecard covers 85 independent references and 2,295
+controlled cases across all five registered datasets. The public population
+reaches 50 independent references; local challenge coverage now includes EBU
+SQAM, composition-unique MAESTRO recordings, and balanced MUSDB18-HQ train/test
+mixtures. This is strong false-advisory evidence, not an origin-sensitivity
+claim: the measured scorecard still reports zero positive detections across its
+controlled lossy and upsample derivatives, so probability calibration and
+authoritative positive-origin claims remain gated.
 
 ## Post-1.0 opportunities
 

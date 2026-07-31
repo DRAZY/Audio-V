@@ -211,6 +211,9 @@ async function discoverEbu(dataset, root, files) {
 }
 
 async function discoverMusdb(dataset, root, files) {
+  const licenseFilePath = files.find((filePath) =>
+    /^(?:license|readme)/iu.test(path.basename(filePath)),
+  );
   return files
     .filter(
       (filePath) =>
@@ -232,6 +235,10 @@ async function discoverMusdb(dataset, root, files) {
         artist: "MUSDB18-HQ",
         category: `mixture-${partition.toLowerCase()}`,
         stratum: `mixture-${partition.toLowerCase()}`,
+        licenseFilePath: licenseFilePath ?? null,
+        licenseEvidence: licenseFilePath
+          ? normalizedRelative(root, licenseFilePath)
+          : null,
       };
     });
 }

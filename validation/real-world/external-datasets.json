@@ -204,19 +204,24 @@
       "priority": 5,
       "role": "academic-challenge",
       "version": "1.0.0",
-      "status": "manual-approval",
+      "status": "ready-research-only",
       "license": {
         "identifier": "MUSDB18-HQ-PER-TRACK",
         "name": "MUSDB18-HQ academic and per-track terms",
         "url": "https://sigsep.github.io/datasets/musdb.html",
         "redistributableInCorpus": false,
         "commercialUsePermitted": false,
-        "notes": "Access is approved for academic use and licenses differ by track. Keep audio local and preserve the supplied per-track license record."
+        "notes": "Access is approved for educational and academic use. Keep audio local, bind the hashed official Zenodo record to imported references, and complete a separate rights review before redistributing any track."
       },
       "official": {
         "homepage": "https://sigsep.github.io/datasets/musdb.html",
         "download": "https://zenodo.org/records/3338373",
-        "access": "approval"
+        "metadataUrl": "https://zenodo.org/api/records/3338373",
+        "archiveUrl": "https://zenodo.org/api/records/3338373/files/musdb18hq.zip/content",
+        "archiveFilename": "musdb18hq.zip",
+        "archiveBytes": 22656664047,
+        "archiveChecksum": "md5:12d4f2ecd55245a4688754dd76363103",
+        "access": "direct"
       },
       "audio": {
         "lossless": true,
@@ -229,7 +234,7 @@
         "adapter": "musdb18-hq",
         "defaultLimit": 10,
         "include": ["train/*/mixture.wav", "test/*/mixture.wav"],
-        "sourceIdentity": "Track directory and per-track license"
+        "sourceIdentity": "Official partition, track directory, and hashed Zenodo terms record"
       },
       "recommendedUse": [
         "Multi-genre natural music challenge testing",
@@ -237,7 +242,7 @@
         "False-positive investigation"
       ],
       "limitations": [
-        "The dataset requires access approval and is limited to academic use.",
+        "The dataset is limited to educational and academic use under its supplied terms.",
         "Track licenses vary; no entry may become a public corpus reference without separate rights review."
       ]
     }

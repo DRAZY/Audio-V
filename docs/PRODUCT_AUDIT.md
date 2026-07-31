@@ -253,7 +253,7 @@ Gate 5 is complete for automated repository readiness and local-package validati
 - Settings reads the exact status shipped with the package and exposes public-reference, source-group, case, corpus-version, and claim-level information.
 - Reports state that heuristic rule strength is not a probability-calibrated provenance claim.
 
-Infrastructure is complete and the first external milestone is measured: 20 independent MUSAN references produce 540 accepted narrow-band edge-control cases with 100% safe abstention and no origin advisories. The packaged claim level is `edge-control-evidence-only`, because MUSAN does not populate the eligible wideband transcode/upsample sensitivity lanes. Slakh2100 remains the next public baseline.
+Infrastructure is complete and all five registered sources are measured: 85 independent references produce 2,295 cases across MUSAN, Slakh2100 Redux, EBU SQAM, MAESTRO, and MUSDB18-HQ. The public population reaches the numeric 50-reference target, and the restricted sources remain local challenge evidence. The scorecard demonstrates zero false origin advisories on its eligible negative populations but zero positive detections on controlled lossy and upsample transformations; that published recall gap prevents probability-calibrated or authoritative provenance claims.
 
 ### Provenance, automation, and identity milestone status
 

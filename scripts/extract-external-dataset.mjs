@@ -143,6 +143,61 @@ function maestroEntries(archivePath, candidateLimit) {
   };
 }
 
+function musdbEntries(archivePath, candidateLimit) {
+  const listing = execFileSync("unzip", ["-Z1", archivePath], {
+    encoding: "utf8",
+    maxBuffer: 128 * 1024 * 1024,
+  })
+    .split(/\r?\n/u)
+    .filter(Boolean);
+  const candidates = listing.filter(
+    (entry) =>
+      safeArchiveEntry(entry) &&
+      /(?:^|\/)(?:train|test)\/[^/]+\/mixture\.wav$/iu.test(entry),
+  );
+  if (candidates.length === 0) {
+    throw new Error(
+      "The MUSDB18-HQ archive contains no eligible train/test mixture WAV files.",
+    );
+  }
+  const selectedMixtures = [];
+  const partitions = ["train", "test"];
+  const baseAllocation = Math.floor(candidateLimit / partitions.length);
+  let remaining = candidateLimit;
+  for (const [index, partition] of partitions.entries()) {
+    const partitionCandidates = candidates.filter((entry) =>
+      new RegExp(`(?:^|/)${partition}/[^/]+/mixture\\.wav$`, "iu").test(entry),
+    );
+    const slots =
+      index === partitions.length - 1
+        ? remaining
+        : Math.min(baseAllocation, remaining);
+    const selected = deterministicOrder(partitionCandidates).slice(0, slots);
+    selectedMixtures.push(...selected);
+    remaining -= selected.length;
+  }
+  if (remaining > 0) {
+    const selectedSet = new Set(selectedMixtures);
+    selectedMixtures.push(
+      ...deterministicOrder(
+        candidates.filter((entry) => !selectedSet.has(entry)),
+      ).slice(0, remaining),
+    );
+  }
+  const supportingEntries = listing.filter(
+    (entry) =>
+      safeArchiveEntry(entry) &&
+      !entry.endsWith("/") &&
+      /(?:^|\/)(?:license[^/]*|readme[^/]*|musdb[^/]*\.(?:json|ya?ml))$/iu.test(
+        entry,
+      ),
+  );
+  return {
+    discovered: candidates.length,
+    selected: [...new Set([...supportingEntries, ...selectedMixtures])],
+  };
+}
+
 const args = argumentsMap(process.argv.slice(2));
 const datasetId = required(args, "dataset");
 const archivePath = path.resolve(required(args, "file"));
@@ -170,6 +225,12 @@ if (dataset.import.adapter === "slakh2100") {
   ];
 } else if (dataset.import.adapter === "maestro") {
   plan = maestroEntries(archivePath, candidateLimit);
+  archiveCommand = [
+    "unzip",
+    ["-q", archivePath, ...plan.selected, "-d", destinationRoot],
+  ];
+} else if (dataset.import.adapter === "musdb18-hq") {
+  plan = musdbEntries(archivePath, candidateLimit);
   archiveCommand = [
     "unzip",
     ["-q", archivePath, ...plan.selected, "-d", destinationRoot],

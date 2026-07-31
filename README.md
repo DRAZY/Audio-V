@@ -524,11 +524,15 @@ does not publish real-world false-positive or false-negative rates until enough
 independent external references and a held-out challenge set satisfy the
 documented thresholds.
 
-The first external milestone now contains 20 independent MUSAN references and
-540 controlled edge cases. Every case safely abstained and none produced an
-origin advisory. That validates conservative handling of narrow-band material;
-it is not presented as transcode or upsample accuracy. Slakh2100 is the next
-wideband controlled-source milestone.
+The measured corpus now contains 85 independent references across MUSAN,
+Slakh2100 Redux, EBU SQAM, MAESTRO, and MUSDB18-HQ, producing 2,295 controlled
+cases. The public population reaches the documented 50-reference target, while
+MAESTRO, EBU SQAM, and MUSDB18-HQ remain local, nonredistributable challenge
+sets. Results show zero false lossy-origin advisories across 975 eligible
+negative cases and zero false upsample advisories across 1,495 eligible negative
+cases. They also show that Oracle’s current positive-origin recall remains
+unacceptably low, so Audio-V publishes that limitation rather than presenting
+the corpus as proof of universal provenance accuracy.
 
 ## Privacy
 

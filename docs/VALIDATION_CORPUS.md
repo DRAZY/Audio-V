@@ -23,7 +23,7 @@ The versioned registry at `validation/real-world/external-datasets.json` is the 
 | 2 | MUSAN | Music, speech, and noise false-positive controls | Yes, CC BY 4.0 | Direct, approximately 11 GB |
 | 3 | MAESTRO v3 | Natural recorded-piano challenge population | No, CC BY-NC-SA | Direct, approximately 101 GB compressed |
 | 4 | EBU SQAM | Standardized codec and audio-system test material | No, local testing under EBU terms | Manual terms review |
-| 5 | MUSDB18-HQ | Multi-genre, full-bandwidth academic challenge population | No, academic/per-track terms | Access approval |
+| 5 | MUSDB18-HQ | Multi-genre, full-bandwidth academic challenge population | No, educational/academic and per-track terms | Authorized direct download, approximately 22.7 GB |
 
 Slakh2100 and MUSAN can advance the reproducible public pilot. MAESTRO, EBU SQAM, and MUSDB18-HQ broaden real-world testing without being silently relicensed or shipped through Audio-V.
 
@@ -76,32 +76,34 @@ The state is **external references pending** before import, **pilot building** b
 
 ## Current measured milestone
 
-Corpus `0.4.0` contains 75 independent references: 20 public MUSAN edge
+Corpus `0.5.0` contains 85 independent references: 20 public MUSAN edge
 controls, 30 public Slakh2100 Redux controlled sources, 10 local EBU SQAM
-challenge references, and 15 local MAESTRO composition-unique piano challenge
-references. The public population has 30 development, 10 calibration, and 10
-held-out test source groups and reaches the numeric 50-reference target.
+challenge references, 15 local MAESTRO composition-unique piano challenge
+references, and 10 local MUSDB18-HQ full-bandwidth mixtures balanced between
+the official train and test partitions. The public population has 30
+development, 10 calibration, and 10 held-out test source groups and reaches the
+numeric 50-reference target.
 
-Oracle Engine `0.10.0-oracle-v12` evaluated 2,025 generated cases:
+Oracle Engine `0.10.0-oracle-v12` evaluated 2,295 generated cases:
 
-- 1,625 scored cases and 400 observational-only origin-positive cases;
-- 1,412/1,625 accepted scored outcomes (86.89% case-weighted, descriptive);
-- 45/75 source groups with every scored case accepted;
-- zero lossy-origin false advisories across 825 eligible negative cases;
-- zero upsample false advisories across 1,265 eligible negative cases;
+- 1,735 scored cases and 560 observational-only origin-positive cases;
+- 1,522/1,735 accepted scored outcomes (87.72% case-weighted, descriptive);
+- 55/85 source groups with every scored case accepted;
+- zero lossy-origin false advisories across 975 eligible negative cases;
+- zero upsample false advisories across 1,495 eligible negative cases;
 - zero explicit positive advisories across 360 controlled lossy derivatives;
 - zero explicit positive advisories across 120 controlled upsample derivatives;
 - 540/540 safe MUSAN edge-control abstentions; and
-- 165/165 accepted scored MAESTRO challenge outcomes, while all MAESTRO origin
-  lanes abstained.
+- 110/110 accepted scored MUSDB18-HQ challenge outcomes, with 160 additional
+  positive-origin transformations retained as observational-only.
 
 This is a useful, intentionally uncomfortable result. It demonstrates strong
 specificity and conservative abstention on the disclosed population, but it
 also establishes a severe positive-detection coverage gap. Reaching the source
 count target does **not** make the detector probability-calibrated or
 authoritative. The current aggregate scorecard is published at
-`validation/real-world/scorecards/0.10.0-oracle-v12-corpus-0.4.0.json`; the
-`0.3.0` scorecard remains as the pre-MAESTRO historical measurement.
+`validation/real-world/scorecards/0.10.0-oracle-v12-corpus-0.5.0.json`; earlier
+scorecards remain immutable historical measurements.
 
 Derivative case counts are reported for debugging and recipe-level comparison,
 but they are not treated as independent observations. Headline uncertainty is
@@ -166,6 +168,21 @@ npm run corpus:extract -- \
   --file "/external/datasets/downloads/maestro-v3.0.0.zip" \
   --root "/external/datasets/maestro-selected" \
   --candidate-limit 60
+```
+
+MUSDB18-HQ also uses the selective ZIP path. Audio-V balances the selection
+between the official train and test partitions and extracts only
+`mixture.wav` plus any archive-supplied readme/license records; isolated source
+stems are not copied into the validation workspace. The current official
+archive contains no readme/license file, so import requires a locally saved,
+hashed copy of the official Zenodo record as terms evidence:
+
+```bash
+npm run corpus:extract -- \
+  --dataset musdb18-hq \
+  --file "/external/datasets/downloads/musdb18hq.zip" \
+  --root "/external/datasets/musdb18-hq-selected" \
+  --candidate-limit 40
 ```
 
 Alternatively, download a dataset from the official URL recorded in the
