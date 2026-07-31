@@ -1,10 +1,12 @@
 import { promises as fs } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import {
   analyzeAudioFile,
   engineVersion,
 } from "../dist-electron/electron/oracle/oracle-engine.js";
 import {
+  acceptanceEligibilityForCase,
   clopperPearson,
   corpusDirectory,
   corpusPath,
@@ -20,18 +22,24 @@ import {
 } from "./lib/validation-corpus.mjs";
 
 const outputPath = path.join(root, "build", "real-world-scorecard-latest.json");
+const checkpointPath = path.join(
+  root,
+  "build",
+  "real-world-evaluation-checkpoint-latest.json",
+);
 const corpus = await readJson(corpusPath);
 const validation = validateCorpus(corpus);
 const externalDatasets = await readJson(externalDatasetsPath);
 validation.errors.push(...validateExternalDatasets(externalDatasets).errors);
 if (validation.errors.length) throw new Error(validation.errors.join("\n"));
 
-function rate(successes, total) {
+function rate(successes, total, independenceUnit = "generated-case") {
   return {
     numerator: successes,
     denominator: total,
     percent: total ? Number(((successes / total) * 100).toFixed(2)) : null,
     confidence95Percent: clopperPearson(successes, total),
+    independenceUnit,
   };
 }
 
@@ -64,17 +72,63 @@ try {
 } catch {
   // A fresh evaluation has no reusable prior results.
 }
+let priorCheckpoint = null;
+try {
+  priorCheckpoint = await readJson(checkpointPath);
+} catch {
+  // An uninterrupted or completed evaluation has no checkpoint.
+}
+const reusableCandidates = [
+  ...(priorScorecard?.engineVersion === engineVersion
+    ? priorScorecard.results ?? []
+    : []),
+  ...(priorCheckpoint?.engineVersion === engineVersion &&
+  priorCheckpoint?.corpusVersion === generated.corpusVersion &&
+  priorCheckpoint?.recipeSetVersion === generated.recipeSetVersion
+    ? priorCheckpoint.results ?? []
+    : []),
+];
 const reusableResults = new Map(
-  priorScorecard?.engineVersion === engineVersion
-    ? (priorScorecard.results ?? []).map((item) => [
-        `${item.id}:${item.sha256}`,
-        item,
-      ])
-    : [],
+  reusableCandidates.map((item) => [`${item.id}:${item.sha256}`, item]),
 );
-const results = [];
+const requestedConcurrency = Number.parseInt(
+  process.env.AUDIO_V_VALIDATION_CONCURRENCY ?? "",
+  10,
+);
+const evaluationConcurrency = Number.isInteger(requestedConcurrency)
+  ? Math.max(1, Math.min(8, requestedConcurrency))
+  : Math.max(1, Math.min(4, os.availableParallelism()));
+const results = new Array(generated.cases.length);
 let reusedCases = 0;
-for (const item of generated.cases) {
+let completedCases = 0;
+let nextCaseIndex = 0;
+let newlyAnalyzedSinceCheckpoint = 0;
+let checkpointWrite = Promise.resolve();
+
+function saveCheckpoint() {
+  const completedResults = results.filter(Boolean);
+  const checkpoint = {
+    schema: "Audio-V real-world evaluation checkpoint v1",
+    engineVersion,
+    corpusVersion: generated.corpusVersion,
+    recipeSetVersion: generated.recipeSetVersion,
+    completedCases: completedResults.length,
+    updatedAt: new Date().toISOString(),
+    results: completedResults,
+  };
+  checkpointWrite = checkpointWrite.then(async () => {
+    const temporaryPath = `${checkpointPath}.tmp`;
+    await fs.mkdir(path.dirname(checkpointPath), { recursive: true });
+    await fs.writeFile(
+      temporaryPath,
+      `${JSON.stringify(checkpoint, null, 2)}\n`,
+    );
+    await fs.rename(temporaryPath, checkpointPath);
+  });
+  return checkpointWrite;
+}
+
+async function evaluateCase(item) {
   const filePath = path.join(corpusDirectory, item.file);
   const actualHash = await sha256File(filePath);
   if (actualHash !== item.sha256) {
@@ -95,6 +149,7 @@ for (const item of generated.cases) {
     };
   } else {
     const result = await analyzeAudioFile(filePath);
+    newlyAnalyzedSinceCheckpoint += 1;
     observed = {
       actualClassification:
         result.fidelity?.classification ?? "not-assessed",
@@ -137,16 +192,58 @@ for (const item of generated.cases) {
         item.expected.minimumClippedSamples,
     );
   }
-  results.push({
+  const acceptanceEligibility =
+    item.acceptanceEligibility ??
+    acceptanceEligibilityForCase(
+      item.originDetectorEligibility,
+      item.truthClass,
+    );
+  return {
     ...item,
     ...observed,
-    passed: checks.length > 0 && checks.every(Boolean),
-  });
-  if (results.length % 25 === 0 || results.length === generated.cases.length) {
-    console.log(
-      `Evaluated ${results.length}/${generated.cases.length} controlled cases.`,
-    );
+    acceptanceEligibility,
+    passed:
+      acceptanceEligibility === "scored"
+        ? checks.length > 0 && checks.every(Boolean)
+        : null,
+  };
+}
+
+async function evaluationWorker() {
+  while (nextCaseIndex < generated.cases.length) {
+    const caseIndex = nextCaseIndex;
+    nextCaseIndex += 1;
+    results[caseIndex] = await evaluateCase(generated.cases[caseIndex]);
+    completedCases += 1;
+    if (
+      completedCases % 25 === 0 ||
+      completedCases === generated.cases.length
+    ) {
+      console.log(
+        `Evaluated ${completedCases}/${generated.cases.length} controlled cases.`,
+      );
+    }
+    if (
+      newlyAnalyzedSinceCheckpoint >= 25 ||
+      completedCases === generated.cases.length
+    ) {
+      newlyAnalyzedSinceCheckpoint = 0;
+      await saveCheckpoint();
+    }
   }
+}
+
+if (generated.cases.length > 0) {
+  console.log(
+    `Real-world evaluation concurrency: ${evaluationConcurrency} bounded worker(s).`,
+  );
+  await Promise.all(
+    Array.from(
+      { length: Math.min(evaluationConcurrency, generated.cases.length) },
+      () => evaluationWorker(),
+    ),
+  );
+  await checkpointWrite;
 }
 
 function detectorMetrics(classification, truthClasses, population = results) {
@@ -237,12 +334,17 @@ function groupedMetrics(key) {
     [...groups.entries()]
       .sort(([left], [right]) => String(left).localeCompare(String(right)))
       .map(([group, population]) => {
-        const passed = population.filter((item) => item.passed).length;
+        const scoredPopulation = population.filter(
+          (item) => item.acceptanceEligibility !== "observational-only",
+        );
+        const passed = scoredPopulation.filter((item) => item.passed).length;
         return [
           group,
           {
             cases: population.length,
-            acceptedClassificationRate: rate(passed, population.length),
+            scoredCases: scoredPopulation.length,
+            observationalCases: population.length - scoredPopulation.length,
+            acceptedClassificationRate: rate(passed, scoredPopulation.length),
             lossyToLossless: detectorMetrics(
               "possible-lossy-transcode",
               ["lossy-to-lossless", "multi-generation-lossy"],
@@ -259,7 +361,30 @@ function groupedMetrics(key) {
   );
 }
 
-const passedCases = results.filter((item) => item.passed).length;
+const scoredResults = results.filter(
+  (item) => item.acceptanceEligibility !== "observational-only",
+);
+const observationalResults = results.filter(
+  (item) => item.acceptanceEligibility === "observational-only",
+);
+const passedCases = scoredResults.filter((item) => item.passed).length;
+const resultsBySourceGroup = new Map();
+for (const item of results) {
+  const population = resultsBySourceGroup.get(item.groupId) ?? [];
+  population.push(item);
+  resultsBySourceGroup.set(item.groupId, population);
+}
+const passedSourceGroups = [...resultsBySourceGroup.values()].filter(
+  (population) => {
+    const scoredPopulation = population.filter(
+      (item) => item.acceptanceEligibility !== "observational-only",
+    );
+    return (
+      scoredPopulation.length > 0 &&
+      scoredPopulation.every((item) => item.passed)
+    );
+  },
+).length;
 const originEligibleCases = results.filter(
   (item) => item.originDetectorEligibility !== "edge-abstention",
 ).length;
@@ -281,6 +406,17 @@ const scorecard = {
   independentMasters: corpus.masters.length,
   independentReferences: validation.groupCount,
   contributorGroups: validation.groupCount,
+  sourceGroupAcceptance: {
+    total: resultsBySourceGroup.size,
+    passed: passedSourceGroups,
+    failed: resultsBySourceGroup.size - passedSourceGroups,
+    acceptedRate: rate(
+      passedSourceGroups,
+      resultsBySourceGroup.size,
+      "independent-source-group",
+    ),
+    rule: "A source group passes only when every scored generated case for that source is accepted; observational-only cases are excluded.",
+  },
   cases: {
     total: results.length,
     originEligible: originEligibleCases,
@@ -303,8 +439,10 @@ const scorecard = {
       (item) => item.sourceStratum ?? "unspecified",
     ),
     passed: passedCases,
-    failed: results.length - passedCases,
-    acceptedClassificationRate: rate(passedCases, results.length),
+    failed: scoredResults.length - passedCases,
+    scored: scoredResults.length,
+    observationalOnly: observationalResults.length,
+    acceptedClassificationRate: rate(passedCases, scoredResults.length),
   },
   detectors: {
     lossyToLossless: detectorMetrics(
@@ -333,17 +471,19 @@ const scorecard = {
     ),
   },
   confidenceInterval:
-    "Exact two-sided 95% Clopper-Pearson binomial interval; derivatives remain grouped by independent source recording.",
+    "Exact two-sided 95% Clopper-Pearson binomial intervals. The headline sourceGroupAcceptance interval uses independent source groups; generated-case intervals are descriptive because derivatives from one source are correlated.",
   limitations: [
     "A derivative is a validation case, not an independent source recording.",
+    "Case-weighted confidence intervals must not be presented as independent-sample accuracy bounds.",
     "Results apply only to the disclosed corpus, transformations, and Oracle Engine version.",
     "No probability-calibrated provenance claim is permitted until the target corpus and private challenge evaluation are complete.",
   ],
   results,
 };
 await writeJson(outputPath, scorecard);
+await fs.rm(checkpointPath, { force: true });
 console.log(
   results.length
-    ? `Real-world corpus: ${passedCases}/${results.length} cases accepted across ${corpus.masters.length} independent references.`
+    ? `Real-world corpus: ${passedCases}/${scoredResults.length} scored cases accepted across ${corpus.masters.length} independent references; ${observationalResults.length} observational case(s) retained without acceptance scoring.`
     : "Real-world corpus: no licensed external references imported; wrote an explicit not-evaluated scorecard.",
 );

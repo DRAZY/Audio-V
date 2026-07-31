@@ -28,10 +28,22 @@ function required(args, name) {
   return value;
 }
 
-async function digestFile(filePath, algorithm) {
-  const hash = createHash(algorithm);
-  for await (const chunk of createReadStream(filePath)) hash.update(chunk);
-  return hash.digest("hex");
+async function digestFile(filePath, algorithms) {
+  const hashes = Object.fromEntries(
+    [...new Set(algorithms)].map((algorithm) => [
+      algorithm,
+      createHash(algorithm),
+    ]),
+  );
+  for await (const chunk of createReadStream(filePath)) {
+    for (const hash of Object.values(hashes)) hash.update(chunk);
+  }
+  return Object.fromEntries(
+    Object.entries(hashes).map(([algorithm, hash]) => [
+      algorithm,
+      hash.digest("hex"),
+    ]),
+  );
 }
 
 const args = argumentsMap(process.argv.slice(2));
@@ -42,6 +54,8 @@ const validation = validateExternalDatasets(registry);
 if (validation.errors.length) throw new Error(validation.errors.join("\n"));
 const dataset = registry.datasets.find((item) => item.id === datasetId);
 if (!dataset) throw new Error(`Unknown external dataset ${datasetId}.`);
+const transportUrl =
+  args.get("transport-url") ?? dataset.official.archiveUrl ?? null;
 const stat = await fs.stat(archivePath);
 if (!stat.isFile()) throw new Error("External dataset archive must be a file.");
 if (
@@ -53,22 +67,27 @@ if (
   );
 }
 let publishedChecksum = null;
+const [publishedAlgorithm, expectedPublishedChecksum] =
+  dataset.official.archiveChecksum?.split(":") ?? [];
+const digests = await digestFile(
+  archivePath,
+  [publishedAlgorithm, "sha256"].filter(Boolean),
+);
 if (dataset.official.archiveChecksum) {
-  const [algorithm, expected] = dataset.official.archiveChecksum.split(":");
-  const actual = await digestFile(archivePath, algorithm);
-  if (actual !== expected) {
+  const actual = digests[publishedAlgorithm];
+  if (actual !== expectedPublishedChecksum) {
     throw new Error(
-      `${dataset.displayName} ${algorithm.toUpperCase()} mismatch: expected ${expected}, received ${actual}.`,
+      `${dataset.displayName} ${publishedAlgorithm.toUpperCase()} mismatch: expected ${expectedPublishedChecksum}, received ${actual}.`,
     );
   }
   publishedChecksum = {
-    algorithm,
-    expected,
+    algorithm: publishedAlgorithm,
+    expected: expectedPublishedChecksum,
     actual,
     matched: true,
   };
 }
-const sha256 = await digestFile(archivePath, "sha256");
+const sha256 = digests.sha256;
 const receipt = {
   schema: "Audio-V external dataset acquisition receipt v1",
   verifiedAt: new Date().toISOString(),
@@ -86,6 +105,9 @@ const receipt = {
     bytes: stat.size,
     sha256,
     publishedChecksum,
+    transportUrl,
+    transportedFromOfficialUrl:
+      transportUrl === (dataset.official.archiveUrl ?? null),
   },
   disposition: {
     audioBundledWithApplication: false,

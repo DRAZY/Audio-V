@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -7,6 +8,8 @@ import {
   selectBalancedCandidates,
 } from "../scripts/lib/external-dataset-adapters.mjs";
 import {
+  acceptanceEligibilityForCase,
+  binomialCdf,
   clopperPearson,
   splitForGroup,
   validateCorpus,
@@ -116,10 +119,77 @@ describe("validation corpus grouping", () => {
     );
   });
 
+  it("requires hashed terms evidence for research-only dataset references", () => {
+    const result = validateCorpus({
+      schemaVersion: 1,
+      corpusId: "audio-v-real-world",
+      corpusVersion: "0.2.0",
+      policy: {
+        pilotIndependentMasters: 1,
+        targetIndependentMasters: 1,
+        minimumCasesPerMaster: 1,
+        publicLicenses: ["CC-BY-4.0"],
+        researchLicenses: ["CC-BY-NC-SA-4.0"],
+      },
+      masters: [
+        {
+          id: "AVC-M-MAESTRO-TWO",
+          groupId: "maestro:composition:two",
+          split: "challenge",
+          title: "Two",
+          artist: "Composer",
+          file: ".audio/masters/two.wav",
+          sha256: "b".repeat(64),
+          dataset: {
+            id: "maestro-v3",
+            version: "3.0.0",
+            sourceId: "2018/two.wav",
+            category: "piano-test",
+            stratum: "recorded-piano",
+            role: "real-recording-challenge",
+            officialUrl: "https://magenta.tensorflow.org/datasets/maestro",
+          },
+          rights: {
+            license: "CC-BY-NC-SA-4.0",
+            agreementId: "DATASET-1",
+            acceptedAt: "2026-07-30",
+            redistributable: false,
+            attribution: "MAESTRO",
+          },
+          provenance: {
+            kind: "licensed-research-dataset",
+            chainOfCustody: "Imported from the MAESTRO dataset.",
+          },
+          technical: { sampleRate: 44100, bitDepth: 16, channels: 2 },
+        },
+      ],
+    });
+    expect(result.errors).toContain(
+      "AVC-M-MAESTRO-TWO: research-only dataset terms evidence is required",
+    );
+  });
+
   it("reports exact binomial uncertainty instead of manufactured certainty", () => {
     expect(clopperPearson(0, 300)).toEqual({ lower: 0, upper: 1.22 });
     expect(clopperPearson(300, 300)).toEqual({ lower: 98.78, upper: 100 });
+    expect(clopperPearson(723, 810)).toEqual({ lower: 86.92, upper: 91.31 });
+    expect(binomialCdf(9, 20, 0.5)).toBeCloseTo(0.411901, 5);
     expect(clopperPearson(0, 0)).toEqual({ lower: null, upper: null });
+  });
+
+  it("keeps unsupported challenge positives observational", () => {
+    expect(
+      acceptanceEligibilityForCase("negative-only", "lossy-to-lossless"),
+    ).toBe("observational-only");
+    expect(acceptanceEligibilityForCase("negative-only", "upsample")).toBe(
+      "observational-only",
+    );
+    expect(
+      acceptanceEligibilityForCase("negative-only", "deterministic-defect"),
+    ).toBe("scored");
+    expect(
+      acceptanceEligibilityForCase("positive-and-negative", "upsample"),
+    ).toBe("scored");
   });
 
   it("enforces the controlled-case floor per master", () => {
@@ -205,6 +275,72 @@ describe("external dataset registry and adapters", () => {
     }
   });
 
+  it("selectively extracts Slakh mixtures without stems or omitted duplicates", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "audio-v-slakh-archive-"));
+    const source = path.join(root, "source");
+    const destination = path.join(root, "selected");
+    const archive = path.join(root, "slakh.tar.gz");
+    try {
+      await fs.mkdir(path.join(source, "train", "Track00001", "stems"), {
+        recursive: true,
+      });
+      await fs.mkdir(path.join(source, "test", "Track00002"), {
+        recursive: true,
+      });
+      await fs.mkdir(path.join(source, "omitted", "Track00003"), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(source, "train", "Track00001", "mix.flac"),
+        "mix-one",
+      );
+      await fs.writeFile(
+        path.join(source, "train", "Track00001", "stems", "S01.flac"),
+        "stem",
+      );
+      await fs.writeFile(
+        path.join(source, "test", "Track00002", "mix.flac"),
+        "mix-two",
+      );
+      await fs.writeFile(
+        path.join(source, "omitted", "Track00003", "mix.flac"),
+        "duplicate",
+      );
+      execFileSync("tar", ["-czf", archive, "-C", source, "."]);
+      execFileSync(
+        process.execPath,
+        [
+          "scripts/extract-external-dataset.mjs",
+          "--dataset",
+          "slakh2100",
+          "--file",
+          archive,
+          "--root",
+          destination,
+          "--candidate-limit",
+          "1",
+        ],
+        { cwd: process.cwd() },
+      );
+      const receipt = JSON.parse(
+        await fs.readFile(
+          path.join(destination, ".audio-v-extraction.json"),
+          "utf8",
+        ),
+      );
+      expect(receipt.discoveredEligibleEntries).toBe(2);
+      expect(receipt.selectedEntries).toHaveLength(1);
+      await expect(
+        fs.stat(path.join(destination, "train", "Track00001", "stems", "S01.flac")),
+      ).rejects.toMatchObject({ code: "ENOENT" });
+      await expect(
+        fs.stat(path.join(destination, "omitted", "Track00003", "mix.flac")),
+      ).rejects.toMatchObject({ code: "ENOENT" });
+    } finally {
+      await fs.rm(root, { recursive: true, force: true });
+    }
+  });
+
   it("groups repeat MAESTRO performances by composition", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "audio-v-maestro-"));
     try {
@@ -243,6 +379,122 @@ describe("external dataset registry and adapters", () => {
     }
   });
 
+  it("accepts MAESTRO's official column-oriented metadata JSON", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "audio-v-maestro-columns-"));
+    try {
+      await fs.mkdir(path.join(root, "2018"), { recursive: true });
+      await fs.writeFile(path.join(root, "2018", "one.wav"), "");
+      await fs.writeFile(
+        path.join(root, "maestro-v3.0.0.json"),
+        JSON.stringify({
+          canonical_composer: { 0: "Composer" },
+          canonical_title: { 0: "Work" },
+          split: { 0: "train" },
+          year: { 0: 2018 },
+          midi_filename: { 0: "2018/one.midi" },
+          audio_filename: { 0: "2018/one.wav" },
+          duration: { 0: 60 },
+        }),
+      );
+      const candidates = await discoverDatasetCandidates(
+        {
+          id: "maestro-v3",
+          displayName: "MAESTRO",
+          import: { adapter: "maestro" },
+        },
+        root,
+      );
+      expect(candidates).toHaveLength(1);
+      expect(candidates[0]).toMatchObject({
+        sourceId: "2018/one.wav",
+        title: "Work",
+        artist: "Composer",
+        category: "piano-train",
+      });
+    } finally {
+      await fs.rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("selectively extracts unique MAESTRO compositions and official metadata", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "audio-v-maestro-archive-"));
+    const source = path.join(root, "source", "maestro-v3.0.0");
+    const destination = path.join(root, "selected");
+    const archive = path.join(root, "maestro.zip");
+    try {
+      await fs.mkdir(path.join(source, "2018"), { recursive: true });
+      await fs.writeFile(path.join(source, "2018", "one.wav"), "one");
+      await fs.writeFile(path.join(source, "2018", "repeat.wav"), "repeat");
+      await fs.writeFile(path.join(source, "2018", "two.wav"), "two");
+      await fs.writeFile(
+        path.join(source, "maestro-v3.0.0.json"),
+        JSON.stringify({
+          canonical_composer: {
+            0: "Composer One",
+            1: "Composer One",
+            2: "Composer Two",
+          },
+          canonical_title: { 0: "Work", 1: "Work", 2: "Other Work" },
+          split: { 0: "train", 1: "test", 2: "validation" },
+          audio_filename: {
+            0: "2018/one.wav",
+            1: "2018/repeat.wav",
+            2: "2018/two.wav",
+          },
+        }),
+      );
+      execFileSync("zip", ["-qr", archive, "maestro-v3.0.0"], {
+        cwd: path.join(root, "source"),
+      });
+      execFileSync(
+        process.execPath,
+        [
+          "scripts/extract-external-dataset.mjs",
+          "--dataset",
+          "maestro-v3",
+          "--file",
+          archive,
+          "--root",
+          destination,
+          "--candidate-limit",
+          "1",
+        ],
+        { cwd: process.cwd() },
+      );
+      const receipt = JSON.parse(
+        await fs.readFile(
+          path.join(destination, ".audio-v-extraction.json"),
+          "utf8",
+        ),
+      );
+      expect(receipt.discoveredEligibleEntries).toBe(2);
+      expect(receipt.selectedEntries).toHaveLength(2);
+      await expect(
+        fs.stat(
+          path.join(
+            destination,
+            "maestro-v3.0.0",
+            "maestro-v3.0.0.json",
+          ),
+        ),
+      ).resolves.toBeDefined();
+      const candidates = await discoverDatasetCandidates(
+        {
+          id: "maestro-v3",
+          displayName: "MAESTRO",
+          import: { adapter: "maestro" },
+        },
+        destination,
+      );
+      expect(candidates).toHaveLength(1);
+      expect(candidates[0].filePath).toContain(
+        path.join("maestro-v3.0.0", "2018"),
+      );
+    } finally {
+      await fs.rm(root, { recursive: true, force: true });
+    }
+  });
+
   it("attaches the nearest MUSAN component license evidence", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "audio-v-musan-"));
     try {
@@ -262,6 +514,39 @@ describe("external dataset registry and adapters", () => {
         category: "music",
         stratum: "music:fma",
         licenseEvidence: "music/LICENSE",
+      });
+    } finally {
+      await fs.rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("maps EBU SQAM track ranges to handbook evidence strata", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "audio-v-ebu-"));
+    try {
+      for (const track of ["01", "27", "49", "61", "69"]) {
+        await fs.writeFile(path.join(root, `${track}.flac`), "");
+      }
+      const candidates = await discoverDatasetCandidates(
+        {
+          id: "ebu-sqam",
+          displayName: "EBU SQAM",
+          import: { adapter: "ebu-sqam" },
+        },
+        root,
+      );
+      expect(
+        Object.fromEntries(
+          candidates.map((candidate) => [
+            candidate.sourceId,
+            candidate.category,
+          ]),
+        ),
+      ).toEqual({
+        "01.flac": "alignment-signal",
+        "27.flac": "single-instrument",
+        "49.flac": "speech",
+        "61.flac": "vocal-orchestra",
+        "69.flac": "pop-music",
       });
     } finally {
       await fs.rm(root, { recursive: true, force: true });
@@ -300,5 +585,47 @@ describe("external dataset registry and adapters", () => {
     expect(new Set(selected.map((item) => item.category))).toEqual(
       new Set(["music", "noise", "speech"]),
     );
+  });
+
+  it("balances challenge references by category instead of taking filename order", () => {
+    const candidates = [
+      ...Array.from({ length: 20 }, (_, index) => ({
+        id: `train-${index}`,
+        groupId: `train-source-${index}`,
+        category: "piano-train",
+      })),
+      ...Array.from({ length: 5 }, (_, index) => ({
+        id: `test-${index}`,
+        groupId: `test-source-${index}`,
+        category: "piano-test",
+      })),
+      ...Array.from({ length: 5 }, (_, index) => ({
+        id: `validation-${index}`,
+        groupId: `validation-source-${index}`,
+        category: "piano-validation",
+      })),
+    ];
+    const selected = selectBalancedCandidates(
+      candidates,
+      9,
+      {
+        developmentPercent: 60,
+        calibrationPercent: 20,
+        testPercent: 20,
+      },
+      false,
+    );
+    const categories = selected.reduce<Record<string, number>>(
+      (output, item) => {
+        output[item.category] = (output[item.category] ?? 0) + 1;
+        return output;
+      },
+      {},
+    );
+    expect(categories).toEqual({
+      "piano-test": 3,
+      "piano-train": 3,
+      "piano-validation": 3,
+    });
   });
 });

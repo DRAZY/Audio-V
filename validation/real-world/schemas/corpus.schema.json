@@ -71,7 +71,9 @@
               "required": ["file", "sha256"],
               "properties": {
                 "file": { "type": "string", "minLength": 1 },
-                "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+                "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+                "reviewedUrl": { "type": "string", "format": "uri" },
+                "acceptedAt": { "type": "string", "format": "date" }
               }
             }
           }

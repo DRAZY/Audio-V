@@ -38,6 +38,8 @@
     "validate:defects": "npm run build:electron && node scripts/validate-defect-corpus.mjs",
     "corpus:import": "node scripts/import-validation-reference.mjs",
     "corpus:plan": "node scripts/plan-validation-corpus.mjs",
+    "corpus:download": "node scripts/download-external-dataset.mjs",
+    "corpus:extract": "node scripts/extract-external-dataset.mjs",
     "corpus:verify-download": "node scripts/verify-external-dataset-archive.mjs",
     "corpus:publish-scorecard": "node scripts/publish-validation-scorecard.mjs",
     "corpus:import:dataset": "node scripts/import-external-dataset.mjs",

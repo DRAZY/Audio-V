@@ -30,11 +30,23 @@ const datasets = registry.datasets
     defaultImportLimit: dataset.import.defaultLimit,
     recommendedUse: dataset.recommendedUse,
     limitations: dataset.limitations,
+    downloadCommand:
+      dataset.official.access === "direct"
+        ? `npm run corpus:download -- --dataset ${dataset.id} --concurrency 8 --parts 48`
+        : null,
+    extractionCommand:
+      ["slakh2100", "maestro"].includes(dataset.import.adapter)
+        ? `npm run corpus:extract -- --dataset ${dataset.id} ` +
+          `--file "/path/to/${dataset.official.archiveFilename}" ` +
+          `--root "/path/to/${dataset.id}-selected" --candidate-limit ` +
+          `${dataset.import.defaultLimit * 4}`
+        : null,
     importCommand:
       `npm run corpus:import:dataset -- --dataset ${dataset.id} ` +
-      `--root "/path/to/${dataset.id}" --limit ${dataset.import.defaultLimit}` +
-      (["manual-terms-review", "manual-approval"].includes(dataset.status)
-        ? " --terms-accepted true"
+      `--root "/path/to/${dataset.id}" --limit ${dataset.import.defaultLimit} ` +
+      `--corpus-version "<next-semantic-version>"` +
+      (!dataset.license.redistributableInCorpus
+        ? ` --terms-accepted true --terms-evidence "/path/to/${dataset.id}-terms.txt"`
         : ""),
   }));
 

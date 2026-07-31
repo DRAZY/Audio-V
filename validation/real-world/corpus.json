@@ -2,7 +2,7 @@
   "$schema": "./schemas/corpus.schema.json",
   "schemaVersion": 1,
   "corpusId": "audio-v-real-world",
-  "corpusVersion": "0.2.0",
+  "corpusVersion": "0.4.0",
   "description": "Licensed, provenance-labeled external reference recordings for real-world Oracle Engine validation. Synthetic fixtures are not registered here.",
   "policy": {
     "splitStrategy": "source-group-sha256-v1",
@@ -22,6 +22,1056 @@
     ]
   },
   "masters": [
+    {
+      "id": "AVC-M-EBUSQAM-051F19355755E714",
+      "groupId": "ebu-sqam:27.flac",
+      "split": "challenge",
+      "title": "27",
+      "artist": "EBU SQAM",
+      "file": ".audio/masters/AVC-M-EBUSQAM-051F19355755E714.flac",
+      "sha256": "59896d7540eede365428c5158ca5c9796f135eb53a18e052d99db58a4b90839d",
+      "dataset": {
+        "id": "ebu-sqam",
+        "version": "2008-flac",
+        "sourceId": "27.flac",
+        "category": "single-instrument",
+        "stratum": "ebu-sqam:single-instrument",
+        "role": "standardized-test",
+        "officialUrl": "https://tech.ebu.ch/publications/sqamcd",
+        "licenseEvidence": {
+          "file": "ebu-sqam-record.json",
+          "sha256": "8e49d52631b6342e840e4d3b1eb07fdf7b5d62905fe0f15cb8f3d22180515c26",
+          "reviewedUrl": "https://tech.ebu.ch/publications/sqamcd",
+          "acceptedAt": "2026-07-31"
+        }
+      },
+      "rights": {
+        "license": "EBU-SQAM-TEST-MATERIAL",
+        "agreementId": "DATASET-REGISTRY-1.0.0-ebu-sqam",
+        "acceptedAt": "2026-07-31",
+        "redistributable": false,
+        "attribution": "EBU SQAM · 27.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired EBU SQAM 2008-flac dataset; source identity 27.flac; category standardized-test-material."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 2
+      }
+    },
+    {
+      "id": "AVC-M-EBUSQAM-07DF26BFA1DC82B2",
+      "groupId": "ebu-sqam:53.flac",
+      "split": "challenge",
+      "title": "53",
+      "artist": "EBU SQAM",
+      "file": ".audio/masters/AVC-M-EBUSQAM-07DF26BFA1DC82B2.flac",
+      "sha256": "0899e68762cf361b1ae97569da3793a3722a9512dae98d4052c347f66c5d97e1",
+      "dataset": {
+        "id": "ebu-sqam",
+        "version": "2008-flac",
+        "sourceId": "53.flac",
+        "category": "speech",
+        "stratum": "ebu-sqam:speech",
+        "role": "standardized-test",
+        "officialUrl": "https://tech.ebu.ch/publications/sqamcd",
+        "licenseEvidence": {
+          "file": "ebu-sqam-record.json",
+          "sha256": "8e49d52631b6342e840e4d3b1eb07fdf7b5d62905fe0f15cb8f3d22180515c26",
+          "reviewedUrl": "https://tech.ebu.ch/publications/sqamcd",
+          "acceptedAt": "2026-07-31"
+        }
+      },
+      "rights": {
+        "license": "EBU-SQAM-TEST-MATERIAL",
+        "agreementId": "DATASET-REGISTRY-1.0.0-ebu-sqam",
+        "acceptedAt": "2026-07-31",
+        "redistributable": false,
+        "attribution": "EBU SQAM · 53.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired EBU SQAM 2008-flac dataset; source identity 53.flac; category standardized-test-material."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 2
+      }
+    },
+    {
+      "id": "AVC-M-EBUSQAM-0B66397CDF271144",
+      "groupId": "ebu-sqam:69.flac",
+      "split": "challenge",
+      "title": "69",
+      "artist": "EBU SQAM",
+      "file": ".audio/masters/AVC-M-EBUSQAM-0B66397CDF271144.flac",
+      "sha256": "35d3a289e00ffba0533acaa7d62b5af669b5a029bf071bc075fe5a434856d4f0",
+      "dataset": {
+        "id": "ebu-sqam",
+        "version": "2008-flac",
+        "sourceId": "69.flac",
+        "category": "pop-music",
+        "stratum": "ebu-sqam:pop-music",
+        "role": "standardized-test",
+        "officialUrl": "https://tech.ebu.ch/publications/sqamcd",
+        "licenseEvidence": {
+          "file": "ebu-sqam-record.json",
+          "sha256": "8e49d52631b6342e840e4d3b1eb07fdf7b5d62905fe0f15cb8f3d22180515c26",
+          "reviewedUrl": "https://tech.ebu.ch/publications/sqamcd",
+          "acceptedAt": "2026-07-31"
+        }
+      },
+      "rights": {
+        "license": "EBU-SQAM-TEST-MATERIAL",
+        "agreementId": "DATASET-REGISTRY-1.0.0-ebu-sqam",
+        "acceptedAt": "2026-07-31",
+        "redistributable": false,
+        "attribution": "EBU SQAM · 69.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired EBU SQAM 2008-flac dataset; source identity 69.flac; category standardized-test-material."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 2
+      }
+    },
+    {
+      "id": "AVC-M-EBUSQAM-0D21D16FC56C4A4A",
+      "groupId": "ebu-sqam:46.flac",
+      "split": "challenge",
+      "title": "46",
+      "artist": "EBU SQAM",
+      "file": ".audio/masters/AVC-M-EBUSQAM-0D21D16FC56C4A4A.flac",
+      "sha256": "aa4f2f195061cc7e2f61cc6dd030e0305b3e3db31fc3c135158444ca83a6d1a8",
+      "dataset": {
+        "id": "ebu-sqam",
+        "version": "2008-flac",
+        "sourceId": "46.flac",
+        "category": "vocal",
+        "stratum": "ebu-sqam:vocal",
+        "role": "standardized-test",
+        "officialUrl": "https://tech.ebu.ch/publications/sqamcd",
+        "licenseEvidence": {
+          "file": "ebu-sqam-record.json",
+          "sha256": "8e49d52631b6342e840e4d3b1eb07fdf7b5d62905fe0f15cb8f3d22180515c26",
+          "reviewedUrl": "https://tech.ebu.ch/publications/sqamcd",
+          "acceptedAt": "2026-07-31"
+        }
+      },
+      "rights": {
+        "license": "EBU-SQAM-TEST-MATERIAL",
+        "agreementId": "DATASET-REGISTRY-1.0.0-ebu-sqam",
+        "acceptedAt": "2026-07-31",
+        "redistributable": false,
+        "attribution": "EBU SQAM · 46.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired EBU SQAM 2008-flac dataset; source identity 46.flac; category standardized-test-material."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 2
+      }
+    },
+    {
+      "id": "AVC-M-EBUSQAM-0EB446133EDB0D12",
+      "groupId": "ebu-sqam:62.flac",
+      "split": "challenge",
+      "title": "62",
+      "artist": "EBU SQAM",
+      "file": ".audio/masters/AVC-M-EBUSQAM-0EB446133EDB0D12.flac",
+      "sha256": "f0b00c4f9d35da4bccdea24fe4173f02c6bebdd9500f40591aa06cf9842b8a90",
+      "dataset": {
+        "id": "ebu-sqam",
+        "version": "2008-flac",
+        "sourceId": "62.flac",
+        "category": "vocal-orchestra",
+        "stratum": "ebu-sqam:vocal-orchestra",
+        "role": "standardized-test",
+        "officialUrl": "https://tech.ebu.ch/publications/sqamcd",
+        "licenseEvidence": {
+          "file": "ebu-sqam-record.json",
+          "sha256": "8e49d52631b6342e840e4d3b1eb07fdf7b5d62905fe0f15cb8f3d22180515c26",
+          "reviewedUrl": "https://tech.ebu.ch/publications/sqamcd",
+          "acceptedAt": "2026-07-31"
+        }
+      },
+      "rights": {
+        "license": "EBU-SQAM-TEST-MATERIAL",
+        "agreementId": "DATASET-REGISTRY-1.0.0-ebu-sqam",
+        "acceptedAt": "2026-07-31",
+        "redistributable": false,
+        "attribution": "EBU SQAM · 62.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired EBU SQAM 2008-flac dataset; source identity 62.flac; category standardized-test-material."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 2
+      }
+    },
+    {
+      "id": "AVC-M-EBUSQAM-178A69D4CC0A9CD5",
+      "groupId": "ebu-sqam:63.flac",
+      "split": "challenge",
+      "title": "63",
+      "artist": "EBU SQAM",
+      "file": ".audio/masters/AVC-M-EBUSQAM-178A69D4CC0A9CD5.flac",
+      "sha256": "febd8919dc7725111d6bebbf92e0d5082a7c2466d8704c515973f5c050fe2954",
+      "dataset": {
+        "id": "ebu-sqam",
+        "version": "2008-flac",
+        "sourceId": "63.flac",
+        "category": "vocal-orchestra",
+        "stratum": "ebu-sqam:vocal-orchestra",
+        "role": "standardized-test",
+        "officialUrl": "https://tech.ebu.ch/publications/sqamcd",
+        "licenseEvidence": {
+          "file": "ebu-sqam-record.json",
+          "sha256": "8e49d52631b6342e840e4d3b1eb07fdf7b5d62905fe0f15cb8f3d22180515c26",
+          "reviewedUrl": "https://tech.ebu.ch/publications/sqamcd",
+          "acceptedAt": "2026-07-31"
+        }
+      },
+      "rights": {
+        "license": "EBU-SQAM-TEST-MATERIAL",
+        "agreementId": "DATASET-REGISTRY-1.0.0-ebu-sqam",
+        "acceptedAt": "2026-07-31",
+        "redistributable": false,
+        "attribution": "EBU SQAM · 63.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired EBU SQAM 2008-flac dataset; source identity 63.flac; category standardized-test-material."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 2
+      }
+    },
+    {
+      "id": "AVC-M-EBUSQAM-195F43192B9FF7FC",
+      "groupId": "ebu-sqam:52.flac",
+      "split": "challenge",
+      "title": "52",
+      "artist": "EBU SQAM",
+      "file": ".audio/masters/AVC-M-EBUSQAM-195F43192B9FF7FC.flac",
+      "sha256": "d27493819eb593af066e081af8182fa1e84b4c8b8ad8e337023ab28e31158734",
+      "dataset": {
+        "id": "ebu-sqam",
+        "version": "2008-flac",
+        "sourceId": "52.flac",
+        "category": "speech",
+        "stratum": "ebu-sqam:speech",
+        "role": "standardized-test",
+        "officialUrl": "https://tech.ebu.ch/publications/sqamcd",
+        "licenseEvidence": {
+          "file": "ebu-sqam-record.json",
+          "sha256": "8e49d52631b6342e840e4d3b1eb07fdf7b5d62905fe0f15cb8f3d22180515c26",
+          "reviewedUrl": "https://tech.ebu.ch/publications/sqamcd",
+          "acceptedAt": "2026-07-31"
+        }
+      },
+      "rights": {
+        "license": "EBU-SQAM-TEST-MATERIAL",
+        "agreementId": "DATASET-REGISTRY-1.0.0-ebu-sqam",
+        "acceptedAt": "2026-07-31",
+        "redistributable": false,
+        "attribution": "EBU SQAM · 52.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired EBU SQAM 2008-flac dataset; source identity 52.flac; category standardized-test-material."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 2
+      }
+    },
+    {
+      "id": "AVC-M-EBUSQAM-1B1310C5F196573C",
+      "groupId": "ebu-sqam:29.flac",
+      "split": "challenge",
+      "title": "29",
+      "artist": "EBU SQAM",
+      "file": ".audio/masters/AVC-M-EBUSQAM-1B1310C5F196573C.flac",
+      "sha256": "d41929bd4d8680e63dda362ebec8703357e117a37778d63dcd068e1cd528c0ff",
+      "dataset": {
+        "id": "ebu-sqam",
+        "version": "2008-flac",
+        "sourceId": "29.flac",
+        "category": "single-instrument",
+        "stratum": "ebu-sqam:single-instrument",
+        "role": "standardized-test",
+        "officialUrl": "https://tech.ebu.ch/publications/sqamcd",
+        "licenseEvidence": {
+          "file": "ebu-sqam-record.json",
+          "sha256": "8e49d52631b6342e840e4d3b1eb07fdf7b5d62905fe0f15cb8f3d22180515c26",
+          "reviewedUrl": "https://tech.ebu.ch/publications/sqamcd",
+          "acceptedAt": "2026-07-31"
+        }
+      },
+      "rights": {
+        "license": "EBU-SQAM-TEST-MATERIAL",
+        "agreementId": "DATASET-REGISTRY-1.0.0-ebu-sqam",
+        "acceptedAt": "2026-07-31",
+        "redistributable": false,
+        "attribution": "EBU SQAM · 29.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired EBU SQAM 2008-flac dataset; source identity 29.flac; category standardized-test-material."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 2
+      }
+    },
+    {
+      "id": "AVC-M-EBUSQAM-256D602D452B410F",
+      "groupId": "ebu-sqam:13.flac",
+      "split": "challenge",
+      "title": "13",
+      "artist": "EBU SQAM",
+      "file": ".audio/masters/AVC-M-EBUSQAM-256D602D452B410F.flac",
+      "sha256": "ca54ec7155f7d509c08a319786bb98abdddb626b8c040202489b9ec25d3f576b",
+      "dataset": {
+        "id": "ebu-sqam",
+        "version": "2008-flac",
+        "sourceId": "13.flac",
+        "category": "single-instrument",
+        "stratum": "ebu-sqam:single-instrument",
+        "role": "standardized-test",
+        "officialUrl": "https://tech.ebu.ch/publications/sqamcd",
+        "licenseEvidence": {
+          "file": "ebu-sqam-record.json",
+          "sha256": "8e49d52631b6342e840e4d3b1eb07fdf7b5d62905fe0f15cb8f3d22180515c26",
+          "reviewedUrl": "https://tech.ebu.ch/publications/sqamcd",
+          "acceptedAt": "2026-07-31"
+        }
+      },
+      "rights": {
+        "license": "EBU-SQAM-TEST-MATERIAL",
+        "agreementId": "DATASET-REGISTRY-1.0.0-ebu-sqam",
+        "acceptedAt": "2026-07-31",
+        "redistributable": false,
+        "attribution": "EBU SQAM · 13.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired EBU SQAM 2008-flac dataset; source identity 13.flac; category standardized-test-material."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 2
+      }
+    },
+    {
+      "id": "AVC-M-EBUSQAM-2E1DDD8A463989D7",
+      "groupId": "ebu-sqam:31.flac",
+      "split": "challenge",
+      "title": "31",
+      "artist": "EBU SQAM",
+      "file": ".audio/masters/AVC-M-EBUSQAM-2E1DDD8A463989D7.flac",
+      "sha256": "e90309f1c60f76d6b0a05fe273c2be88b449bebaa2ec3fa91aa4edcefb256575",
+      "dataset": {
+        "id": "ebu-sqam",
+        "version": "2008-flac",
+        "sourceId": "31.flac",
+        "category": "single-instrument",
+        "stratum": "ebu-sqam:single-instrument",
+        "role": "standardized-test",
+        "officialUrl": "https://tech.ebu.ch/publications/sqamcd",
+        "licenseEvidence": {
+          "file": "ebu-sqam-record.json",
+          "sha256": "8e49d52631b6342e840e4d3b1eb07fdf7b5d62905fe0f15cb8f3d22180515c26",
+          "reviewedUrl": "https://tech.ebu.ch/publications/sqamcd",
+          "acceptedAt": "2026-07-31"
+        }
+      },
+      "rights": {
+        "license": "EBU-SQAM-TEST-MATERIAL",
+        "agreementId": "DATASET-REGISTRY-1.0.0-ebu-sqam",
+        "acceptedAt": "2026-07-31",
+        "redistributable": false,
+        "attribution": "EBU SQAM · 31.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired EBU SQAM 2008-flac dataset; source identity 31.flac; category standardized-test-material."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 2
+      }
+    },
+    {
+      "id": "AVC-M-MAESTROV3-132462BFE291F393",
+      "groupId": "maestro-v3:composition:12200a925dfa1b136162",
+      "split": "challenge",
+      "title": "Entragete, Op.63",
+      "artist": "Alexander Scriabin",
+      "file": ".audio/masters/AVC-M-MAESTROV3-132462BFE291F393.wav",
+      "sha256": "70390e33235b390d34a492414b98ad883c43d0c6daeb5b7f847b4c58357e0a84",
+      "dataset": {
+        "id": "maestro-v3",
+        "version": "3.0.0",
+        "sourceId": "2009/MIDI-Unprocessed_11_R1_2009_06-09_ORIG_MID--AUDIO_11_R1_2009_11_R1_2009_07_WAV.wav",
+        "category": "piano-test",
+        "stratum": "recorded-piano",
+        "role": "real-recording-challenge",
+        "officialUrl": "https://magenta.withgoogle.com/datasets/maestro",
+        "licenseEvidence": {
+          "file": "maestro-dataset-page.html",
+          "sha256": "a6c8cb83208a7f5d64547f6e4e9fd0a44895e3e182a5a2aca190ee871bd2f378",
+          "reviewedUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+          "acceptedAt": "2026-07-31"
+        }
+      },
+      "rights": {
+        "license": "CC-BY-NC-SA-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-maestro-v3",
+        "acceptedAt": "2026-07-31",
+        "redistributable": false,
+        "attribution": "MAESTRO v3.0.0 · 2009/MIDI-Unprocessed_11_R1_2009_06-09_ORIG_MID--AUDIO_11_R1_2009_11_R1_2009_07_WAV.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MAESTRO v3.0.0 3.0.0 dataset; source identity 2009/MIDI-Unprocessed_11_R1_2009_06-09_ORIG_MID--AUDIO_11_R1_2009_11_R1_2009_07_WAV.wav; category piano-test."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 2
+      }
+    },
+    {
+      "id": "AVC-M-MAESTROV3-1A720F902553375F",
+      "groupId": "maestro-v3:composition:2cdcf595468757523157",
+      "split": "challenge",
+      "title": "Sonata K. 457",
+      "artist": "Wolfgang Amadeus Mozart",
+      "file": ".audio/masters/AVC-M-MAESTROV3-1A720F902553375F.wav",
+      "sha256": "f0d9874908b3b913d812a4ae2572603f92247f5aa8e84436b1f17489d8dedbe3",
+      "dataset": {
+        "id": "maestro-v3",
+        "version": "3.0.0",
+        "sourceId": "2006/MIDI-Unprocessed_24_R1_2006_01-05_ORIG_MID--AUDIO_24_R1_2006_01_Track01_wav.wav",
+        "category": "piano-train",
+        "stratum": "recorded-piano",
+        "role": "real-recording-challenge",
+        "officialUrl": "https://magenta.withgoogle.com/datasets/maestro",
+        "licenseEvidence": {
+          "file": "maestro-dataset-page.html",
+          "sha256": "a6c8cb83208a7f5d64547f6e4e9fd0a44895e3e182a5a2aca190ee871bd2f378",
+          "reviewedUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+          "acceptedAt": "2026-07-31"
+        }
+      },
+      "rights": {
+        "license": "CC-BY-NC-SA-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-maestro-v3",
+        "acceptedAt": "2026-07-31",
+        "redistributable": false,
+        "attribution": "MAESTRO v3.0.0 · 2006/MIDI-Unprocessed_24_R1_2006_01-05_ORIG_MID--AUDIO_24_R1_2006_01_Track01_wav.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MAESTRO v3.0.0 3.0.0 dataset; source identity 2006/MIDI-Unprocessed_24_R1_2006_01-05_ORIG_MID--AUDIO_24_R1_2006_01_Track01_wav.wav; category piano-train."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 2
+      }
+    },
+    {
+      "id": "AVC-M-MAESTROV3-1AEE3862CDA14843",
+      "groupId": "maestro-v3:composition:7a4a0565c71eb086e6ad",
+      "split": "challenge",
+      "title": "Polonaise-Fantasie, Op. 61",
+      "artist": "Frédéric Chopin",
+      "file": ".audio/masters/AVC-M-MAESTROV3-1AEE3862CDA14843.wav",
+      "sha256": "c0d38d8a7535c88ebc2d3ba28514fad32132eb9680d88a492ef203ce4958f5f8",
+      "dataset": {
+        "id": "maestro-v3",
+        "version": "3.0.0",
+        "sourceId": "2009/MIDI-Unprocessed_01_R1_2009_01-04_ORIG_MID--AUDIO_01_R1_2009_01_R1_2009_04_WAV.wav",
+        "category": "piano-test",
+        "stratum": "recorded-piano",
+        "role": "real-recording-challenge",
+        "officialUrl": "https://magenta.withgoogle.com/datasets/maestro",
+        "licenseEvidence": {
+          "file": "maestro-dataset-page.html",
+          "sha256": "a6c8cb83208a7f5d64547f6e4e9fd0a44895e3e182a5a2aca190ee871bd2f378",
+          "reviewedUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+          "acceptedAt": "2026-07-31"
+        }
+      },
+      "rights": {
+        "license": "CC-BY-NC-SA-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-maestro-v3",
+        "acceptedAt": "2026-07-31",
+        "redistributable": false,
+        "attribution": "MAESTRO v3.0.0 · 2009/MIDI-Unprocessed_01_R1_2009_01-04_ORIG_MID--AUDIO_01_R1_2009_01_R1_2009_04_WAV.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MAESTRO v3.0.0 3.0.0 dataset; source identity 2009/MIDI-Unprocessed_01_R1_2009_01-04_ORIG_MID--AUDIO_01_R1_2009_01_R1_2009_04_WAV.wav; category piano-test."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 2
+      }
+    },
+    {
+      "id": "AVC-M-MAESTROV3-2D5FDE5067340B35",
+      "groupId": "maestro-v3:composition:bd561c98f26ad3e8bc85",
+      "split": "challenge",
+      "title": "Etude \"Pour les accords\"",
+      "artist": "Claude Debussy",
+      "file": ".audio/masters/AVC-M-MAESTROV3-2D5FDE5067340B35.wav",
+      "sha256": "521412a3d0865ce6588fd75e097483f69e4900e7c9223af2e8cfc117c5492fc1",
+      "dataset": {
+        "id": "maestro-v3",
+        "version": "3.0.0",
+        "sourceId": "2009/MIDI-Unprocessed_11_R1_2009_01-05_ORIG_MID--AUDIO_11_R1_2009_11_R1_2009_04_WAV.wav",
+        "category": "piano-test",
+        "stratum": "recorded-piano",
+        "role": "real-recording-challenge",
+        "officialUrl": "https://magenta.withgoogle.com/datasets/maestro",
+        "licenseEvidence": {
+          "file": "maestro-dataset-page.html",
+          "sha256": "a6c8cb83208a7f5d64547f6e4e9fd0a44895e3e182a5a2aca190ee871bd2f378",
+          "reviewedUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+          "acceptedAt": "2026-07-31"
+        }
+      },
+      "rights": {
+        "license": "CC-BY-NC-SA-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-maestro-v3",
+        "acceptedAt": "2026-07-31",
+        "redistributable": false,
+        "attribution": "MAESTRO v3.0.0 · 2009/MIDI-Unprocessed_11_R1_2009_01-05_ORIG_MID--AUDIO_11_R1_2009_11_R1_2009_04_WAV.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MAESTRO v3.0.0 3.0.0 dataset; source identity 2009/MIDI-Unprocessed_11_R1_2009_01-05_ORIG_MID--AUDIO_11_R1_2009_11_R1_2009_04_WAV.wav; category piano-test."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 2
+      }
+    },
+    {
+      "id": "AVC-M-MAESTROV3-3D86242B4726BA05",
+      "groupId": "maestro-v3:composition:3885622f59d992fdf788",
+      "split": "challenge",
+      "title": "Transcendental Etude No. 12 \"Chasse-neige\"",
+      "artist": "Franz Liszt",
+      "file": ".audio/masters/AVC-M-MAESTROV3-3D86242B4726BA05.wav",
+      "sha256": "745ab65f4acdb7ea6d270659e0cbbc0bc2a5a15328f7ef8d011f7a27e6286807",
+      "dataset": {
+        "id": "maestro-v3",
+        "version": "3.0.0",
+        "sourceId": "2018/MIDI-Unprocessed_Recital9-11_MID--AUDIO_09_R1_2018_wav--4.wav",
+        "category": "piano-validation",
+        "stratum": "recorded-piano",
+        "role": "real-recording-challenge",
+        "officialUrl": "https://magenta.withgoogle.com/datasets/maestro",
+        "licenseEvidence": {
+          "file": "maestro-dataset-page.html",
+          "sha256": "a6c8cb83208a7f5d64547f6e4e9fd0a44895e3e182a5a2aca190ee871bd2f378",
+          "reviewedUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+          "acceptedAt": "2026-07-31"
+        }
+      },
+      "rights": {
+        "license": "CC-BY-NC-SA-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-maestro-v3",
+        "acceptedAt": "2026-07-31",
+        "redistributable": false,
+        "attribution": "MAESTRO v3.0.0 · 2018/MIDI-Unprocessed_Recital9-11_MID--AUDIO_09_R1_2018_wav--4.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MAESTRO v3.0.0 3.0.0 dataset; source identity 2018/MIDI-Unprocessed_Recital9-11_MID--AUDIO_09_R1_2018_wav--4.wav; category piano-validation."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 48000,
+        "bitDepth": 16,
+        "channels": 2
+      }
+    },
+    {
+      "id": "AVC-M-MAESTROV3-5AD04033FC9A7ED9",
+      "groupId": "maestro-v3:composition:f81fc51bccb57b937c6b",
+      "split": "challenge",
+      "title": "Prelude and Fugue in C-Sharp Minor, WTC I, BWV 849",
+      "artist": "Johann Sebastian Bach",
+      "file": ".audio/masters/AVC-M-MAESTROV3-5AD04033FC9A7ED9.wav",
+      "sha256": "b9a4639fe61412a329d62ce11fb0d4e0e568fc700810ca2f86cf4e21cb5593be",
+      "dataset": {
+        "id": "maestro-v3",
+        "version": "3.0.0",
+        "sourceId": "2014/MIDI-UNPROCESSED_01-03_R1_2014_MID--AUDIO_02_R1_2014_wav--1.wav",
+        "category": "piano-validation",
+        "stratum": "recorded-piano",
+        "role": "real-recording-challenge",
+        "officialUrl": "https://magenta.withgoogle.com/datasets/maestro",
+        "licenseEvidence": {
+          "file": "maestro-dataset-page.html",
+          "sha256": "a6c8cb83208a7f5d64547f6e4e9fd0a44895e3e182a5a2aca190ee871bd2f378",
+          "reviewedUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+          "acceptedAt": "2026-07-31"
+        }
+      },
+      "rights": {
+        "license": "CC-BY-NC-SA-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-maestro-v3",
+        "acceptedAt": "2026-07-31",
+        "redistributable": false,
+        "attribution": "MAESTRO v3.0.0 · 2014/MIDI-UNPROCESSED_01-03_R1_2014_MID--AUDIO_02_R1_2014_wav--1.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MAESTRO v3.0.0 3.0.0 dataset; source identity 2014/MIDI-UNPROCESSED_01-03_R1_2014_MID--AUDIO_02_R1_2014_wav--1.wav; category piano-validation."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 2
+      }
+    },
+    {
+      "id": "AVC-M-MAESTROV3-5F06CC77856EECA3",
+      "groupId": "maestro-v3:composition:93c9fa18dc8bd5c55191",
+      "split": "challenge",
+      "title": "Rhapsodie Espagnole S.254",
+      "artist": "Franz Liszt",
+      "file": ".audio/masters/AVC-M-MAESTROV3-5F06CC77856EECA3.wav",
+      "sha256": "be3404d2343e88e6c942a7620c01ea5f6c6c6f6beca5ba4fd4eb4f538bb3f1de",
+      "dataset": {
+        "id": "maestro-v3",
+        "version": "3.0.0",
+        "sourceId": "2011/MIDI-Unprocessed_25_R3_2011_MID--AUDIO_R3-D9_06_Track06_wav.wav",
+        "category": "piano-train",
+        "stratum": "recorded-piano",
+        "role": "real-recording-challenge",
+        "officialUrl": "https://magenta.withgoogle.com/datasets/maestro",
+        "licenseEvidence": {
+          "file": "maestro-dataset-page.html",
+          "sha256": "a6c8cb83208a7f5d64547f6e4e9fd0a44895e3e182a5a2aca190ee871bd2f378",
+          "reviewedUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+          "acceptedAt": "2026-07-31"
+        }
+      },
+      "rights": {
+        "license": "CC-BY-NC-SA-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-maestro-v3",
+        "acceptedAt": "2026-07-31",
+        "redistributable": false,
+        "attribution": "MAESTRO v3.0.0 · 2011/MIDI-Unprocessed_25_R3_2011_MID--AUDIO_R3-D9_06_Track06_wav.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MAESTRO v3.0.0 3.0.0 dataset; source identity 2011/MIDI-Unprocessed_25_R3_2011_MID--AUDIO_R3-D9_06_Track06_wav.wav; category piano-train."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 2
+      }
+    },
+    {
+      "id": "AVC-M-MAESTROV3-858E684DA80362B1",
+      "groupId": "maestro-v3:composition:97e934b5cce9e6765d73",
+      "split": "challenge",
+      "title": "Prelude and Fugue in E-flat Major, WTC II, BWV 876",
+      "artist": "Johann Sebastian Bach",
+      "file": ".audio/masters/AVC-M-MAESTROV3-858E684DA80362B1.wav",
+      "sha256": "bff5385b1c31b42400327c17951d76db64dd8afc56e79e0c80b75589793f44ec",
+      "dataset": {
+        "id": "maestro-v3",
+        "version": "3.0.0",
+        "sourceId": "2011/MIDI-Unprocessed_13_R1_2011_MID--AUDIO_R1-D5_02_Track02_wav.wav",
+        "category": "piano-train",
+        "stratum": "recorded-piano",
+        "role": "real-recording-challenge",
+        "officialUrl": "https://magenta.withgoogle.com/datasets/maestro",
+        "licenseEvidence": {
+          "file": "maestro-dataset-page.html",
+          "sha256": "a6c8cb83208a7f5d64547f6e4e9fd0a44895e3e182a5a2aca190ee871bd2f378",
+          "reviewedUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+          "acceptedAt": "2026-07-31"
+        }
+      },
+      "rights": {
+        "license": "CC-BY-NC-SA-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-maestro-v3",
+        "acceptedAt": "2026-07-31",
+        "redistributable": false,
+        "attribution": "MAESTRO v3.0.0 · 2011/MIDI-Unprocessed_13_R1_2011_MID--AUDIO_R1-D5_02_Track02_wav.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MAESTRO v3.0.0 3.0.0 dataset; source identity 2011/MIDI-Unprocessed_13_R1_2011_MID--AUDIO_R1-D5_02_Track02_wav.wav; category piano-train."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 2
+      }
+    },
+    {
+      "id": "AVC-M-MAESTROV3-8686CF1C90467D7B",
+      "groupId": "maestro-v3:composition:d768649cdbfbd3735927",
+      "split": "challenge",
+      "title": "Kreisleriana, Op. 16 (1st edition) (Complete)",
+      "artist": "Robert Schumann",
+      "file": ".audio/masters/AVC-M-MAESTROV3-8686CF1C90467D7B.wav",
+      "sha256": "a49f194c31e6b3c144a10a5824809b6e6cc8bfc046a711dc3fbabbb245a551ee",
+      "dataset": {
+        "id": "maestro-v3",
+        "version": "3.0.0",
+        "sourceId": "2014/MIDI-UNPROCESSED_11-13_R1_2014_MID--AUDIO_12_R1_2014_wav--1.wav",
+        "category": "piano-train",
+        "stratum": "recorded-piano",
+        "role": "real-recording-challenge",
+        "officialUrl": "https://magenta.withgoogle.com/datasets/maestro",
+        "licenseEvidence": {
+          "file": "maestro-dataset-page.html",
+          "sha256": "a6c8cb83208a7f5d64547f6e4e9fd0a44895e3e182a5a2aca190ee871bd2f378",
+          "reviewedUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+          "acceptedAt": "2026-07-31"
+        }
+      },
+      "rights": {
+        "license": "CC-BY-NC-SA-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-maestro-v3",
+        "acceptedAt": "2026-07-31",
+        "redistributable": false,
+        "attribution": "MAESTRO v3.0.0 · 2014/MIDI-UNPROCESSED_11-13_R1_2014_MID--AUDIO_12_R1_2014_wav--1.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MAESTRO v3.0.0 3.0.0 dataset; source identity 2014/MIDI-UNPROCESSED_11-13_R1_2014_MID--AUDIO_12_R1_2014_wav--1.wav; category piano-train."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 2
+      }
+    },
+    {
+      "id": "AVC-M-MAESTROV3-A4A90CC85656989A",
+      "groupId": "maestro-v3:composition:4032b42f5e7f56801117",
+      "split": "challenge",
+      "title": "Hungarian Rhapsody No. 2 in C-sharp Minor, S. 244/2",
+      "artist": "Franz Liszt",
+      "file": ".audio/masters/AVC-M-MAESTROV3-A4A90CC85656989A.wav",
+      "sha256": "1c3a500582ef07273c86e9aab1fb87e65bc38a9d2d3e9918412ea6e05e19c35f",
+      "dataset": {
+        "id": "maestro-v3",
+        "version": "3.0.0",
+        "sourceId": "2015/MIDI-Unprocessed_R1_D1-1-8_mid--AUDIO-from_mp3_03_R1_2015_wav--4.wav",
+        "category": "piano-validation",
+        "stratum": "recorded-piano",
+        "role": "real-recording-challenge",
+        "officialUrl": "https://magenta.withgoogle.com/datasets/maestro",
+        "licenseEvidence": {
+          "file": "maestro-dataset-page.html",
+          "sha256": "a6c8cb83208a7f5d64547f6e4e9fd0a44895e3e182a5a2aca190ee871bd2f378",
+          "reviewedUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+          "acceptedAt": "2026-07-31"
+        }
+      },
+      "rights": {
+        "license": "CC-BY-NC-SA-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-maestro-v3",
+        "acceptedAt": "2026-07-31",
+        "redistributable": false,
+        "attribution": "MAESTRO v3.0.0 · 2015/MIDI-Unprocessed_R1_D1-1-8_mid--AUDIO-from_mp3_03_R1_2015_wav--4.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MAESTRO v3.0.0 3.0.0 dataset; source identity 2015/MIDI-Unprocessed_R1_D1-1-8_mid--AUDIO-from_mp3_03_R1_2015_wav--4.wav; category piano-validation."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 2
+      }
+    },
+    {
+      "id": "AVC-M-MAESTROV3-B23C262526C14D47",
+      "groupId": "maestro-v3:composition:31d60cd840885a2b0f54",
+      "split": "challenge",
+      "title": "Two Impromptus, Op. 14 (Complete)",
+      "artist": "Alexander Scriabin",
+      "file": ".audio/masters/AVC-M-MAESTROV3-B23C262526C14D47.wav",
+      "sha256": "9102f9d0593a0a0da5368fc52ebb858d9522ca58fadbd5c2a6d94aad637bb8e3",
+      "dataset": {
+        "id": "maestro-v3",
+        "version": "3.0.0",
+        "sourceId": "2014/MIDI-UNPROCESSED_14-15_R1_2014_MID--AUDIO_15_R1_2014_wav--3.wav",
+        "category": "piano-validation",
+        "stratum": "recorded-piano",
+        "role": "real-recording-challenge",
+        "officialUrl": "https://magenta.withgoogle.com/datasets/maestro",
+        "licenseEvidence": {
+          "file": "maestro-dataset-page.html",
+          "sha256": "a6c8cb83208a7f5d64547f6e4e9fd0a44895e3e182a5a2aca190ee871bd2f378",
+          "reviewedUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+          "acceptedAt": "2026-07-31"
+        }
+      },
+      "rights": {
+        "license": "CC-BY-NC-SA-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-maestro-v3",
+        "acceptedAt": "2026-07-31",
+        "redistributable": false,
+        "attribution": "MAESTRO v3.0.0 · 2014/MIDI-UNPROCESSED_14-15_R1_2014_MID--AUDIO_15_R1_2014_wav--3.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MAESTRO v3.0.0 3.0.0 dataset; source identity 2014/MIDI-UNPROCESSED_14-15_R1_2014_MID--AUDIO_15_R1_2014_wav--3.wav; category piano-validation."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 2
+      }
+    },
+    {
+      "id": "AVC-M-MAESTROV3-B774FC1760747350",
+      "groupId": "maestro-v3:composition:ee890ac498ad33753115",
+      "split": "challenge",
+      "title": "5 Preludes, Op.15",
+      "artist": "Alexander Scriabin",
+      "file": ".audio/masters/AVC-M-MAESTROV3-B774FC1760747350.wav",
+      "sha256": "ec0ddc984ea65b0295625fb778b41181a62f652273b2665e5a14e1cf76d3de94",
+      "dataset": {
+        "id": "maestro-v3",
+        "version": "3.0.0",
+        "sourceId": "2009/MIDI-Unprocessed_07_R1_2009_04-05_ORIG_MID--AUDIO_07_R1_2009_07_R1_2009_04_WAV.wav",
+        "category": "piano-validation",
+        "stratum": "recorded-piano",
+        "role": "real-recording-challenge",
+        "officialUrl": "https://magenta.withgoogle.com/datasets/maestro",
+        "licenseEvidence": {
+          "file": "maestro-dataset-page.html",
+          "sha256": "a6c8cb83208a7f5d64547f6e4e9fd0a44895e3e182a5a2aca190ee871bd2f378",
+          "reviewedUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+          "acceptedAt": "2026-07-31"
+        }
+      },
+      "rights": {
+        "license": "CC-BY-NC-SA-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-maestro-v3",
+        "acceptedAt": "2026-07-31",
+        "redistributable": false,
+        "attribution": "MAESTRO v3.0.0 · 2009/MIDI-Unprocessed_07_R1_2009_04-05_ORIG_MID--AUDIO_07_R1_2009_07_R1_2009_04_WAV.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MAESTRO v3.0.0 3.0.0 dataset; source identity 2009/MIDI-Unprocessed_07_R1_2009_04-05_ORIG_MID--AUDIO_07_R1_2009_07_R1_2009_04_WAV.wav; category piano-validation."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 2
+      }
+    },
+    {
+      "id": "AVC-M-MAESTROV3-BBD1342C545B1EE6",
+      "groupId": "maestro-v3:composition:ac6468125d7d24041a8e",
+      "split": "challenge",
+      "title": "\"Gretchen am Spinnrade\"",
+      "artist": "Franz Schubert",
+      "file": ".audio/masters/AVC-M-MAESTROV3-BBD1342C545B1EE6.wav",
+      "sha256": "95aa8bd56156bd1002482b0127047c9ce8a37cf7d64d77b99ae6d911e983144b",
+      "dataset": {
+        "id": "maestro-v3",
+        "version": "3.0.0",
+        "sourceId": "2009/MIDI-Unprocessed_08_R1_2009_01-04_ORIG_MID--AUDIO_08_R1_2009_08_R1_2009_03_WAV.wav",
+        "category": "piano-test",
+        "stratum": "recorded-piano",
+        "role": "real-recording-challenge",
+        "officialUrl": "https://magenta.withgoogle.com/datasets/maestro",
+        "licenseEvidence": {
+          "file": "maestro-dataset-page.html",
+          "sha256": "a6c8cb83208a7f5d64547f6e4e9fd0a44895e3e182a5a2aca190ee871bd2f378",
+          "reviewedUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+          "acceptedAt": "2026-07-31"
+        }
+      },
+      "rights": {
+        "license": "CC-BY-NC-SA-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-maestro-v3",
+        "acceptedAt": "2026-07-31",
+        "redistributable": false,
+        "attribution": "MAESTRO v3.0.0 · 2009/MIDI-Unprocessed_08_R1_2009_01-04_ORIG_MID--AUDIO_08_R1_2009_08_R1_2009_03_WAV.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MAESTRO v3.0.0 3.0.0 dataset; source identity 2009/MIDI-Unprocessed_08_R1_2009_01-04_ORIG_MID--AUDIO_08_R1_2009_08_R1_2009_03_WAV.wav; category piano-test."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 2
+      }
+    },
+    {
+      "id": "AVC-M-MAESTROV3-D18A537641AE6F5B",
+      "groupId": "maestro-v3:composition:6b94bab44d676d7e042f",
+      "split": "challenge",
+      "title": "Symphonic Etudes Op. 13 (with Posthumous variations)",
+      "artist": "Robert Schumann",
+      "file": ".audio/masters/AVC-M-MAESTROV3-D18A537641AE6F5B.wav",
+      "sha256": "83f42186d3aaedc329574c686b1e59402e05f2c296b3096327e903ea9f983e7e",
+      "dataset": {
+        "id": "maestro-v3",
+        "version": "3.0.0",
+        "sourceId": "2018/MIDI-Unprocessed_Recital20_MID--AUDIO_20_R1_2018_wav--4.wav",
+        "category": "piano-train",
+        "stratum": "recorded-piano",
+        "role": "real-recording-challenge",
+        "officialUrl": "https://magenta.withgoogle.com/datasets/maestro",
+        "licenseEvidence": {
+          "file": "maestro-dataset-page.html",
+          "sha256": "a6c8cb83208a7f5d64547f6e4e9fd0a44895e3e182a5a2aca190ee871bd2f378",
+          "reviewedUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+          "acceptedAt": "2026-07-31"
+        }
+      },
+      "rights": {
+        "license": "CC-BY-NC-SA-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-maestro-v3",
+        "acceptedAt": "2026-07-31",
+        "redistributable": false,
+        "attribution": "MAESTRO v3.0.0 · 2018/MIDI-Unprocessed_Recital20_MID--AUDIO_20_R1_2018_wav--4.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MAESTRO v3.0.0 3.0.0 dataset; source identity 2018/MIDI-Unprocessed_Recital20_MID--AUDIO_20_R1_2018_wav--4.wav; category piano-train."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 48000,
+        "bitDepth": 16,
+        "channels": 2
+      }
+    },
+    {
+      "id": "AVC-M-MAESTROV3-F8E125F4271F2530",
+      "groupId": "maestro-v3:composition:da2a10e321c03b8ea5b3",
+      "split": "challenge",
+      "title": "Sonata in A Major, K. 208",
+      "artist": "Domenico Scarlatti",
+      "file": ".audio/masters/AVC-M-MAESTROV3-F8E125F4271F2530.wav",
+      "sha256": "fe4b6d9298bc62d258dc74f1e11ffeec4380b27c39966acc68e7cb1d1434c393",
+      "dataset": {
+        "id": "maestro-v3",
+        "version": "3.0.0",
+        "sourceId": "2014/MIDI-UNPROCESSED_01-03_R1_2014_MID--AUDIO_01_R1_2014_wav--2.wav",
+        "category": "piano-test",
+        "stratum": "recorded-piano",
+        "role": "real-recording-challenge",
+        "officialUrl": "https://magenta.withgoogle.com/datasets/maestro",
+        "licenseEvidence": {
+          "file": "maestro-dataset-page.html",
+          "sha256": "a6c8cb83208a7f5d64547f6e4e9fd0a44895e3e182a5a2aca190ee871bd2f378",
+          "reviewedUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+          "acceptedAt": "2026-07-31"
+        }
+      },
+      "rights": {
+        "license": "CC-BY-NC-SA-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-maestro-v3",
+        "acceptedAt": "2026-07-31",
+        "redistributable": false,
+        "attribution": "MAESTRO v3.0.0 · 2014/MIDI-UNPROCESSED_01-03_R1_2014_MID--AUDIO_01_R1_2014_wav--2.wav"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired MAESTRO v3.0.0 3.0.0 dataset; source identity 2014/MIDI-UNPROCESSED_01-03_R1_2014_MID--AUDIO_01_R1_2014_wav--2.wav; category piano-test."
+      },
+      "technical": {
+        "format": "pcm_s16le",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 2
+      }
+    },
     {
       "id": "AVC-M-MUSAN-170A2824C4377FB0",
       "groupId": "musan:noise/free-sound/noise-free-sound-0005.wav",
@@ -818,6 +1868,1086 @@
       "technical": {
         "format": "pcm_s16le",
         "sampleRate": 16000,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-SLAKH2100-0FAE2C501A278CC6",
+      "groupId": "slakh2100:Track00250",
+      "split": "development",
+      "title": "Track00250",
+      "artist": "Slakh2100",
+      "file": ".audio/masters/AVC-M-SLAKH2100-0FAE2C501A278CC6.flac",
+      "sha256": "ed42fe363f1d1fb901bbeaccee0f6d737df0d95a82a0dd2a137df49c4aeebc15",
+      "dataset": {
+        "id": "slakh2100",
+        "version": "redux-2021",
+        "sourceId": "Track00250/mix.flac",
+        "category": "synthesized-mixture",
+        "stratum": "synthesized-mixture",
+        "role": "controlled-source",
+        "officialUrl": "https://www.slakh.com/"
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-slakh2100",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "Slakh2100 Redux · Track00250/mix.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired Slakh2100 Redux redux-2021 dataset; source identity Track00250/mix.flac; category synthesized-mixture."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-SLAKH2100-1AC3EF4EF5AF35D7",
+      "groupId": "slakh2100:Track00184",
+      "split": "development",
+      "title": "Track00184",
+      "artist": "Slakh2100",
+      "file": ".audio/masters/AVC-M-SLAKH2100-1AC3EF4EF5AF35D7.flac",
+      "sha256": "c56dd0f1e1c1c2df3e391822aea0c4b524e024921676b8d41024c26da3eb0087",
+      "dataset": {
+        "id": "slakh2100",
+        "version": "redux-2021",
+        "sourceId": "Track00184/mix.flac",
+        "category": "synthesized-mixture",
+        "stratum": "synthesized-mixture",
+        "role": "controlled-source",
+        "officialUrl": "https://www.slakh.com/"
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-slakh2100",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "Slakh2100 Redux · Track00184/mix.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired Slakh2100 Redux redux-2021 dataset; source identity Track00184/mix.flac; category synthesized-mixture."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-SLAKH2100-21FAA7971E9DB519",
+      "groupId": "slakh2100:Track00291",
+      "split": "development",
+      "title": "Track00291",
+      "artist": "Slakh2100",
+      "file": ".audio/masters/AVC-M-SLAKH2100-21FAA7971E9DB519.flac",
+      "sha256": "b946560a603e4daac8014fffb57a547ddeb6b4eb47d4f32c2c46d80861c3dbf9",
+      "dataset": {
+        "id": "slakh2100",
+        "version": "redux-2021",
+        "sourceId": "Track00291/mix.flac",
+        "category": "synthesized-mixture",
+        "stratum": "synthesized-mixture",
+        "role": "controlled-source",
+        "officialUrl": "https://www.slakh.com/"
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-slakh2100",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "Slakh2100 Redux · Track00291/mix.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired Slakh2100 Redux redux-2021 dataset; source identity Track00291/mix.flac; category synthesized-mixture."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-SLAKH2100-232299187C2F335F",
+      "groupId": "slakh2100:Track00036",
+      "split": "test",
+      "title": "Track00036",
+      "artist": "Slakh2100",
+      "file": ".audio/masters/AVC-M-SLAKH2100-232299187C2F335F.flac",
+      "sha256": "8dfaf7c67be34cc9808f03403ec677ad5e7a8ab6a02c8d2d1506042960005784",
+      "dataset": {
+        "id": "slakh2100",
+        "version": "redux-2021",
+        "sourceId": "Track00036/mix.flac",
+        "category": "synthesized-mixture",
+        "stratum": "synthesized-mixture",
+        "role": "controlled-source",
+        "officialUrl": "https://www.slakh.com/"
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-slakh2100",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "Slakh2100 Redux · Track00036/mix.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired Slakh2100 Redux redux-2021 dataset; source identity Track00036/mix.flac; category synthesized-mixture."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-SLAKH2100-294619D118EA1700",
+      "groupId": "slakh2100:Track00138",
+      "split": "development",
+      "title": "Track00138",
+      "artist": "Slakh2100",
+      "file": ".audio/masters/AVC-M-SLAKH2100-294619D118EA1700.flac",
+      "sha256": "41e0019e3be47b2effe29e258bf72383c8828095384b1b1f83c1f99baa0775f1",
+      "dataset": {
+        "id": "slakh2100",
+        "version": "redux-2021",
+        "sourceId": "Track00138/mix.flac",
+        "category": "synthesized-mixture",
+        "stratum": "synthesized-mixture",
+        "role": "controlled-source",
+        "officialUrl": "https://www.slakh.com/"
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-slakh2100",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "Slakh2100 Redux · Track00138/mix.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired Slakh2100 Redux redux-2021 dataset; source identity Track00138/mix.flac; category synthesized-mixture."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-SLAKH2100-59A4308688926F3B",
+      "groupId": "slakh2100:Track00205",
+      "split": "development",
+      "title": "Track00205",
+      "artist": "Slakh2100",
+      "file": ".audio/masters/AVC-M-SLAKH2100-59A4308688926F3B.flac",
+      "sha256": "3d0ee567a17c52993d078a1699c0951d7d86a545fed021ab575be83bdc37f875",
+      "dataset": {
+        "id": "slakh2100",
+        "version": "redux-2021",
+        "sourceId": "Track00205/mix.flac",
+        "category": "synthesized-mixture",
+        "stratum": "synthesized-mixture",
+        "role": "controlled-source",
+        "officialUrl": "https://www.slakh.com/"
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-slakh2100",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "Slakh2100 Redux · Track00205/mix.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired Slakh2100 Redux redux-2021 dataset; source identity Track00205/mix.flac; category synthesized-mixture."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-SLAKH2100-61996DBBA381CD8E",
+      "groupId": "slakh2100:Track00187",
+      "split": "development",
+      "title": "Track00187",
+      "artist": "Slakh2100",
+      "file": ".audio/masters/AVC-M-SLAKH2100-61996DBBA381CD8E.flac",
+      "sha256": "d4ef1c68da85f38c6de5a4a6c5f87e016bf2c31a7501f0c80fc24ba9eda52cae",
+      "dataset": {
+        "id": "slakh2100",
+        "version": "redux-2021",
+        "sourceId": "Track00187/mix.flac",
+        "category": "synthesized-mixture",
+        "stratum": "synthesized-mixture",
+        "role": "controlled-source",
+        "officialUrl": "https://www.slakh.com/"
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-slakh2100",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "Slakh2100 Redux · Track00187/mix.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired Slakh2100 Redux redux-2021 dataset; source identity Track00187/mix.flac; category synthesized-mixture."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-SLAKH2100-66A819645484A880",
+      "groupId": "slakh2100:Track00637",
+      "split": "calibration",
+      "title": "Track00637",
+      "artist": "Slakh2100",
+      "file": ".audio/masters/AVC-M-SLAKH2100-66A819645484A880.flac",
+      "sha256": "32ca383ffe9dd980c7f35e58f920333cce7519fea92b6bd433fc1c5c8e815251",
+      "dataset": {
+        "id": "slakh2100",
+        "version": "redux-2021",
+        "sourceId": "Track00637/mix.flac",
+        "category": "synthesized-mixture",
+        "stratum": "synthesized-mixture",
+        "role": "controlled-source",
+        "officialUrl": "https://www.slakh.com/"
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-slakh2100",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "Slakh2100 Redux · Track00637/mix.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired Slakh2100 Redux redux-2021 dataset; source identity Track00637/mix.flac; category synthesized-mixture."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-SLAKH2100-6AFF865FC21E96E9",
+      "groupId": "slakh2100:Track00090",
+      "split": "development",
+      "title": "Track00090",
+      "artist": "Slakh2100",
+      "file": ".audio/masters/AVC-M-SLAKH2100-6AFF865FC21E96E9.flac",
+      "sha256": "dcb692ac76b5fbc4e7fbb5e9132e4aa4578af1bc1988acfd14034bd71c5c6474",
+      "dataset": {
+        "id": "slakh2100",
+        "version": "redux-2021",
+        "sourceId": "Track00090/mix.flac",
+        "category": "synthesized-mixture",
+        "stratum": "synthesized-mixture",
+        "role": "controlled-source",
+        "officialUrl": "https://www.slakh.com/"
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-slakh2100",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "Slakh2100 Redux · Track00090/mix.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired Slakh2100 Redux redux-2021 dataset; source identity Track00090/mix.flac; category synthesized-mixture."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-SLAKH2100-6D98C509ED16C4E1",
+      "groupId": "slakh2100:Track00204",
+      "split": "development",
+      "title": "Track00204",
+      "artist": "Slakh2100",
+      "file": ".audio/masters/AVC-M-SLAKH2100-6D98C509ED16C4E1.flac",
+      "sha256": "d48fe1feb8898c66979c845a73067a1b63bb9dc312f4eaf14a3a009760a54b7c",
+      "dataset": {
+        "id": "slakh2100",
+        "version": "redux-2021",
+        "sourceId": "Track00204/mix.flac",
+        "category": "synthesized-mixture",
+        "stratum": "synthesized-mixture",
+        "role": "controlled-source",
+        "officialUrl": "https://www.slakh.com/"
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-slakh2100",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "Slakh2100 Redux · Track00204/mix.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired Slakh2100 Redux redux-2021 dataset; source identity Track00204/mix.flac; category synthesized-mixture."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-SLAKH2100-708B25DB859CF58A",
+      "groupId": "slakh2100:Track00426",
+      "split": "development",
+      "title": "Track00426",
+      "artist": "Slakh2100",
+      "file": ".audio/masters/AVC-M-SLAKH2100-708B25DB859CF58A.flac",
+      "sha256": "36f9e49c3c5551b423f16ff68e99c33477e0a504b179f2714c695b2bb4d300c9",
+      "dataset": {
+        "id": "slakh2100",
+        "version": "redux-2021",
+        "sourceId": "Track00426/mix.flac",
+        "category": "synthesized-mixture",
+        "stratum": "synthesized-mixture",
+        "role": "controlled-source",
+        "officialUrl": "https://www.slakh.com/"
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-slakh2100",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "Slakh2100 Redux · Track00426/mix.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired Slakh2100 Redux redux-2021 dataset; source identity Track00426/mix.flac; category synthesized-mixture."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-SLAKH2100-8040A32DA7356EA8",
+      "groupId": "slakh2100:Track00214",
+      "split": "development",
+      "title": "Track00214",
+      "artist": "Slakh2100",
+      "file": ".audio/masters/AVC-M-SLAKH2100-8040A32DA7356EA8.flac",
+      "sha256": "34e6456d4e20b629724029405664eb21e845054bfd76f882c653a0570145ff16",
+      "dataset": {
+        "id": "slakh2100",
+        "version": "redux-2021",
+        "sourceId": "Track00214/mix.flac",
+        "category": "synthesized-mixture",
+        "stratum": "synthesized-mixture",
+        "role": "controlled-source",
+        "officialUrl": "https://www.slakh.com/"
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-slakh2100",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "Slakh2100 Redux · Track00214/mix.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired Slakh2100 Redux redux-2021 dataset; source identity Track00214/mix.flac; category synthesized-mixture."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-SLAKH2100-8410F9B8060844C6",
+      "groupId": "slakh2100:Track00149",
+      "split": "development",
+      "title": "Track00149",
+      "artist": "Slakh2100",
+      "file": ".audio/masters/AVC-M-SLAKH2100-8410F9B8060844C6.flac",
+      "sha256": "3a61d5988f7e90241ad59f2b3bbe21e882ae0f7b0303305580eb4fdd3709d18b",
+      "dataset": {
+        "id": "slakh2100",
+        "version": "redux-2021",
+        "sourceId": "Track00149/mix.flac",
+        "category": "synthesized-mixture",
+        "stratum": "synthesized-mixture",
+        "role": "controlled-source",
+        "officialUrl": "https://www.slakh.com/"
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-slakh2100",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "Slakh2100 Redux · Track00149/mix.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired Slakh2100 Redux redux-2021 dataset; source identity Track00149/mix.flac; category synthesized-mixture."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-SLAKH2100-88CCFF3049EC12A5",
+      "groupId": "slakh2100:Track00054",
+      "split": "test",
+      "title": "Track00054",
+      "artist": "Slakh2100",
+      "file": ".audio/masters/AVC-M-SLAKH2100-88CCFF3049EC12A5.flac",
+      "sha256": "6680133e89e4bdf0d34229584d69228817fe878c1edee745720ed6e5a55cea40",
+      "dataset": {
+        "id": "slakh2100",
+        "version": "redux-2021",
+        "sourceId": "Track00054/mix.flac",
+        "category": "synthesized-mixture",
+        "stratum": "synthesized-mixture",
+        "role": "controlled-source",
+        "officialUrl": "https://www.slakh.com/"
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-slakh2100",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "Slakh2100 Redux · Track00054/mix.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired Slakh2100 Redux redux-2021 dataset; source identity Track00054/mix.flac; category synthesized-mixture."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-SLAKH2100-9E4E673A0053D032",
+      "groupId": "slakh2100:Track00092",
+      "split": "test",
+      "title": "Track00092",
+      "artist": "Slakh2100",
+      "file": ".audio/masters/AVC-M-SLAKH2100-9E4E673A0053D032.flac",
+      "sha256": "aeda5d5e21610347648d16da21cc7d87d6fbee30a360c73d0f6a04cba66793e4",
+      "dataset": {
+        "id": "slakh2100",
+        "version": "redux-2021",
+        "sourceId": "Track00092/mix.flac",
+        "category": "synthesized-mixture",
+        "stratum": "synthesized-mixture",
+        "role": "controlled-source",
+        "officialUrl": "https://www.slakh.com/"
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-slakh2100",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "Slakh2100 Redux · Track00092/mix.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired Slakh2100 Redux redux-2021 dataset; source identity Track00092/mix.flac; category synthesized-mixture."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-SLAKH2100-9FF3E8E718025CA3",
+      "groupId": "slakh2100:Track00127",
+      "split": "development",
+      "title": "Track00127",
+      "artist": "Slakh2100",
+      "file": ".audio/masters/AVC-M-SLAKH2100-9FF3E8E718025CA3.flac",
+      "sha256": "652f365b7a87622a99f6673d7c48007231d83e94df716b5eb001af21401b031e",
+      "dataset": {
+        "id": "slakh2100",
+        "version": "redux-2021",
+        "sourceId": "Track00127/mix.flac",
+        "category": "synthesized-mixture",
+        "stratum": "synthesized-mixture",
+        "role": "controlled-source",
+        "officialUrl": "https://www.slakh.com/"
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-slakh2100",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "Slakh2100 Redux · Track00127/mix.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired Slakh2100 Redux redux-2021 dataset; source identity Track00127/mix.flac; category synthesized-mixture."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-SLAKH2100-A389B67E5D28029F",
+      "groupId": "slakh2100:Track00338",
+      "split": "development",
+      "title": "Track00338",
+      "artist": "Slakh2100",
+      "file": ".audio/masters/AVC-M-SLAKH2100-A389B67E5D28029F.flac",
+      "sha256": "dbddf38e5b06eeaf87284425afae32d1beee14d1383e89d1f526ccf211e50a1c",
+      "dataset": {
+        "id": "slakh2100",
+        "version": "redux-2021",
+        "sourceId": "Track00338/mix.flac",
+        "category": "synthesized-mixture",
+        "stratum": "synthesized-mixture",
+        "role": "controlled-source",
+        "officialUrl": "https://www.slakh.com/"
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-slakh2100",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "Slakh2100 Redux · Track00338/mix.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired Slakh2100 Redux redux-2021 dataset; source identity Track00338/mix.flac; category synthesized-mixture."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-SLAKH2100-A3EA96232961456C",
+      "groupId": "slakh2100:Track00128",
+      "split": "test",
+      "title": "Track00128",
+      "artist": "Slakh2100",
+      "file": ".audio/masters/AVC-M-SLAKH2100-A3EA96232961456C.flac",
+      "sha256": "ee3f196c79a18be622bf89c9828220451ee67233d08f84306768623ca8363514",
+      "dataset": {
+        "id": "slakh2100",
+        "version": "redux-2021",
+        "sourceId": "Track00128/mix.flac",
+        "category": "synthesized-mixture",
+        "stratum": "synthesized-mixture",
+        "role": "controlled-source",
+        "officialUrl": "https://www.slakh.com/"
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-slakh2100",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "Slakh2100 Redux · Track00128/mix.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired Slakh2100 Redux redux-2021 dataset; source identity Track00128/mix.flac; category synthesized-mixture."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-SLAKH2100-C563301188DCD957",
+      "groupId": "slakh2100:Track00306",
+      "split": "development",
+      "title": "Track00306",
+      "artist": "Slakh2100",
+      "file": ".audio/masters/AVC-M-SLAKH2100-C563301188DCD957.flac",
+      "sha256": "c8107c40ec16f49e4fa7788e441efb8fbeed7a030730cd2192823fb41067b8b7",
+      "dataset": {
+        "id": "slakh2100",
+        "version": "redux-2021",
+        "sourceId": "Track00306/mix.flac",
+        "category": "synthesized-mixture",
+        "stratum": "synthesized-mixture",
+        "role": "controlled-source",
+        "officialUrl": "https://www.slakh.com/"
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-slakh2100",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "Slakh2100 Redux · Track00306/mix.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired Slakh2100 Redux redux-2021 dataset; source identity Track00306/mix.flac; category synthesized-mixture."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-SLAKH2100-C5882F2E6BD53A00",
+      "groupId": "slakh2100:Track00437",
+      "split": "calibration",
+      "title": "Track00437",
+      "artist": "Slakh2100",
+      "file": ".audio/masters/AVC-M-SLAKH2100-C5882F2E6BD53A00.flac",
+      "sha256": "26609f8682a7b334ea1bdd701014956cb8430414e93f71b2bf5c11ddd209cdce",
+      "dataset": {
+        "id": "slakh2100",
+        "version": "redux-2021",
+        "sourceId": "Track00437/mix.flac",
+        "category": "synthesized-mixture",
+        "stratum": "synthesized-mixture",
+        "role": "controlled-source",
+        "officialUrl": "https://www.slakh.com/"
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-slakh2100",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "Slakh2100 Redux · Track00437/mix.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired Slakh2100 Redux redux-2021 dataset; source identity Track00437/mix.flac; category synthesized-mixture."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-SLAKH2100-C9ED0B84D7846CFE",
+      "groupId": "slakh2100:Track00435",
+      "split": "calibration",
+      "title": "Track00435",
+      "artist": "Slakh2100",
+      "file": ".audio/masters/AVC-M-SLAKH2100-C9ED0B84D7846CFE.flac",
+      "sha256": "c92fa730b521161688019c6eb5efaff460433531f4e86a392bbaec885d46cf76",
+      "dataset": {
+        "id": "slakh2100",
+        "version": "redux-2021",
+        "sourceId": "Track00435/mix.flac",
+        "category": "synthesized-mixture",
+        "stratum": "synthesized-mixture",
+        "role": "controlled-source",
+        "officialUrl": "https://www.slakh.com/"
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-slakh2100",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "Slakh2100 Redux · Track00435/mix.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired Slakh2100 Redux redux-2021 dataset; source identity Track00435/mix.flac; category synthesized-mixture."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-SLAKH2100-CA0FE30473C538C5",
+      "groupId": "slakh2100:Track00371",
+      "split": "development",
+      "title": "Track00371",
+      "artist": "Slakh2100",
+      "file": ".audio/masters/AVC-M-SLAKH2100-CA0FE30473C538C5.flac",
+      "sha256": "89253a796eb551f0bb99262e73c719b070eb60dca1698d84f542e01a59157906",
+      "dataset": {
+        "id": "slakh2100",
+        "version": "redux-2021",
+        "sourceId": "Track00371/mix.flac",
+        "category": "synthesized-mixture",
+        "stratum": "synthesized-mixture",
+        "role": "controlled-source",
+        "officialUrl": "https://www.slakh.com/"
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-slakh2100",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "Slakh2100 Redux · Track00371/mix.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired Slakh2100 Redux redux-2021 dataset; source identity Track00371/mix.flac; category synthesized-mixture."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-SLAKH2100-CAC9A9FE1EAD6F18",
+      "groupId": "slakh2100:Track00047",
+      "split": "test",
+      "title": "Track00047",
+      "artist": "Slakh2100",
+      "file": ".audio/masters/AVC-M-SLAKH2100-CAC9A9FE1EAD6F18.flac",
+      "sha256": "252d22c2f9064b7bdd69b4a144a90f042ec2460b7a88fe08fbd0208b5638410f",
+      "dataset": {
+        "id": "slakh2100",
+        "version": "redux-2021",
+        "sourceId": "Track00047/mix.flac",
+        "category": "synthesized-mixture",
+        "stratum": "synthesized-mixture",
+        "role": "controlled-source",
+        "officialUrl": "https://www.slakh.com/"
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-slakh2100",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "Slakh2100 Redux · Track00047/mix.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired Slakh2100 Redux redux-2021 dataset; source identity Track00047/mix.flac; category synthesized-mixture."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-SLAKH2100-D4BF400AA032185B",
+      "groupId": "slakh2100:Track00311",
+      "split": "development",
+      "title": "Track00311",
+      "artist": "Slakh2100",
+      "file": ".audio/masters/AVC-M-SLAKH2100-D4BF400AA032185B.flac",
+      "sha256": "b6ff3c39576ad7ce643529dc1b08250d2ebb1f91902a3f3539a7cbb243585cf7",
+      "dataset": {
+        "id": "slakh2100",
+        "version": "redux-2021",
+        "sourceId": "Track00311/mix.flac",
+        "category": "synthesized-mixture",
+        "stratum": "synthesized-mixture",
+        "role": "controlled-source",
+        "officialUrl": "https://www.slakh.com/"
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-slakh2100",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "Slakh2100 Redux · Track00311/mix.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired Slakh2100 Redux redux-2021 dataset; source identity Track00311/mix.flac; category synthesized-mixture."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-SLAKH2100-DBE7C8487DAAC1BA",
+      "groupId": "slakh2100:Track00262",
+      "split": "development",
+      "title": "Track00262",
+      "artist": "Slakh2100",
+      "file": ".audio/masters/AVC-M-SLAKH2100-DBE7C8487DAAC1BA.flac",
+      "sha256": "383e058972314bf0bd1a9a2a76a385d305469a607595bfc3bb43ebe9f51f4414",
+      "dataset": {
+        "id": "slakh2100",
+        "version": "redux-2021",
+        "sourceId": "Track00262/mix.flac",
+        "category": "synthesized-mixture",
+        "stratum": "synthesized-mixture",
+        "role": "controlled-source",
+        "officialUrl": "https://www.slakh.com/"
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-slakh2100",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "Slakh2100 Redux · Track00262/mix.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired Slakh2100 Redux redux-2021 dataset; source identity Track00262/mix.flac; category synthesized-mixture."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-SLAKH2100-DDB98ECE3B93A8EB",
+      "groupId": "slakh2100:Track00259",
+      "split": "test",
+      "title": "Track00259",
+      "artist": "Slakh2100",
+      "file": ".audio/masters/AVC-M-SLAKH2100-DDB98ECE3B93A8EB.flac",
+      "sha256": "86e6d90d8fe3667dbf74f92a7803997575d8d9361e5b2f53fc93f365492247ee",
+      "dataset": {
+        "id": "slakh2100",
+        "version": "redux-2021",
+        "sourceId": "Track00259/mix.flac",
+        "category": "synthesized-mixture",
+        "stratum": "synthesized-mixture",
+        "role": "controlled-source",
+        "officialUrl": "https://www.slakh.com/"
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-slakh2100",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "Slakh2100 Redux · Track00259/mix.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired Slakh2100 Redux redux-2021 dataset; source identity Track00259/mix.flac; category synthesized-mixture."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-SLAKH2100-DF5A89030FF17941",
+      "groupId": "slakh2100:Track00159",
+      "split": "development",
+      "title": "Track00159",
+      "artist": "Slakh2100",
+      "file": ".audio/masters/AVC-M-SLAKH2100-DF5A89030FF17941.flac",
+      "sha256": "fe92b89c9742ab0ab3fd8b6f23987dea1570ed9a7082e6e4b8a5c49a6a7f97b9",
+      "dataset": {
+        "id": "slakh2100",
+        "version": "redux-2021",
+        "sourceId": "Track00159/mix.flac",
+        "category": "synthesized-mixture",
+        "stratum": "synthesized-mixture",
+        "role": "controlled-source",
+        "officialUrl": "https://www.slakh.com/"
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-slakh2100",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "Slakh2100 Redux · Track00159/mix.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired Slakh2100 Redux redux-2021 dataset; source identity Track00159/mix.flac; category synthesized-mixture."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-SLAKH2100-DF674FF43FAED306",
+      "groupId": "slakh2100:Track00661",
+      "split": "calibration",
+      "title": "Track00661",
+      "artist": "Slakh2100",
+      "file": ".audio/masters/AVC-M-SLAKH2100-DF674FF43FAED306.flac",
+      "sha256": "2e4815b0c9532813ceb670a69d132cab127119e18f3ec16d79ce30e7403d61c3",
+      "dataset": {
+        "id": "slakh2100",
+        "version": "redux-2021",
+        "sourceId": "Track00661/mix.flac",
+        "category": "synthesized-mixture",
+        "stratum": "synthesized-mixture",
+        "role": "controlled-source",
+        "officialUrl": "https://www.slakh.com/"
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-slakh2100",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "Slakh2100 Redux · Track00661/mix.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired Slakh2100 Redux redux-2021 dataset; source identity Track00661/mix.flac; category synthesized-mixture."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-SLAKH2100-F28FF94DE4E01723",
+      "groupId": "slakh2100:Track00178",
+      "split": "calibration",
+      "title": "Track00178",
+      "artist": "Slakh2100",
+      "file": ".audio/masters/AVC-M-SLAKH2100-F28FF94DE4E01723.flac",
+      "sha256": "453026ef71b915048bfe0ebb841d205752e9540705d5e7b7b3d5bb08ffc13eea",
+      "dataset": {
+        "id": "slakh2100",
+        "version": "redux-2021",
+        "sourceId": "Track00178/mix.flac",
+        "category": "synthesized-mixture",
+        "stratum": "synthesized-mixture",
+        "role": "controlled-source",
+        "officialUrl": "https://www.slakh.com/"
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-slakh2100",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "Slakh2100 Redux · Track00178/mix.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired Slakh2100 Redux redux-2021 dataset; source identity Track00178/mix.flac; category synthesized-mixture."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16,
+        "channels": 1
+      }
+    },
+    {
+      "id": "AVC-M-SLAKH2100-FAC52213B5E86E8A",
+      "groupId": "slakh2100:Track00040",
+      "split": "calibration",
+      "title": "Track00040",
+      "artist": "Slakh2100",
+      "file": ".audio/masters/AVC-M-SLAKH2100-FAC52213B5E86E8A.flac",
+      "sha256": "89e9beeb2df8146c7b4be092501988c535c2ab5b1492ff008d67c95f47383b8b",
+      "dataset": {
+        "id": "slakh2100",
+        "version": "redux-2021",
+        "sourceId": "Track00040/mix.flac",
+        "category": "synthesized-mixture",
+        "stratum": "synthesized-mixture",
+        "role": "controlled-source",
+        "officialUrl": "https://www.slakh.com/"
+      },
+      "rights": {
+        "license": "CC-BY-4.0",
+        "agreementId": "DATASET-REGISTRY-1.0.0-slakh2100",
+        "acceptedAt": "2026-07-31",
+        "redistributable": true,
+        "attribution": "Slakh2100 Redux · Track00040/mix.flac"
+      },
+      "provenance": {
+        "kind": "licensed-research-dataset",
+        "acquiredAt": "2026-07-31",
+        "chainOfCustody": "Imported from the operator-acquired Slakh2100 Redux redux-2021 dataset; source identity Track00040/mix.flac; category synthesized-mixture."
+      },
+      "technical": {
+        "format": "flac",
+        "sampleRate": 44100,
         "bitDepth": 16,
         "channels": 1
       }

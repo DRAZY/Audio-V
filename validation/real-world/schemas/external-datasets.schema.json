@@ -60,7 +60,9 @@
           "properties": {
             "homepage": { "type": "string", "format": "uri" },
             "download": { "type": "string", "format": "uri" },
+            "metadataUrl": { "type": "string", "format": "uri" },
             "archiveUrl": { "type": "string", "format": "uri" },
+            "archiveFilename": { "type": "string", "minLength": 1 },
             "archiveBytes": { "type": "integer", "minimum": 1 },
             "archiveChecksum": { "type": "string", "pattern": "^(md5|sha256):[a-f0-9]+$" },
             "access": { "enum": ["direct", "manual", "approval"] }

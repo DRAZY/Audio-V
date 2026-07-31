@@ -127,15 +127,30 @@ async function discoverMaestro(dataset, root, files) {
       "MAESTRO import requires maestro-v3.0.0.json inside the selected root.",
     );
   }
-  const metadata = JSON.parse(await fs.readFile(metadataPath, "utf8"));
-  if (!Array.isArray(metadata)) {
-    throw new Error("MAESTRO metadata must be a JSON array.");
+  const rawMetadata = JSON.parse(await fs.readFile(metadataPath, "utf8"));
+  const metadata = Array.isArray(rawMetadata)
+    ? rawMetadata
+    : Object.keys(rawMetadata.audio_filename ?? {})
+        .sort((left, right) => Number(left) - Number(right))
+        .map((index) =>
+          Object.fromEntries(
+            Object.entries(rawMetadata).map(([field, values]) => [
+              field,
+              values?.[index],
+            ]),
+          ),
+        );
+  if (metadata.length === 0) {
+    throw new Error(
+      "MAESTRO metadata must be a non-empty row array or official column-oriented JSON object.",
+    );
   }
+  const metadataRoot = path.dirname(metadataPath);
   const candidates = [];
   for (const item of metadata) {
     const audioFilename = String(item.audio_filename ?? "");
     if (!audioFilename) continue;
-    const filePath = path.join(root, ...audioFilename.split("/"));
+    const filePath = path.join(metadataRoot, ...audioFilename.split("/"));
     try {
       const stat = await fs.stat(filePath);
       if (!stat.isFile()) continue;
@@ -167,11 +182,32 @@ async function discoverMaestro(dataset, root, files) {
 async function discoverEbu(dataset, root, files) {
   return files
     .filter((filePath) => supportedAudioExtensions.has(path.extname(filePath).toLowerCase()))
-    .map((filePath) => ({
-      ...genericCandidate(dataset, root, filePath),
-      category: "standardized-test-material",
-      stratum: "standardized-test-material",
-    }));
+    .map((filePath) => {
+      const track = Number.parseInt(path.basename(filePath), 10);
+      const category =
+        track <= 2
+          ? "alignment-signal"
+          : track <= 7
+            ? "artificial-signal"
+            : track <= 43
+              ? "single-instrument"
+              : track <= 48
+                ? "vocal"
+                : track <= 54
+                  ? "speech"
+                  : track <= 60
+                    ? "solo-instrument"
+                    : track <= 64
+                      ? "vocal-orchestra"
+                      : track <= 68
+                        ? "orchestra"
+                        : "pop-music";
+      return {
+        ...genericCandidate(dataset, root, filePath),
+        category,
+        stratum: `ebu-sqam:${category}`,
+      };
+    });
 }
 
 async function discoverMusdb(dataset, root, files) {
@@ -239,7 +275,42 @@ export function selectBalancedCandidates(
     seenGroups.add(candidate.groupId);
     uniqueGroups.push(candidate);
   }
-  if (!redistributable) return uniqueGroups.slice(0, limit);
+  if (!redistributable) {
+    const byCategory = new Map();
+    for (const candidate of uniqueGroups) {
+      const category = candidate.category ?? "unspecified";
+      const population = byCategory.get(category) ?? [];
+      population.push(candidate);
+      byCategory.set(category, population);
+    }
+    const rankedCategories = [...byCategory.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([category, population]) => ({
+        category,
+        population: population.sort((left, right) => {
+          const leftHash = createHash("sha256")
+            .update(left.groupId)
+            .digest("hex");
+          const rightHash = createHash("sha256")
+            .update(right.groupId)
+            .digest("hex");
+          return leftHash.localeCompare(rightHash);
+        }),
+      }));
+    const selected = [];
+    while (selected.length < limit) {
+      let added = false;
+      for (const entry of rankedCategories) {
+        const candidate = entry.population.shift();
+        if (!candidate) continue;
+        selected.push(candidate);
+        added = true;
+        if (selected.length === limit) break;
+      }
+      if (!added) break;
+    }
+    return selected;
+  }
   const quotas = {
     development: Math.floor(
       (limit * selectionPolicy.developmentPercent) / 100,

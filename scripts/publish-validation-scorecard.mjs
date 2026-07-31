@@ -41,6 +41,7 @@ const published = {
   claimLevel: status.claimLevel,
   independentReferences: scorecard.independentReferences,
   sourceGroups: scorecard.contributorGroups,
+  sourceGroupAcceptance: scorecard.sourceGroupAcceptance,
   cases: scorecard.cases,
   detectors: scorecard.detectors,
   groupedMetrics: scorecard.groupedMetrics,

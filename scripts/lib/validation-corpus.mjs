@@ -186,6 +186,17 @@ export function validateCorpus(corpus) {
       ) {
         errors.push(`${master.id}: MUSAN component license evidence is required`);
       }
+      if (
+        master.rights?.redistributable === false &&
+        (!master.dataset.licenseEvidence?.file ||
+          !/^[a-f0-9]{64}$/u.test(
+            master.dataset.licenseEvidence?.sha256 ?? "",
+          ))
+      ) {
+        errors.push(
+          `${master.id}: research-only dataset terms evidence is required`,
+        );
+      }
     }
   }
   return { errors, groupCount: groupSplits.size };
@@ -239,6 +250,16 @@ export function validateExternalDatasets(registry) {
     }
     if (!dataset.official?.homepage || !dataset.official?.download) {
       errors.push(`${dataset.id}: official source links are incomplete`);
+    }
+    if (
+      dataset.official?.access === "direct" &&
+      (!dataset.official.archiveUrl ||
+        !dataset.official.archiveFilename ||
+        !dataset.official.archiveBytes)
+    ) {
+      errors.push(
+        `${dataset.id}: direct acquisition requires archive URL, filename, and byte count`,
+      );
     }
     if (!dataset.license?.identifier || !dataset.license?.url) {
       errors.push(`${dataset.id}: license record is incomplete`);
@@ -307,13 +328,78 @@ export function binomialCdf(k, n, probability) {
   if (k >= n) return 1;
   if (probability <= 0) return 1;
   if (probability >= 1) return 0;
-  let term = (1 - probability) ** n;
-  let sum = term;
-  for (let index = 0; index < k; index += 1) {
-    term *= ((n - index) / (index + 1)) * (probability / (1 - probability));
-    sum += term;
+
+  // Sum the shorter tail in log space. Starting at P(X = 0) underflows for
+  // ordinary corpus-sized samples (for example n=810, p≈0.9), which previously
+  // collapsed exact confidence intervals to meaningless mid-range values.
+  const logProbability = (successes) =>
+    logGamma(n + 1) -
+    logGamma(successes + 1) -
+    logGamma(n - successes + 1) +
+    successes * Math.log(probability) +
+    (n - successes) * Math.log1p(-probability);
+  const logSum = (start, end) => {
+    const terms = [];
+    let maximum = Number.NEGATIVE_INFINITY;
+    for (let successes = start; successes <= end; successes += 1) {
+      const value = logProbability(successes);
+      terms.push(value);
+      maximum = Math.max(maximum, value);
+    }
+    if (!Number.isFinite(maximum)) return 0;
+    return (
+      Math.exp(maximum) *
+      terms.reduce((sum, value) => sum + Math.exp(value - maximum), 0)
+    );
+  };
+  if (k < n * probability) {
+    return Math.min(1, Math.max(0, logSum(0, k)));
   }
-  return Math.min(1, Math.max(0, sum));
+  return Math.min(1, Math.max(0, 1 - logSum(k + 1, n)));
+}
+
+function logGamma(value) {
+  const coefficients = [
+    676.5203681218851,
+    -1259.1392167224028,
+    771.3234287776531,
+    -176.6150291621406,
+    12.507343278686905,
+    -0.13857109526572012,
+    9.984369578019572e-6,
+    1.5056327351493116e-7,
+  ];
+  if (value < 0.5) {
+    return (
+      Math.log(Math.PI) -
+      Math.log(Math.sin(Math.PI * value)) -
+      logGamma(1 - value)
+    );
+  }
+  const shifted = value - 1;
+  let series = 0.9999999999998099;
+  for (let index = 0; index < coefficients.length; index += 1) {
+    series += coefficients[index] / (shifted + index + 1);
+  }
+  const base = shifted + coefficients.length - 0.5;
+  return (
+    0.5 * Math.log(2 * Math.PI) +
+    (shifted + 0.5) * Math.log(base) -
+    base +
+    Math.log(series)
+  );
+}
+
+export function acceptanceEligibilityForCase(
+  originDetectorEligibility,
+  truthClass,
+) {
+  return originDetectorEligibility === "negative-only" &&
+    ["lossy-to-lossless", "multi-generation-lossy", "upsample"].includes(
+      truthClass,
+    )
+    ? "observational-only"
+    : "scored";
 }
 
 export function clopperPearson(successes, total, alpha = 0.05) {

@@ -76,16 +76,47 @@ The state is **external references pending** before import, **pilot building** b
 
 ## Current measured milestone
 
-The first local external run contains 20 independent MUSAN references selected from 2,016 candidates:
+Corpus `0.4.0` contains 75 independent references: 20 public MUSAN edge
+controls, 30 public Slakh2100 Redux controlled sources, 10 local EBU SQAM
+challenge references, and 15 local MAESTRO composition-unique piano challenge
+references. The public population has 30 development, 10 calibration, and 10
+held-out test source groups and reaches the numeric 50-reference target.
 
-- 12 development, 4 calibration, and 4 test source groups;
-- 7 music, 7 noise, and 6 speech references across eight source subcollections;
-- 540 generated cases available to the bundled LGPL engine;
-- 540/540 accepted edge-control outcomes;
-- 540/540 safe abstentions (`inconclusive` or `not-assessed`), with a 99.32–100% exact 95% interval; and
-- zero transcode/upsample advisories on the narrow-band edge population, with a 0–0.68% exact 95% interval.
+Oracle Engine `0.10.0-oracle-v12` evaluated 2,025 generated cases:
 
-This result validates conservative abstention on MUSAN’s edge material. It does **not** measure transcode or upsample sensitivity because the selected 16-kHz references are not eligible wideband origin controls. Slakh2100 is the next public source required to populate those positive and negative detector lanes.
+- 1,625 scored cases and 400 observational-only origin-positive cases;
+- 1,412/1,625 accepted scored outcomes (86.89% case-weighted, descriptive);
+- 45/75 source groups with every scored case accepted;
+- zero lossy-origin false advisories across 825 eligible negative cases;
+- zero upsample false advisories across 1,265 eligible negative cases;
+- zero explicit positive advisories across 360 controlled lossy derivatives;
+- zero explicit positive advisories across 120 controlled upsample derivatives;
+- 540/540 safe MUSAN edge-control abstentions; and
+- 165/165 accepted scored MAESTRO challenge outcomes, while all MAESTRO origin
+  lanes abstained.
+
+This is a useful, intentionally uncomfortable result. It demonstrates strong
+specificity and conservative abstention on the disclosed population, but it
+also establishes a severe positive-detection coverage gap. Reaching the source
+count target does **not** make the detector probability-calibrated or
+authoritative. The current aggregate scorecard is published at
+`validation/real-world/scorecards/0.10.0-oracle-v12-corpus-0.4.0.json`; the
+`0.3.0` scorecard remains as the pre-MAESTRO historical measurement.
+
+Derivative case counts are reported for debugging and recipe-level comparison,
+but they are not treated as independent observations. Headline uncertainty is
+calculated over independent source groups, and a group passes only when every
+scored generated case for that source passes.
+
+Challenge sources labeled `negative-only` can measure false origin advisories,
+but they cannot establish detector sensitivity because their own prior
+processing history is not controlled. Lossy-transcode and upsample derivatives
+made from those references are therefore retained as **observational-only**
+cases: Oracle Engine still analyzes them and the scorecard exposes the result,
+but they are excluded from acceptance totals rather than being mislabeled as
+failures. Deterministic integrity, channel, and clipping cases remain scored.
+All exact-binomial intervals are calculated over the explicitly named
+independence unit.
 
 ## Operator workflow
 
@@ -95,7 +126,51 @@ First write and inspect the source plan:
 npm run corpus:plan
 ```
 
-Download a dataset from the official URL recorded in the generated plan, extract it outside the repository, and preview the deterministic selection:
+For a directly hosted archive, use the resumable segmented downloader. It
+preallocates the registry-pinned byte count, uses bounded HTTP range workers,
+records completed segments in ignored local state, and refuses to finish
+unless the published checksum matches:
+
+```bash
+npm run corpus:download -- \
+  --dataset slakh2100 \
+  --concurrency 8 \
+  --parts 48
+```
+
+Concurrency is capped at 16 so corpus acquisition cannot create an unbounded
+network workload. An interrupted command resumes completed segments when it is
+run again with the same part count.
+
+For Slakh, validate the archive and selectively extract a deterministic
+candidate pool. This reads the complete archive index but extracts only Redux
+`mix.flac` entries from the train, validation, and test directories; stems and
+the omitted duplicate-MIDI directory are excluded:
+
+```bash
+npm run corpus:extract -- \
+  --dataset slakh2100 \
+  --file "/external/datasets/downloads/slakh2100_flac_redux.tar.gz" \
+  --root "/external/datasets/slakh2100-selected" \
+  --candidate-limit 120
+```
+
+MAESTRO uses the same command with its ZIP archive. Audio-V reads the official
+column-oriented metadata, groups repeat performances by composition, extracts
+the metadata plus a deterministic candidate pool, and leaves all other WAV and
+MIDI files in the archive:
+
+```bash
+npm run corpus:extract -- \
+  --dataset maestro-v3 \
+  --file "/external/datasets/downloads/maestro-v3.0.0.zip" \
+  --root "/external/datasets/maestro-selected" \
+  --candidate-limit 60
+```
+
+Alternatively, download a dataset from the official URL recorded in the
+generated plan. Extract it outside the tracked repository and preview the
+deterministic selection:
 
 Before extraction, verify the downloaded byte count and the publisher checksum
 when one is available. Audio-V always calculates SHA-256 and writes an ignored
@@ -107,11 +182,17 @@ npm run corpus:verify-download -- \
   --file "/external/datasets/downloads/musan.tar.gz"
 ```
 
+If an exact-byte mirror was used only as the transfer transport, include
+`--transport-url`. The archive is accepted solely by the official registry
+byte count and checksum, while the receipt preserves the actual chain of
+custody instead of implying it came directly from the publisher.
+
 ```bash
 npm run corpus:import:dataset -- \
   --dataset slakh2100 \
   --root "/external/datasets/slakh2100_flac_redux" \
   --limit 30 \
+  --corpus-version 0.3.0 \
   --dry-run true
 ```
 
@@ -121,15 +202,45 @@ Import the selected references:
 npm run corpus:import:dataset -- \
   --dataset slakh2100 \
   --root "/external/datasets/slakh2100_flac_redux" \
-  --limit 30
+  --limit 30 \
+  --corpus-version 0.3.0
 
 npm run corpus:import:dataset -- \
   --dataset musan \
   --root "/external/datasets/musan" \
-  --limit 20
+  --limit 20 \
+  --corpus-version 0.3.0
 ```
 
+Research-only challenge sources require an explicit terms acknowledgement and
+a local evidence file (for example, the publisher-supplied license or saved
+access approval). Audio-V hashes the evidence and attaches it to every imported
+reference; the path itself is not published:
+
+```bash
+npm run corpus:import:dataset -- \
+  --dataset maestro-v3 \
+  --root "/external/datasets/maestro-selected/maestro-v3.0.0" \
+  --limit 15 \
+  --corpus-version 0.4.0 \
+  --terms-accepted true \
+  --terms-evidence "/external/datasets/maestro-license.txt"
+```
+
+EBU SQAM is registry-pinned to the EBU QC download byte count and remains a
+challenge-only R&D source. Its machine-readable record states that downloading
+the material accepts noncommercial use except as an R&D tool. Preserve that
+record as the `--terms-evidence` file and do not package or republish the audio.
+Audio-V maps the handbook's numbered ranges into alignment, artificial,
+single-instrument, vocal, speech, solo-instrument, vocal/orchestra, orchestra,
+and pop strata before deterministic challenge selection.
+
 The importer uses hard links when the dataset and project are on the same filesystem, then falls back to copying. Use `--storage copy` to force an independent local copy. It probes every selected recording, records SHA-256, assigns a leakage-safe partition, and refuses duplicate dataset/source identities. MUSAN imports also locate and hash the nearest component `LICENSE` file so its mixed-source attribution evidence stays attached to each selected recording.
+
+Every import requires an explicit `--corpus-version`. A changed reference
+population must receive a new semantic version so a published scorecard can
+never silently acquire a different meaning. Additional imports intentionally
+belonging to the same unpublished iteration may repeat that current version.
 
 Large corpora may live entirely outside the repository. Set `AUDIO_V_VALIDATION_CORPUS_DIRECTORY` to a directory containing copies of `corpus.json`, `recipes.json`, and `external-datasets.json`; imported references, derivatives, and generated manifests will then remain there. This is the preferred configuration when the datasets reside on a large external or network volume. Each source contributes one deterministic window of at most 60 seconds, providing enough decoded material for stable spectral evidence while bounding derived storage and evaluation time.
 

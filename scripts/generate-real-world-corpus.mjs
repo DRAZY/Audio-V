@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import { promises as fs, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import {
+  acceptanceEligibilityForCase,
   corpusDirectory,
   corpusPath,
   derivedDirectory,
@@ -28,6 +29,12 @@ validation.errors.push(
   ...validateExternalDatasets(externalDatasets).errors,
 );
 if (validation.errors.length) throw new Error(validation.errors.join("\n"));
+let priorGenerated = null;
+try {
+  priorGenerated = await readJson(generatedCasesPath);
+} catch {
+  // The first corpus generation has no reusable derivative manifest.
+}
 
 function hasEncoder(executable, encoder) {
   try {
@@ -230,6 +237,12 @@ function renderRecipe(recipeId, input, output, workingDirectory) {
 
 const cases = [];
 const skippedRecipes = [];
+let reusedCases = 0;
+const priorCases = new Map(
+  priorGenerated?.recipeSetVersion === recipes.recipeSetVersion
+    ? (priorGenerated.cases ?? []).map((item) => [item.id, item])
+    : [],
+);
 for (const master of corpus.masters) {
   const input = path.join(corpusDirectory, master.file);
   const actualHash = await sha256File(input);
@@ -253,8 +266,31 @@ for (const master of corpus.masters) {
         ? "edge-abstention"
         : "negative-only";
   for (const recipe of recipes.recipes) {
+    const caseId = `${master.id}:${recipe.id}`;
     const output = path.join(masterOutput, `${recipe.id}.flac`);
-    const generated = renderRecipe(
+    const priorCase = priorCases.get(caseId);
+    let generated = null;
+    let outputHash = null;
+    if (
+      priorCase?.sourceSha256 === master.sha256 &&
+      priorCase?.recipeSetVersion === recipes.recipeSetVersion
+    ) {
+      try {
+        outputHash = await sha256File(output);
+        if (outputHash === priorCase.sha256) {
+          generated = {
+            generated: true,
+            operations: priorCase.operations,
+          };
+          reusedCases += 1;
+        } else {
+          outputHash = null;
+        }
+      } catch {
+        // A missing or changed derivative is regenerated below.
+      }
+    }
+    generated ??= renderRecipe(
       recipe.id,
       windowPath,
       output,
@@ -269,8 +305,9 @@ for (const master of corpus.masters) {
       });
       continue;
     }
+    outputHash ??= await sha256File(output);
     cases.push({
-      id: `${master.id}:${recipe.id}`,
+      id: caseId,
       masterId: master.id,
       sourceSha256: master.sha256,
       groupId: master.groupId,
@@ -278,9 +315,13 @@ for (const master of corpus.masters) {
       sourceCategory: master.dataset?.category ?? "unspecified",
       sourceStratum: master.dataset?.stratum ?? "unspecified",
       originDetectorEligibility,
+      acceptanceEligibility: acceptanceEligibilityForCase(
+        originDetectorEligibility,
+        recipe.truthClass,
+      ),
       split: master.split,
       file: path.relative(corpusDirectory, output),
-      sha256: await sha256File(output),
+      sha256: outputHash,
       referenceWindow: {
         startSeconds: referenceWindow.startSeconds,
         durationSeconds: referenceWindow.durationSeconds,
@@ -317,11 +358,12 @@ await writeJson(generatedCasesPath, {
     version: executableVersion(bundledFfmpeg),
   },
   analysisWindowSeconds: corpus.policy.analysisWindowSeconds,
+  reusedCases,
   skippedRecipes,
   cases,
 });
 console.log(
-  `Generated ${cases.length} validation cases from ${corpus.masters.length} independent references.`,
+  `Generated ${cases.length} validation cases from ${corpus.masters.length} independent references (${reusedCases} hash-verified reuse(s)).`,
 );
 if (skippedRecipes.length) {
   console.warn(

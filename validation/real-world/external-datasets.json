@@ -30,6 +30,7 @@
         "homepage": "https://www.slakh.com/",
         "download": "https://zenodo.org/records/4599666",
         "archiveUrl": "https://zenodo.org/api/records/4599666/files/slakh2100_flac_redux.tar.gz/content",
+        "archiveFilename": "slakh2100_flac_redux.tar.gz",
         "archiveBytes": 104322767708,
         "archiveChecksum": "md5:f4b71b6c45ac9b506f59788456b3f0c4",
         "access": "direct"
@@ -76,6 +77,7 @@
         "homepage": "https://www.openslr.org/17/",
         "download": "https://www.openslr.org/17/",
         "archiveUrl": "https://www.openslr.org/resources/17/musan.tar.gz",
+        "archiveFilename": "musan.tar.gz",
         "archiveBytes": 11086114085,
         "access": "direct"
       },
@@ -121,6 +123,7 @@
         "homepage": "https://magenta.withgoogle.com/datasets/maestro",
         "download": "https://storage.googleapis.com/magentadata/datasets/maestro/v3.0.0/maestro-v3.0.0.zip",
         "archiveUrl": "https://storage.googleapis.com/magentadata/datasets/maestro/v3.0.0/maestro-v3.0.0.zip",
+        "archiveFilename": "maestro-v3.0.0.zip",
         "archiveBytes": 108445099632,
         "archiveChecksum": "sha256:6680fea5be2339ea15091a249fbd70e49551246ddbd5ca50f1b2352c08c95291",
         "access": "direct"
@@ -165,8 +168,12 @@
       },
       "official": {
         "homepage": "https://tech.ebu.ch/publications/sqamcd",
-        "download": "https://tech.ebu.ch/news/ebu-cds-now-online-31oct08",
-        "access": "manual"
+        "download": "https://qc.ebu.io/testmaterials/523/",
+        "metadataUrl": "https://qc.ebu.io/testmaterials/523/1/export.json",
+        "archiveUrl": "https://qc.ebu.io/testmaterials/523/1/download/",
+        "archiveFilename": "TECH3253_SQAM_FLAC.zip",
+        "archiveBytes": 175545976,
+        "access": "direct"
       },
       "audio": {
         "lossless": true,

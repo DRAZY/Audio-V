@@ -158,6 +158,8 @@ const report = {
         measuredAt: scorecard.measuredAt,
         acceptedClassificationRate:
           scorecard.cases.acceptedClassificationRate,
+        independentSourceGroupAcceptance:
+          scorecard.sourceGroupAcceptance?.acceptedRate ?? null,
       }
     : null,
   infrastructure,

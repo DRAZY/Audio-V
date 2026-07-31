@@ -88,6 +88,10 @@ async function placeReference(source, destination, storageMode) {
 
 const args = argumentsMap(process.argv.slice(2));
 const datasetId = required(args, "dataset");
+const targetCorpusVersion = required(args, "corpus-version");
+if (!/^\d+\.\d+\.\d+$/u.test(targetCorpusVersion)) {
+  throw new Error("--corpus-version must use semantic versioning.");
+}
 const sourceRoot = path.resolve(required(args, "root"));
 const registry = await readJson(externalDatasetsPath);
 const registryValidation = validateExternalDatasets(registry);
@@ -100,13 +104,25 @@ if (!dataset) {
     `Unknown dataset ${datasetId}. Available: ${registry.datasets.map((entry) => entry.id).join(", ")}.`,
   );
 }
-if (
-  ["manual-terms-review", "manual-approval"].includes(dataset.status) &&
-  args.get("terms-accepted") !== "true"
-) {
+const requiresTermsEvidence = !dataset.license.redistributableInCorpus;
+if (requiresTermsEvidence && args.get("terms-accepted") !== "true") {
   throw new Error(
     `${dataset.displayName} requires --terms-accepted true after reviewing ${dataset.license.url}.`,
   );
+}
+let termsEvidence = null;
+if (requiresTermsEvidence) {
+  const termsEvidencePath = path.resolve(required(args, "terms-evidence"));
+  const termsEvidenceStat = await fs.stat(termsEvidencePath);
+  if (!termsEvidenceStat.isFile()) {
+    throw new Error("--terms-evidence must identify a local evidence file.");
+  }
+  termsEvidence = {
+    file: path.basename(termsEvidencePath),
+    sha256: await sha256File(termsEvidencePath),
+    reviewedUrl: dataset.license.url,
+    acceptedAt: new Date().toISOString().slice(0, 10),
+  };
 }
 const storageMode = args.get("storage") ?? "hardlink";
 if (!["copy", "hardlink"].includes(storageMode)) {
@@ -123,6 +139,17 @@ if (candidates.length === 0) {
   );
 }
 const corpus = await readJson(corpusPath);
+const currentVersionParts = corpus.corpusVersion.split(".").map(Number);
+const targetVersionParts = targetCorpusVersion.split(".").map(Number);
+const versionComparison =
+  targetVersionParts[0] - currentVersionParts[0] ||
+  targetVersionParts[1] - currentVersionParts[1] ||
+  targetVersionParts[2] - currentVersionParts[2];
+if (versionComparison < 0) {
+  throw new Error(
+    `--corpus-version ${targetCorpusVersion} cannot precede current corpus ${corpus.corpusVersion}.`,
+  );
+}
 const existingIds = new Set(corpus.masters.map((master) => master.id));
 const existingSources = new Set(
   corpus.masters
@@ -209,7 +236,9 @@ try {
                 sha256: await sha256File(candidate.licenseFilePath),
               },
             }
-          : {}),
+          : termsEvidence
+            ? { licenseEvidence: termsEvidence }
+            : {}),
       },
       rights: {
         license: dataset.license.identifier,
@@ -229,6 +258,7 @@ try {
     });
   }
   corpus.masters.sort((left, right) => left.id.localeCompare(right.id));
+  corpus.corpusVersion = targetCorpusVersion;
   const validation = validateCorpus(corpus);
   if (validation.errors.length) throw new Error(validation.errors.join("\n"));
   await writeJson(corpusPath, corpus);
