@@ -13,6 +13,7 @@ build/comparison-visuals-latest.png
 build/identity-preferences-latest.png
 build/acceptance-evidence-latest.png
 build/origin-calibration-*.json
+build/origin-feature-separation-*.json
 .DS_Store
 *.log
 tests/.tmp-*/

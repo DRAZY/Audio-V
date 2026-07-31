@@ -1,0 +1,100 @@
+{
+  "schema": "Audio-V origin feature separation summary v1",
+  "generatedAt": "2026-07-31T08:20:12.892Z",
+  "engineVersion": "0.10.0-oracle-v12",
+  "corpusVersion": "0.5.0",
+  "recipeSetVersion": "0.2.0",
+  "split": "development",
+  "independenceUnit": "source-group",
+  "cases": 396,
+  "sourceGroups": 18,
+  "verdictImpact": "none",
+  "sourceGroupMedianPercentiles": {
+    "native-control": {
+      "spectralRolloff99Hz": {
+        "p10": 2418.4,
+        "p50": 3413,
+        "p90": 5253.1
+      },
+      "energyAbove20kDb": {
+        "p10": -62.313,
+        "p50": -53.73,
+        "p90": -47.075
+      },
+      "effectiveBandwidthEdgeDropDb": {
+        "p10": 1.122,
+        "p50": 2.61,
+        "p90": 4.658
+      }
+    },
+    "intentional-lowpass": {
+      "spectralRolloff99Hz": {
+        "p10": 2407.4,
+        "p50": 3391.5,
+        "p90": 5029.4
+      },
+      "energyAbove20kDb": {
+        "p10": -80.707,
+        "p50": -77.78,
+        "p90": -71.76
+      },
+      "effectiveBandwidthEdgeDropDb": {
+        "p10": 1.728,
+        "p50": 3.335,
+        "p90": 5.98
+      }
+    },
+    "lossy-to-lossless": {
+      "spectralRolloff99Hz": {
+        "p10": 2404.4,
+        "p50": 3410.5,
+        "p90": 5237.65
+      },
+      "energyAbove20kDb": {
+        "p10": -65.916,
+        "p50": -63,
+        "p90": -61.245
+      },
+      "effectiveBandwidthEdgeDropDb": {
+        "p10": 4.503,
+        "p50": 21.523,
+        "p90": 24.634
+      }
+    },
+    "upsample": {
+      "spectralRolloff99Hz": {
+        "p10": 2392.7,
+        "p50": 3385.5,
+        "p90": 4889.25
+      },
+      "energyAbove20kDb": {
+        "p10": -64.939,
+        "p50": -55.127,
+        "p90": -48.361
+      },
+      "effectiveBandwidthEdgeDropDb": {
+        "p10": 1.182,
+        "p50": 2.37,
+        "p90": 5.407
+      }
+    }
+  },
+  "selectedRecipeEdgeDropMedianDb": {
+    "aac-64-to-flac": 32.875,
+    "aac-96-to-flac": 25.2,
+    "aac-128-to-flac": 1.93,
+    "aac-256-to-flac": 2.18,
+    "opus-64-to-flac": 19.685,
+    "opus-96-to-flac": 22.21,
+    "opus-255-to-flac": 22.53,
+    "vorbis-q2-to-flac": 13.32,
+    "vorbis-q8-to-flac": 31.84
+  },
+  "decision": {
+    "spectralRolloff": "rejected-as-verdict-input",
+    "fixedHighBandEnergy": "rejected-as-standalone-verdict-input",
+    "effectiveBandwidthEdgeDrop": "retain-as-diagnostic-candidate",
+    "productionRuleChange": "not-justified"
+  },
+  "interpretation": "Rolloff overlaps native, intentional-low-pass, lossy, and upsample classes. Edge contrast separates several codec recipes but does not cover high-bitrate AAC and is not universal. No measurement from this pass is allowed to change Oracle v12 verdicts."
+}

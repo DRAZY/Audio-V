@@ -70,6 +70,14 @@ export function originFeatureRecord(item, analysis) {
       strongestCutoffHz: spectrum?.strongestCutoffHz ?? null,
       cutoffDropDb: spectrum?.cutoffDropDb ?? null,
       upperBandLevelDbfs: spectrum?.upperBandLevelDbfs ?? null,
+      spectralRolloff85Hz: spectrum?.spectralRolloff85Hz ?? null,
+      spectralRolloff95Hz: spectrum?.spectralRolloff95Hz ?? null,
+      spectralRolloff99Hz: spectrum?.spectralRolloff99Hz ?? null,
+      energyAbove15kDb: spectrum?.energyAbove15kDb ?? null,
+      energyAbove18kDb: spectrum?.energyAbove18kDb ?? null,
+      energyAbove20kDb: spectrum?.energyAbove20kDb ?? null,
+      effectiveBandwidthEdgeDropDb:
+        spectrum?.effectiveBandwidthEdgeDropDb ?? null,
       activeSlicePercent: spectrum?.activeSlicePercent ?? null,
       cutoffStabilityPercent: spectrum?.cutoffStabilityPercent ?? null,
       priorNyquistMatchHz: spectrum?.priorNyquistMatchHz ?? null,
@@ -165,4 +173,3 @@ export function currentRuleBlockers(record, detector) {
   }
   return blockers;
 }
-

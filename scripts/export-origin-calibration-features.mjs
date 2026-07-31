@@ -18,6 +18,8 @@ import {
   originFeatureRecord,
 } from "./lib/origin-calibration.mjs";
 
+const matrixSchema = "Audio-V origin calibration feature matrix v2";
+
 function argumentsMap(values) {
   const result = new Map();
   for (let index = 0; index < values.length; index += 2) {
@@ -69,6 +71,7 @@ for (const candidatePath of [outputPath, checkpointPath]) {
   try {
     const candidate = await readJson(candidatePath);
     if (
+      candidate.schema === matrixSchema &&
       candidate.engineVersion === engineVersion &&
       candidate.corpusVersion === generated.corpusVersion &&
       candidate.recipeSetVersion === generated.recipeSetVersion
@@ -90,7 +93,7 @@ let checkpointWrite = Promise.resolve();
 
 function matrix(completedRecords) {
   return {
-    schema: "Audio-V origin calibration feature matrix v1",
+    schema: matrixSchema,
     generatedAt: new Date().toISOString(),
     engineVersion,
     corpusVersion: generated.corpusVersion,
@@ -158,4 +161,3 @@ await fs.rm(checkpointPath, { force: true });
 console.log(
   `Wrote ${records.length} path-free calibration feature records to ${outputPath}.`,
 );
-

@@ -138,6 +138,13 @@ export interface SpectrogramMeasurements {
   strongestCutoffHz: number | null;
   cutoffDropDb: number | null;
   upperBandLevelDbfs: number | null;
+  spectralRolloff85Hz?: number | null;
+  spectralRolloff95Hz?: number | null;
+  spectralRolloff99Hz?: number | null;
+  energyAbove15kDb?: number | null;
+  energyAbove18kDb?: number | null;
+  energyAbove20kDb?: number | null;
+  effectiveBandwidthEdgeDropDb?: number | null;
   activeSlicePercent?: number;
   cutoffStabilityPercent?: number | null;
   priorNyquistMatchHz?: number | null;

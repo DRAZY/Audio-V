@@ -190,6 +190,13 @@ export class SpectrogramAccumulator {
     let strongestCutoffHz: number | null = null;
     let cutoffDropDb: number | null = null;
     let upperBandLevelDbfs: number | null = null;
+    let spectralRolloff85Hz: number | null = null;
+    let spectralRolloff95Hz: number | null = null;
+    let spectralRolloff99Hz: number | null = null;
+    let energyAbove15kDb: number | null = null;
+    let energyAbove18kDb: number | null = null;
+    let energyAbove20kDb: number | null = null;
+    let effectiveBandwidthEdgeDropDb: number | null = null;
     let activeSlicePercent = 0;
     let cutoffStabilityPercent: number | null = null;
     let priorNyquistMatchHz: number | null = null;
@@ -204,6 +211,50 @@ export class SpectrogramAccumulator {
         return 10 * Math.log10(Math.max(averagePower, 1e-12));
       });
       const strongest = Math.max(...averageLevels);
+      const averagePowers = averageLevels.map((level) => 10 ** (level / 10));
+      const totalSpectralPower = averagePowers
+        .slice(1)
+        .reduce((sum, power) => sum + power, 0);
+      const rolloffFrequency = (fraction: number): number | null => {
+        if (totalSpectralPower <= 0) return null;
+        const target = totalSpectralPower * fraction;
+        let cumulative = 0;
+        for (let bin = 1; bin < averagePowers.length; bin += 1) {
+          cumulative += averagePowers[bin];
+          if (cumulative >= target) {
+            return Math.round((bin * this.#sampleRate) / fftSize);
+          }
+        }
+        return Math.round(
+          ((averagePowers.length - 1) * this.#sampleRate) / fftSize,
+        );
+      };
+      const relativeEnergyAbove = (frequencyHz: number): number | null => {
+        const firstBin = Math.ceil((frequencyHz * fftSize) / this.#sampleRate);
+        if (
+          totalSpectralPower <= 0 ||
+          firstBin >= averagePowers.length
+        ) {
+          return null;
+        }
+        const bandPower = averagePowers
+          .slice(Math.max(1, firstBin))
+          .reduce((sum, power) => sum + power, 0);
+        return Number(
+          (
+            10 *
+            Math.log10(
+              Math.max(bandPower / totalSpectralPower, Number.EPSILON),
+            )
+          ).toFixed(2),
+        );
+      };
+      spectralRolloff85Hz = rolloffFrequency(0.85);
+      spectralRolloff95Hz = rolloffFrequency(0.95);
+      spectralRolloff99Hz = rolloffFrequency(0.99);
+      energyAbove15kDb = relativeEnergyAbove(15_000);
+      energyAbove18kDb = relativeEnergyAbove(18_000);
+      energyAbove20kDb = relativeEnergyAbove(20_000);
       const bandwidthFloor = Math.max(-90, strongest - 60);
       for (let bin = this.#binCount - 2; bin >= 1; bin -= 1) {
         const localAverage =
@@ -216,6 +267,29 @@ export class SpectrogramAccumulator {
             (bin * this.#sampleRate) / fftSize,
           );
           break;
+        }
+      }
+      if (effectiveBandwidthHz !== null) {
+        const edgeBin = Math.round(
+          (effectiveBandwidthHz * fftSize) / this.#sampleRate,
+        );
+        const edgeWidth = Math.max(
+          3,
+          Math.round((500 * fftSize) / this.#sampleRate),
+        );
+        if (
+          edgeBin >= edgeWidth &&
+          edgeBin + edgeWidth < averageLevels.length
+        ) {
+          const before =
+            averageLevels
+              .slice(edgeBin - edgeWidth, edgeBin)
+              .reduce((sum, level) => sum + level, 0) / edgeWidth;
+          const after =
+            averageLevels
+              .slice(edgeBin + 1, edgeBin + edgeWidth + 1)
+              .reduce((sum, level) => sum + level, 0) / edgeWidth;
+          effectiveBandwidthEdgeDropDb = Number((before - after).toFixed(2));
         }
       }
       const upperBandStart = Math.floor(this.#binCount * 0.85);
@@ -364,6 +438,13 @@ export class SpectrogramAccumulator {
       strongestCutoffHz,
       cutoffDropDb,
       upperBandLevelDbfs,
+      spectralRolloff85Hz,
+      spectralRolloff95Hz,
+      spectralRolloff99Hz,
+      energyAbove15kDb,
+      energyAbove18kDb,
+      energyAbove20kDb,
+      effectiveBandwidthEdgeDropDb,
       activeSlicePercent,
       cutoffStabilityPercent,
       priorNyquistMatchHz,

@@ -503,6 +503,13 @@ export class PcmMeasurementAccumulator {
       strongestCutoffHz: null,
       cutoffDropDb: null,
       upperBandLevelDbfs: null,
+      spectralRolloff85Hz: null,
+      spectralRolloff95Hz: null,
+      spectralRolloff99Hz: null,
+      energyAbove15kDb: null,
+      energyAbove18kDb: null,
+      energyAbove20kDb: null,
+      effectiveBandwidthEdgeDropDb: null,
       durationSeconds: this.#frames / this.#sampleRate,
       slices: [],
     };

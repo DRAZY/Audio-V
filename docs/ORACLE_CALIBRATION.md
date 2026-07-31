@@ -92,3 +92,59 @@ native and intentional-filter controls before Oracle verdict logic changes.
 
 The exact published diagnostic is
 `validation/real-world/calibration/oracle-v12-development-blockers.json`.
+
+## Second measured development result
+
+Audio-V added measurement-only 85%, 95%, and 99% spectral rolloff,
+fixed-frequency high-band energy ratios, and effective-bandwidth edge contrast.
+These fields do not affect Oracle v12 verdicts. The development exporter then
+remeasured all 396 controlled-origin cases and summarized percentiles across
+source-group medians rather than treating related derivatives as independent.
+
+The result rejected two tempting shortcuts:
+
+- 99% rolloff was nearly identical for native, lossy, and upsampled cases;
+- fixed high-band energy overlapped native and upsampled cases and cannot
+  distinguish a production low-pass from codec history by itself.
+
+Effective-bandwidth edge contrast is useful for some codec recipes. Its median
+was 21.523 dB for the combined lossy class and 2.610 dB for native controls.
+However, high-bitrate AAC remained close to the native controls, and individual
+source overlap means edge contrast is not a universal or standalone rule.
+Audio-V therefore retained it as a diagnostic candidate and made **no
+production verdict change**.
+
+This outcome is successful calibration: the corpus prevented a superficially
+attractive threshold from becoming an overconfident verdict. The concise
+evidence is published at
+`validation/real-world/calibration/oracle-v12-development-feature-separation.json`.
+The full path-free development matrix and recipe report remain ignored build
+artifacts.
+
+This design follows two research cautions:
+
+- Koops, Micchi, and Quinton demonstrate that lossy-identification models can
+  appear highly accurate while depending on codec cutoff settings and then fail
+  on unseen configurations:
+  https://arxiv.org/abs/2407.21545
+- Urbano et al. show that lossy encoding changes high-frequency content and
+  spectral envelopes, while track characteristics account for substantial
+  descriptor variability:
+  https://archives.ismir.net/ismir2014/paper/000326.pdf
+
+## Next engineering stage
+
+The next stage needs no new recording or maintainer labeling. It will:
+
+1. measure the already acquired MAESTRO real-recording derivatives as an
+   observational confirmation population;
+2. preserve MAESTRO's conservative challenge status while checking whether the
+   development patterns generalize beyond synthesized mixtures;
+3. investigate codec-artifact measurements that do not rely on a single cutoff;
+4. promote a candidate only if it protects native and intentional-filter
+   controls across independent source groups.
+
+MAESTRO is suitable for this confirmation role because its publisher documents
+uncompressed 44.1–48 kHz PCM recordings, but Audio-V will not silently claim
+that this proves every file's complete pre-dataset mastering history:
+https://magenta.tensorflow.org/datasets/maestro

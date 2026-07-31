@@ -55,4 +55,33 @@ describe("SpectrogramAccumulator", () => {
     expect(differenceResult.slices[0].levelsDbfs[leftBin]).toBeGreaterThan(-18);
     expect(differenceResult.channelMode).toBe("left-right difference");
   });
+
+  it("reports rolloff and relative high-band energy without requiring a cutoff", () => {
+    const sampleRate = 48_000;
+    const frames = 4_096;
+    const samples = new Float64Array(frames);
+    for (let frame = 0; frame < frames; frame += 1) {
+      samples[frame] =
+        0.6 * Math.sin((2 * Math.PI * 2_000 * frame) / sampleRate) +
+        0.2 * Math.sin((2 * Math.PI * 10_000 * frame) / sampleRate) +
+        0.12 * Math.sin((2 * Math.PI * 19_000 * frame) / sampleRate);
+    }
+    const accumulator = new SpectrogramAccumulator(sampleRate, 1, frames, {
+      fftSize: 4_096,
+    });
+    accumulator.pushInterleaved(samples);
+
+    const result = accumulator.finish();
+
+    expect(result.spectralRolloff85Hz).toBeGreaterThan(1_900);
+    expect(result.spectralRolloff85Hz).toBeLessThan(10_100);
+    expect(result.spectralRolloff95Hz).toBeGreaterThan(9_900);
+    expect(result.spectralRolloff99Hz).toBeGreaterThan(18_800);
+    expect(result.energyAbove18kDb).not.toBeNull();
+    expect(result.energyAbove18kDb!).toBeLessThan(-12);
+    expect(result.energyAbove20kDb).not.toBeNull();
+    expect(result.energyAbove20kDb!).toBeLessThan(
+      result.energyAbove18kDb!,
+    );
+  });
 });
