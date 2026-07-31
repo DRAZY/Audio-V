@@ -295,6 +295,24 @@ Scorecards report:
 
 Production language remains “possible,” “bandwidth limited,” or “inconclusive” until the target corpus and challenge evaluation justify a stronger claim. Synthetic fixtures and multiple derivatives of one reference never inflate the independent-reference count.
 
+## Origin candidate promotion
+
+`validation/real-world/origin-promotion-policy.json` is the machine-readable
+gate for any proposed lossy-history or upsample detector. Development fits a
+candidate, calibration selects its operating threshold, and test is opened once
+for the promotion decision. EBU SQAM, MAESTRO, and MUSDB18-HQ independently
+veto non-generalizing false advisories; MUSAN is an all-negative
+edge-abstention population. Source group—not derivative file—is the headline
+independence unit.
+
+A model score may not be displayed as probability without separate probability
+calibration evidence. No origin candidate may produce Failed, promote a file to
+Clear, or bypass abstention. A failed gate preserves Oracle production behavior
+and publishes the negative result. Once a held-out population is opened, it may
+not be reused as an untouched promotion set for a retuned candidate. For the
+statistical reason finite validation cannot make calibration self-evident, see
+[Metrics of Calibration for Probabilistic Predictions](https://www.jmlr.org/papers/v23/22-0658.html).
+
 ## Repository and package boundaries
 
 ```text

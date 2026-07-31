@@ -79,7 +79,7 @@ Status meanings:
 - **Planned** — specified and prioritized, but not implemented.
 - **Excluded** — intentionally outside the core product.
 
-| Capability | User value | v0.4.40 source status | Disposition |
+| Capability | User value | v0.4.41 source status | Disposition |
 | --- | --- | --- | --- |
 | File and folder ingest | Analyze one track or a full library | Implemented | Current |
 | Recursive bounded discovery | Avoid freezing on large trees | Implemented | Current |
@@ -236,7 +236,7 @@ Gate 4 is complete at the repository and local-package level. Native Windows por
 - The Contributor License Agreement preserves contributor ownership while granting DRAZY the explicit sublicensing and relicensing authority needed for continued AGPL distribution, commercial editions, and dual licensing. Pull requests must record affirmative agreement.
 - The Audio-V name, logo/icon, Oracle Engine identity, and official-release claims are reserved separately from the code license; compliant forks must use distinct branding.
 - Primary navigation, verdict filters, analysis tabs, virtual result rows, canvases, and live scan state expose keyboard and assistive-technology semantics. A skip link, visible focus, reduced-motion behavior, and Command/Ctrl keyboard workflow are implemented.
-- An automated axe-core gate checks the production renderer and fails on serious or critical accessibility violations. The current empty-state audit passes 41 rules with no serious or critical violations.
+- An automated accessibility gate checks both the production DOM and Chromium accessibility tree. The current audit passes 41 axe-core rules, exposes 154 semantic nodes, requires a named interactive-control tree, and requires workspace landmark and heading structure.
 - Settings exports a privacy-safe diagnostic record containing application/runtime versions, aggregate session status, and engine capabilities without accepting filenames, paths, hashes, tags, or audio evidence. A unit test enforces the aggregate-only boundary.
 - The beginner user journey, plain-language Oracle Engine and glossary, scientific methodology, privacy/security, unsigned-installation, release, contribution, and release-candidate documents cover the complete product workflow and limitations at different levels of depth.
 - `npm run verify:release-candidate` produces a machine-readable automated readiness result from licensing, documentation, accessibility, fidelity, scale, and artifact evidence.

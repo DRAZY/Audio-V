@@ -15,6 +15,7 @@ import {
 } from "./lib/validation-corpus.mjs";
 import {
   eligibleOriginCalibrationCase,
+  eligibleOriginEdgeCase,
   eligibleOriginObservationalCase,
   originFeatureRecord,
 } from "./lib/origin-calibration.mjs";
@@ -35,8 +36,8 @@ function argumentsMap(values) {
 
 const args = argumentsMap(process.argv.slice(2));
 const population = args.get("population") ?? "controlled";
-if (!["controlled", "observational"].includes(population)) {
-  throw new Error("--population must be controlled or observational.");
+if (!["controlled", "observational", "edge"].includes(population)) {
+  throw new Error("--population must be controlled, observational, or edge.");
 }
 const requestedDatasets = new Set(
   (args.get("datasets") ?? "")
@@ -44,7 +45,7 @@ const requestedDatasets = new Set(
     .map((value) => value.trim())
     .filter(Boolean),
 );
-if (population === "observational" && requestedDatasets.size === 0) {
+if (population !== "controlled" && requestedDatasets.size === 0) {
   throw new Error(
     "Observational export requires an explicit --datasets allowlist.",
   );
@@ -59,7 +60,7 @@ const allowedSplits = new Set([
   "development",
   "calibration",
   "test",
-  ...(population === "observational" ? ["challenge"] : []),
+  ...(population !== "controlled" ? ["challenge"] : []),
 ]);
 for (const split of requestedSplits) {
   if (!allowedSplits.has(split)) {
@@ -72,11 +73,13 @@ const generated = await readJson(generatedCasesPath);
 const selectedCases = generated.cases.filter((item) =>
   population === "controlled"
     ? eligibleOriginCalibrationCase(item, requestedSplits)
-    : eligibleOriginObservationalCase(
+    : population === "observational"
+      ? eligibleOriginObservationalCase(
         item,
         requestedSplits,
         requestedDatasets,
-      ),
+      )
+      : eligibleOriginEdgeCase(item, requestedSplits, requestedDatasets),
 );
 const splitLabel =
   args.get("label") ??
@@ -98,14 +101,25 @@ const concurrency = Number.isInteger(requestedConcurrency)
   : Math.max(1, Math.min(4, os.availableParallelism()));
 
 let reusable = [];
-for (const candidatePath of [outputPath, checkpointPath]) {
+const buildEntries = await fs.readdir(path.join(root, "build"), {
+  withFileTypes: true,
+});
+const compatibleMatrixPaths = buildEntries
+  .filter(
+    (entry) =>
+      entry.isFile() &&
+      entry.name.startsWith("origin-calibration-features-") &&
+      entry.name.endsWith(".json"),
+  )
+  .map((entry) => path.join(root, "build", entry.name));
+for (const candidatePath of [
+  ...new Set([outputPath, checkpointPath, ...compatibleMatrixPaths]),
+]) {
   try {
     const candidate = await readJson(candidatePath);
     if (
       candidate.schema === matrixSchema &&
       candidate.population === population &&
-      JSON.stringify(candidate.datasets ?? []) ===
-        JSON.stringify([...requestedDatasets].sort()) &&
       candidate.engineVersion === engineVersion &&
       candidate.corpusVersion === generated.corpusVersion &&
       candidate.recipeSetVersion === generated.recipeSetVersion
@@ -160,7 +174,10 @@ async function worker() {
     }
     const prior = reusableByIdentity.get(`${item.id}:${item.sha256}`);
     if (prior) {
-      records[index] = prior;
+      records[index] = {
+        ...prior,
+        originDetectorEligibility: item.originDetectorEligibility,
+      };
     } else {
       records[index] = originFeatureRecord(
         item,

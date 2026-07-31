@@ -1,0 +1,36 @@
+{
+  "schema": "Audio-V Oracle origin candidate promotion policy v1",
+  "policyVersion": "1.0.0",
+  "independenceUnit": "source-group",
+  "verdictBoundary": {
+    "maximumImpact": "Review",
+    "failedImpactAllowed": false,
+    "clearPromotionAllowed": false,
+    "scoreMayBePresentedAsProbability": false,
+    "abstentionRequired": true
+  },
+  "dataBoundaries": {
+    "development": "Model fitting and leave-one-source-group-out diagnostics only",
+    "calibration": "Threshold selection only; zero false-hit source groups required",
+    "test": "One-time held-out promotion decision; no threshold or feature tuning",
+    "challenge": "Dataset-specific generalization and false-advisory veto across MAESTRO, MUSDB18-HQ, and EBU SQAM",
+    "edgeAbstention": "All-negative veto across naturally narrow-band MUSAN speech, music, and noise"
+  },
+  "requirements": {
+    "minimumDevelopmentLeaveOneGroupOutAuc": 0.75,
+    "maximumCalibrationFalseHitSourceGroups": 0,
+    "maximumTestFalseHitSourceGroups": 0,
+    "minimumTestPositiveCaseRecall": 0.5,
+    "minimumTestPositiveSourceGroupRecall": 0.6,
+    "maximumChallengeFalseHitSourceGroupsPerDataset": 0,
+    "maximumEdgeAbstentionFalseHitSourceGroups": 0,
+    "maximumPooledHeldOutFalseHitSourceGroupWilsonUpper95": 0.1,
+    "minimumIndependentHeldOutSourceGroups": 60
+  },
+  "decisionRules": [
+    "Every requirement must pass for each promoted detector.",
+    "Challenge positive-transform sensitivity is reported but cannot compensate for a challenge false advisory.",
+    "A failed gate rejects the candidate without changing Oracle production verdicts.",
+    "After opening held-out test results, feature definitions, model settings, and thresholds are frozen for that candidate version."
+  ]
+}

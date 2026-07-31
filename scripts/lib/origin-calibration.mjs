@@ -55,6 +55,15 @@ export function eligibleOriginObservationalCase(item, splits, datasets) {
   );
 }
 
+export function eligibleOriginEdgeCase(item, splits, datasets) {
+  return (
+    item.originDetectorEligibility === "edge-abstention" &&
+    calibrationTruthClasses.has(item.truthClass) &&
+    splits.has(item.split) &&
+    datasets.has(item.datasetId)
+  );
+}
+
 export function originFeatureRecord(item, analysis) {
   const spectrum =
     analysis.measurements?.originSpectrumSummary ??
@@ -79,6 +88,7 @@ export function originFeatureRecord(item, analysis) {
     split: item.split,
     recipeId: item.recipeId,
     truthClass: item.truthClass,
+    originDetectorEligibility: item.originDetectorEligibility,
     technical: {
       codecName: analysis.technical?.codecName ?? null,
       sampleRate,

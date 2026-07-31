@@ -1,6 +1,6 @@
 # Audio-V GA readiness audit
 
-Assessment date: 2026-07-29
+Assessment date: 2026-07-31
 Assessment basis: Oracle v12 source, automated gates, packaged-release policy,
 product documentation, and comparison with the published capabilities of
 AudioAuditor and Spek.
@@ -111,11 +111,9 @@ Audio-V now has a five-source external dataset registry, license-aware import
 adapters, source-level 60/20/20 partitioning, 36 controlled transformation
 recipes, bounded deterministic 60-second analysis windows, exact tool provenance, and
 per-dataset/split/recipe scorecards. Those controls make a real external
-evaluation reproducible without requiring private studio masters. Until the
-public-reference target and held-out challenge evaluation are populated,
-Audio-V should continue saying **possible** and **inconclusive**, publishing
-rule strength and evidence coverage rather than a fabricated confidence
-percentage.
+evaluation reproducible without requiring private studio masters. Audio-V
+should continue saying **possible** and **inconclusive**, publishing rule
+strength and evidence coverage rather than a fabricated confidence percentage.
 
 The current external scorecard covers 85 independent references and 2,295
 controlled cases across all five registered datasets. The public population
@@ -125,6 +123,14 @@ mixtures. This is strong false-advisory evidence, not an origin-sensitivity
 claim: the measured scorecard still reports zero positive detections across its
 controlled lossy and upsample derivatives, so probability calibration and
 authoritative positive-origin claims remain gated.
+
+The first source-separated multivariate candidate has now consumed disjoint
+development, calibration, test, three-dataset challenge, and MUSAN abstention
+populations. It improved controlled sensitivity but failed the frozen external
+false-advisory gates. The result strengthens the scientific boundary rather
+than the production classifier: Oracle v12 remains unchanged, and a future
+candidate requires new independent confirmation material instead of retuning
+against the opened test set.
 
 ## Post-1.0 opportunities
 

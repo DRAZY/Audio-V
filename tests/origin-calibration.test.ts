@@ -1,11 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
   currentRuleBlockers,
+  eligibleOriginEdgeCase,
   eligibleOriginCalibrationCase,
   eligibleOriginObservationalCase,
   matchesTextureCandidateV2,
   originFeatureRecord,
 } from "../scripts/lib/origin-calibration.mjs";
+import {
+  areaUnderRoc,
+  evaluateOriginScores,
+  originFeatureVector,
+  selectZeroFalseGroupThreshold,
+  trainOriginLogisticModel,
+} from "../scripts/lib/origin-multivariate.mjs";
 
 function analysis(overrides: Record<string, unknown> = {}) {
   return {
@@ -115,6 +123,22 @@ describe("origin calibration evidence", () => {
     ).toBe(false);
   });
 
+  it("keeps narrow-band edge material in an all-negative abstention population", () => {
+    const edgeCase = {
+      ...calibrationCase,
+      datasetId: "musan",
+      split: "test",
+      originDetectorEligibility: "edge-abstention",
+    };
+    expect(
+      eligibleOriginEdgeCase(
+        edgeCase,
+        new Set(["test"]),
+        new Set(["musan"]),
+      ),
+    ).toBe(true);
+  });
+
   it("exports path-free scalar measurements without spectrogram slices", () => {
     const record = originFeatureRecord(calibrationCase, analysis());
     expect(record).toMatchObject({
@@ -196,5 +220,83 @@ describe("origin calibration evidence", () => {
         },
       }),
     ).toBe(false);
+  });
+});
+
+describe("source-separated multivariate origin candidate", () => {
+  function modelCase(
+    id: string,
+    groupId: string,
+    truthClass: string,
+    entropy: number,
+  ) {
+    return originFeatureRecord(
+      {
+        ...calibrationCase,
+        id,
+        groupId,
+        truthClass,
+        recipeId: `${truthClass}-recipe`,
+      },
+      analysis({
+        features: {
+          highBandEntropyPercent: entropy,
+          highBandFloorOccupancyPercent: entropy / 5,
+          normalizedSpectralFluxDb: -entropy,
+        },
+      }),
+    );
+  }
+
+  it("fits a deterministic bounded model without treating its score as evidence", () => {
+    const records = [
+      modelCase("positive-a", "positive-a", "lossy-to-lossless", 95),
+      modelCase("positive-b", "positive-b", "lossy-to-lossless", 90),
+      modelCase("negative-a", "negative-a", "native-control", 20),
+      modelCase("negative-b", "negative-b", "intentional-lowpass", 25),
+    ];
+    const first = trainOriginLogisticModel(records, "lossy", { iterations: 50 });
+    const second = trainOriginLogisticModel(records, "lossy", { iterations: 50 });
+    expect(first).toEqual(second);
+    expect(originFeatureVector(records[0], first.schema)).toHaveLength(40);
+  });
+
+  it("selects a calibration threshold with zero false-hit source groups", () => {
+    const records = [
+      modelCase("positive", "positive", "lossy-to-lossless", 95),
+      modelCase("native", "native", "native-control", 20),
+      modelCase("lowpass", "lowpass", "intentional-lowpass", 25),
+    ];
+    const scored = [
+      { record: records[0], score: 0.9 },
+      { record: records[1], score: 0.2 },
+      { record: records[2], score: 0.4 },
+    ];
+    const selected = selectZeroFalseGroupThreshold(scored, "lossy");
+    expect(selected?.metrics.positive.hits).toBe(1);
+    expect(selected?.metrics.negative.falseHitSourceGroups).toBe(0);
+    expect(areaUnderRoc(scored, "lossy")).toBe(1);
+  });
+
+  it("counts one false advisory per independent source group", () => {
+    const nativeA = modelCase("native-a", "shared", "native-control", 20);
+    const nativeB = modelCase("native-b", "shared", "intentional-lowpass", 25);
+    const positive = modelCase(
+      "positive",
+      "positive",
+      "lossy-to-lossless",
+      95,
+    );
+    const metrics = evaluateOriginScores(
+      [
+        { record: nativeA, score: 0.8 },
+        { record: nativeB, score: 0.9 },
+        { record: positive, score: 0.9 },
+      ],
+      "lossy",
+      0.7,
+    );
+    expect(metrics.negative.falseHits).toBe(2);
+    expect(metrics.negative.falseHitSourceGroups).toBe(1);
   });
 });

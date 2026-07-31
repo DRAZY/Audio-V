@@ -242,3 +242,71 @@ The next safe origin-classification advance is not another hand-tuned cutoff or
 texture threshold. It requires either a separately validated codec-artifact
 model with source-group and unseen-configuration testing, or continued
 conservative abstention. Audio-V chooses abstention until such evidence exists.
+
+## Source-separated multivariate candidate result
+
+Audio-V next tested whether the existing independent measurements become more
+useful when combined instead of reduced to one threshold. Candidate v1 uses a
+deterministic L2-regularized logistic ranking model over 20 normalized spectral
+features plus their missing-measurement indicators. The output is explicitly an
+uncalibrated ranking score, not a provenance probability.
+
+The promotion policy was frozen at
+`validation/real-world/origin-promotion-policy.json`. It requires:
+
+- leave-one-source-group-out development AUC of at least 0.75;
+- zero false-hit source groups during threshold calibration;
+- zero false-hit source groups in the untouched test split;
+- at least 50% held-out positive-case recall and 60% positive-source coverage;
+- zero false-hit source groups in each of EBU SQAM, MAESTRO, and MUSDB18-HQ;
+- zero origin advisories across MUSAN edge-abstention material;
+- a pooled held-out false-hit source-group Wilson upper 95% bound no greater
+  than 10%; and
+- at least 60 independent held-out negative source groups.
+
+Development, calibration, and test used disjoint Slakh2100 source groups.
+Challenge evaluation used 35 separate EBU SQAM, MAESTRO, and MUSDB18-HQ source
+groups. All 20 MUSAN speech, music, and noise groups were an all-negative edge
+population. In total, the evaluation measured 1,870 path-free records and
+accounted for all 85 corpus source groups without source-group overlap.
+
+The lossy candidate reached 0.926 leave-one-group-out development AUC, 56.9%
+held-out test case recall, and zero Slakh test false hits. It failed external
+generalization: 17/35 challenge groups and all 20 MUSAN edge groups received at
+least one false advisory. Its pooled false-hit source-group rate was 60.7%
+(95% Wilson interval 48.1–71.9%).
+
+The upsample candidate reached 0.983 development AUC and 79.2% held-out test
+case recall with zero Slakh test false hits. It was substantially safer but
+still failed: one EBU challenge group and six MUSAN edge groups received a
+false advisory. Its pooled rate was 11.5% and the 95% Wilson upper bound was
+21.8%, above the frozen 10% maximum.
+
+Both candidates are rejected. No score, threshold, or coefficient changes
+Oracle v12, and neither candidate is packaged. The complete frozen model,
+parameters, intervals, gate outcomes, and false-advisory case identities are
+published at
+`validation/real-world/calibration/oracle-v12-multivariate-candidate-v1.json`.
+Reproduce it after exporting the four controlled/challenge matrices and the
+MUSAN edge matrix with:
+
+```bash
+npm run calibration:evaluate:multivariate
+```
+
+This protocol follows published evidence that lossy-history detection can use
+time-frequency quantization structure, while recognizing that performance on
+one codec and corpus does not establish generalization. Relevant references
+include the Audio Engineering Society's open
+[Lossless Audio Checker paper](https://secure.aes.org/forum/pubs/conventions/?elib=17972),
+the later AES study of
+[time-frequency quantization errors](https://secure.aes.org/forum/pubs/journal/?elib=19892),
+and research showing that duplicate/source leakage can materially inflate audio
+benchmark results: https://arxiv.org/abs/2302.12258. Wilson intervals follow
+the NIST proportion-interval guidance:
+https://www.itl.nist.gov/div898/software/dataplot/refman1/auxillar/propconf.htm.
+
+The held-out test and challenge populations are now consumed for candidate v1.
+A future feature or model may use this result for diagnosis, but it requires new
+independent confirmation material before production promotion. Retuning against
+these opened results and calling them held out again is prohibited.
