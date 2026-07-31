@@ -71,6 +71,14 @@ integrity checks, loudness, defects, versioned verdicts, evidence reports,
 comparison, history, recovery, and automation. Spek remains an excellent,
 focused spectrogram viewer with a smaller conceptual and operational surface.
 
+### Compared with SquidWTF Spec
+
+Spec remains the easier zero-install spectrogram check because it runs in a
+browser. Audio-V is substantially broader: complete-stream desktop decoding,
+batch libraries, integrity and signal evidence, explainable verdicts,
+comparison, durable history, reports, and local automation. Audio-V carries a
+larger installation and learning surface in exchange for that depth.
+
 ### Compared with AudioAuditor
 
 Audio-V is broadly at parity in core file inspection and is stronger in
@@ -82,6 +90,33 @@ pretend that a marker is authenticated MQA or an unfolded signal. AudioAuditor
 retains a visible checklist advantage in experimental AI indicators. Audio-V
 intentionally does not add an opaque AI yes/no badge without reproducible
 validation.
+
+### Compared with Sonic Visualiser
+
+Sonic Visualiser remains stronger for research-grade interactive annotation,
+layer overlays, plugin-based feature extraction, synchronized playback, and
+viewing the same material at multiple resolutions. Audio-V is stronger as a
+guided collection auditor: it supplies bounded verdicts, integrity checks,
+batch execution, recovery, evidence reports, and a beginner-oriented path
+without requiring analysis-plugin expertise.
+
+### Compared with Fakin' The Funk?
+
+Fakin' The Funk? offers a mature, extremely direct batch workflow and publishes
+testing claims for much larger libraries. Audio-V is stronger in disclosed
+evidence, conservative verdict precedence, full integrity lanes, comparative
+analysis, cross-session fingerprints, reports, and scientific rejection gates.
+Audio-V should not claim equivalent 60,000-file field maturity until that scale
+has actually been exercised.
+
+### Compared with CUETools and AccurateRip
+
+Audio-V can determine whether a selection has the whole-disc context required
+for database verification, but it does not yet perform an AccurateRip or CTDB
+lookup. CUETools therefore remains decisively stronger for confirming and, in
+CTDB's case, sometimes repairing properly assembled audio-CD rips. Audio-V is
+broader for ordinary files and mixed libraries; it is not a replacement for a
+database-confirmed CD rip.
 
 ## Remaining GA blockers
 

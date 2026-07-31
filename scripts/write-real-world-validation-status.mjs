@@ -169,7 +169,7 @@ const report = {
       ? "No licensed, provenance-labeled external reference recordings have been imported. Oracle origin rules remain synthetic-regression tested only."
       : originEligibleSourceGroups.size === 0
         ? "The imported external references validate safe abstention on narrow-band edge material; they do not yet measure transcode or upsample sensitivity."
-      : "Real-world recordings are present, but claims remain limited to the disclosed corpus and scorecard.",
+      : "Corpus evaluation is complete. The experimental Origin candidate did not pass independent false-advisory gates, so no probability model was promoted and Oracle v12 remains unchanged.",
     "Synthetic fixtures and derivatives do not increase the independent-reference count.",
     "External dataset audio remains local, license-governed, and excluded from application packages.",
     "Target-corpus readiness does not by itself establish probability calibration or universal provenance accuracy.",

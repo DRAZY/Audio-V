@@ -33,6 +33,10 @@ import {
   isDeliveryProfileId,
   resolveDeliveryProfile,
 } from "../shared/delivery-profiles";
+import {
+  validationClaimDetail,
+  validationClaimLabel,
+} from "../shared/validation-status";
 
 type AnalysisPanel = "quick" | "spectrogram" | "loudness" | "evidence";
 type WorkspacePanel =
@@ -4873,9 +4877,9 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
               <div><dt>Public references</dt><dd>{{ validationStatus?.counts.publicIndependentReferences ?? validationStatus?.counts.publicIndependentMasters ?? 0 }} / {{ validationStatus?.thresholds.targetIndependentMasters ?? 50 }}</dd></div>
               <div><dt>Source groups</dt><dd>{{ validationStatus?.counts.sourceGroups ?? validationStatus?.counts.contributorGroups ?? 0 }}</dd></div>
               <div><dt>Controlled cases</dt><dd>{{ validationStatus?.counts.generatedCases ?? 0 }}</dd></div>
-              <div><dt>Current claim</dt><dd>{{ validationStatus?.claimLevel === "synthetic-regression-only" ? "Regression tested only" : validationStatus?.claimLevel === "edge-control-evidence-only" ? "Edge abstention validated" : validationStatus?.claimLevel === "pilot-real-world-evidence" ? "Pilot origin evidence" : "Corpus present · not calibrated" }}</dd></div>
+              <div><dt>Scientific state</dt><dd>{{ validationClaimLabel(validationStatus?.claimLevel) }}</dd></div>
             </dl>
-            <p>{{ validationStatus?.limitations[0] ?? "Audio-V is loading the packaged corpus and scorecard disclosure." }}</p>
+            <p>{{ validationClaimDetail(validationStatus) }}</p>
             <small>Corpus {{ validationStatus?.corpusVersion ?? "—" }} · Synthetic fixtures and derivatives never increase the independent-reference count.</small>
           </article>
           <article><span>Open-source license</span><strong>AGPL-3.0-only</strong><p>Code remains available under strong copyleft. Audio-V and Oracle Engine names and artwork remain governed by the trademark policy.</p></article>
