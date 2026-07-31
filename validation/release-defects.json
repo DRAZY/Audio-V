@@ -1,7 +1,7 @@
 {
   "schema": "Audio-V release defect register v1",
-  "releaseVersion": "0.4.38",
-  "auditedAt": "2026-07-30T05:36:04.000Z",
+  "releaseVersion": "0.4.39",
+  "auditedAt": "2026-07-31T07:00:55.000Z",
   "repositoryIssueCountAtAudit": 0,
   "defects": [
     {
