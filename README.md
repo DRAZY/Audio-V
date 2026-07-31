@@ -16,6 +16,7 @@
     <a href="#why-audio-v-stands-out">Why Audio-V</a> ·
     <a href="#your-first-audit">First audit</a> ·
     <a href="#meet-the-oracle-engine">Oracle Engine</a> ·
+    <a href="#how-audio-v-earns-trust">Validation story</a> ·
     <a href="#understanding-the-verdict">Verdicts</a> ·
     <a href="#take-a-tour">Feature tour</a> ·
     <a href="docs/EXTERNAL_IDENTITY_SERVICES.md">Identity setup</a> ·
@@ -103,6 +104,45 @@ explains what each result can—and cannot—establish.
 | **Identity without verdict inflation** | Local Chromaprint relationships plus optional AcoustID and MusicBrainz context remain separate from audio-quality verdicts |
 | **Evidence you can keep** | Per-file inspection, human review disposition, resumable history, privacy-safe acceptance records, JSON automation, and PDF/XLSX/DOCX/CSV reports |
 | **Local-first design** | No player, account, advertising, telemetry, automatic upload, or source overwrite |
+
+## How Audio-V earns trust
+
+Audio-V was not built by choosing a few spectral thresholds and calling the
+result authoritative. Oracle Engine has to earn every stronger claim.
+
+The project assembled 85 legally acquired, independently tracked reference
+recordings from five external datasets. From those references, Audio-V created
+2,295 controlled and observational cases covering native audio, known lossy
+transcodes, upsampling, intentional low-pass filtering, defects, speech,
+narrow-band material, and other difficult cases. Related versions of one
+recording stay in the same source group so Oracle cannot appear accurate by
+seeing a close relative of its test material during development.
+
+Candidate rules move through separate development, calibration, frozen test,
+external challenge, and edge-case populations. Promotion requires measured
+sensitivity *and* strict protection against false advisories. Experimental
+scores cannot be presented as probabilities, cannot produce `Failed`, and
+cannot turn a file into `Clear` merely because a model likes it.
+
+That policy has already stopped a seemingly promising idea from reaching
+users. A multivariate candidate performed strongly on controlled material but
+misidentified too many legitimate external music, speech, and narrow-band
+recordings. Audio-V published the failed result and left Oracle v12 unchanged.
+In other words, the validation system did its job: it preferred an honest
+**Inconclusive** result over a confident but unreliable story.
+
+Every release also runs the complete production corpus, unit and integration
+tests, format fixtures, packaged-runtime checks, accessibility checks, and
+release-artifact verification. Audio-V does not claim that heuristics can prove
+a studio master or reconstruct an unknowable recording history. It claims
+something narrower and more useful: every verdict is bounded by disclosed
+evidence, and stronger rules must survive independent tests before they can
+affect that verdict.
+
+Read the full, reproducible record in the
+[validation story](docs/VALIDATION_STORY.md),
+[Oracle calibration log](docs/ORACLE_CALIBRATION.md), and
+[machine-readable promotion policy](validation/real-world/origin-promotion-policy.json).
 
 ### What “measured spectrogram” means
 
