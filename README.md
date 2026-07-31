@@ -563,6 +563,7 @@ Read the complete [privacy and security model](docs/PRIVACY_SECURITY.md).
 | A technical word is unfamiliar | [Plain-language glossary](docs/GLOSSARY.md) |
 | You want formulas, standards, and limitations | [Methodology](docs/METHODOLOGY.md) |
 | You want to understand validation claims | [Validation corpus contract](docs/VALIDATION_CORPUS.md) |
+| You want to understand how corpus evidence tunes Oracle | [Oracle calibration guide](docs/ORACLE_CALIBRATION.md) |
 | You want the current GA score and remaining gates | [GA readiness audit](docs/GA_READINESS_AUDIT.md) |
 | You want the release-blocking defect rules | [Defect severity policy](docs/DEFECT_SEVERITY_POLICY.md) |
 | You need to install an unsigned build | [Unsigned installation](docs/UNSIGNED_INSTALLATION.md) |

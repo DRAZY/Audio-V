@@ -44,6 +44,8 @@
     "corpus:publish-scorecard": "node scripts/publish-validation-scorecard.mjs",
     "corpus:import:dataset": "node scripts/import-external-dataset.mjs",
     "corpus:generate": "node scripts/generate-real-world-corpus.mjs",
+    "calibration:export:development": "node scripts/export-origin-calibration-features.mjs --splits development",
+    "calibration:analyze:development": "node scripts/analyze-origin-calibration-features.mjs --splits development",
     "validation:status": "node scripts/write-real-world-validation-status.mjs",
     "validate:real-world": "npm run build:electron && node scripts/evaluate-real-world-corpus.mjs && node scripts/write-real-world-validation-status.mjs",
     "validate:platform": "npm run build:electron && node scripts/write-platform-validation.mjs",

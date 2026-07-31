@@ -1,0 +1,53 @@
+{
+  "schema": "Audio-V published origin calibration blocker report v1",
+  "measuredAt": "2026-07-31T07:55:37.389Z",
+  "engineVersion": "0.10.0-oracle-v12",
+  "corpusVersion": "0.5.0",
+  "recipeSetVersion": "0.2.0",
+  "split": "development",
+  "independenceUnit": "source-group",
+  "records": 396,
+  "sourceGroups": 18,
+  "truthClasses": {
+    "native-control": 18,
+    "intentional-lowpass": 90,
+    "lossy-to-lossless": 216,
+    "upsample": 72
+  },
+  "observedClassifications": {
+    "inconclusive": 391,
+    "bandwidth-limited": 5
+  },
+  "lossy": {
+    "cases": 216,
+    "casesPassingCurrentRule": 0,
+    "blockerCaseCounts": {
+      "no-stable-cutoff-measured": 212,
+      "spectral-cliff-below-25db": 216,
+      "regional-stability-below-rule": 216,
+      "band-occupancy-above-90-percent": 30,
+      "no-corroborating-evidence-family": 13,
+      "cutoff-outside-lossy-envelope": 4
+    }
+  },
+  "upsample": {
+    "cases": 72,
+    "casesPassingCurrentRule": 0,
+    "blockerCaseCounts": {
+      "declared-rate-below-88.2khz": 18,
+      "no-stable-cutoff-measured": 71,
+      "spectral-cliff-below-5db": 71,
+      "band-occupancy-above-65-percent": 17,
+      "regional-stability-below-rule": 72,
+      "no-grid-match-or-secondary-rupture": 71,
+      "upper-band-not-suppressed": 1,
+      "cutoff-outside-upsample-envelope": 1
+    }
+  },
+  "conclusion": "Threshold search alone is not justified because the dominant blockers are missing cutoff, cliff, and regional-stability measurements. Add and validate another standalone spectral evidence family before selecting candidate Oracle thresholds.",
+  "limitations": [
+    "Counts are descriptive over correlated derivative cases; the independent unit is the 18 development source groups.",
+    "Calibration and held-out test groups were not opened for this diagnostic.",
+    "A blocker is diagnostic evidence and is not permission to relax a production rule."
+  ]
+}
