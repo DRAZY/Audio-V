@@ -3,6 +3,7 @@ import {
   currentRuleBlockers,
   eligibleOriginCalibrationCase,
   eligibleOriginObservationalCase,
+  matchesTextureCandidateV2,
   originFeatureRecord,
 } from "../scripts/lib/origin-calibration.mjs";
 
@@ -165,5 +166,35 @@ describe("origin calibration evidence", () => {
       }),
     );
     expect(currentRuleBlockers(record, "upsample")).toEqual([]);
+  });
+
+  it("keeps the corrected texture candidate deterministic and sample-rate bounded", () => {
+    const record = originFeatureRecord(
+      calibrationCase,
+      analysis({
+        features: {
+          highBandFloorOccupancyPercent: 20,
+          highBandEntropyPercent: 85,
+          highBandFlatnessDb: -10,
+        },
+      }),
+    );
+    expect(matchesTextureCandidateV2(record)).toBe(true);
+    expect(
+      matchesTextureCandidateV2({
+        ...record,
+        technical: { ...record.technical, sampleRate: 96_000 },
+      }),
+    ).toBe(false);
+    expect(
+      matchesTextureCandidateV2({
+        ...record,
+        features: {
+          ...record.features,
+          highBandEntropyPercent: 70,
+          highBandFlatnessDb: -10,
+        },
+      }),
+    ).toBe(false);
   });
 });

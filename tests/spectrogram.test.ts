@@ -84,4 +84,42 @@ describe("SpectrogramAccumulator", () => {
       result.energyAbove18kDb!,
     );
   });
+
+  it("measures normalized time-frequency texture independently of cutoff rules", () => {
+    const sampleRate = 48_000;
+    const frames = 12_288;
+    const stationarySamples = new Float64Array(frames);
+    const changingSamples = new Float64Array(frames);
+    for (let frame = 0; frame < frames; frame += 1) {
+      stationarySamples[frame] =
+        0.7 * Math.sin((2 * Math.PI * 2_000 * frame) / sampleRate);
+      const frequency = frame < frames / 2 ? 2_000 : 12_000;
+      changingSamples[frame] =
+        0.7 * Math.sin((2 * Math.PI * frequency * frame) / sampleRate);
+    }
+    const stationary = new SpectrogramAccumulator(
+      sampleRate,
+      1,
+      frames,
+      { fftSize: 4_096 },
+    );
+    const changing = new SpectrogramAccumulator(sampleRate, 1, frames, {
+      fftSize: 4_096,
+    });
+    stationary.pushInterleaved(stationarySamples);
+    changing.pushInterleaved(changingSamples);
+
+    const stationaryResult = stationary.finish();
+    const changingResult = changing.finish();
+
+    expect(stationaryResult.normalizedSpectralFluxDb).not.toBeNull();
+    expect(changingResult.normalizedSpectralFluxDb).not.toBeNull();
+    expect(changingResult.normalizedSpectralFluxDb!).toBeGreaterThan(
+      stationaryResult.normalizedSpectralFluxDb! + 5,
+    );
+    expect(changingResult.highBandFlatnessDb).not.toBeNull();
+    expect(changingResult.highBandCrestDb).not.toBeNull();
+    expect(changingResult.highBandEntropyPercent).not.toBeNull();
+    expect(changingResult.highBandFloorOccupancyPercent).not.toBeNull();
+  });
 });

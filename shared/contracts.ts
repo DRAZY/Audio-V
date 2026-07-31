@@ -145,6 +145,11 @@ export interface SpectrogramMeasurements {
   energyAbove18kDb?: number | null;
   energyAbove20kDb?: number | null;
   effectiveBandwidthEdgeDropDb?: number | null;
+  normalizedSpectralFluxDb?: number | null;
+  highBandFlatnessDb?: number | null;
+  highBandCrestDb?: number | null;
+  highBandEntropyPercent?: number | null;
+  highBandFloorOccupancyPercent?: number | null;
   activeSlicePercent?: number;
   cutoffStabilityPercent?: number | null;
   priorNyquistMatchHz?: number | null;

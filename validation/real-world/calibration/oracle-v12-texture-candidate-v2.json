@@ -1,0 +1,68 @@
+{
+  "schema": "Audio-V origin texture candidate evaluation summary v2",
+  "generatedAt": "2026-07-31T16:43:11.044Z",
+  "engineVersion": "0.10.0-oracle-v12",
+  "corpusVersion": "0.5.0",
+  "recipeSetVersion": "0.2.0",
+  "independenceUnit": "source-group",
+  "candidate": {
+    "maximumSampleRate": 50000,
+    "minimumFloorOccupancyPercent": 16,
+    "minimumEntropyPercent": 84
+  },
+  "controlledDevelopment": {
+    "cases": 396,
+    "sourceGroups": 18,
+    "byTruthClass": {
+      "native-control": {
+        "cases": 18,
+        "hits": 0,
+        "hitSourceGroups": 0
+      },
+      "intentional-lowpass": {
+        "cases": 90,
+        "hits": 0,
+        "hitSourceGroups": 0
+      },
+      "lossy-to-lossless": {
+        "cases": 216,
+        "hits": 104,
+        "hitSourceGroups": 18
+      },
+      "upsample": {
+        "cases": 72,
+        "hits": 0,
+        "hitSourceGroups": 0
+      }
+    }
+  },
+  "maestroObservational": {
+    "cases": 330,
+    "sourceGroups": 15,
+    "byTruthClass": {
+      "native-control": {
+        "cases": 15,
+        "hits": 8,
+        "hitSourceGroups": 8
+      },
+      "intentional-lowpass": {
+        "cases": 75,
+        "hits": 56,
+        "hitSourceGroups": 12
+      },
+      "lossy-to-lossless": {
+        "cases": 180,
+        "hits": 139,
+        "hitSourceGroups": 15
+      },
+      "upsample": {
+        "cases": 60,
+        "hits": 11,
+        "hitSourceGroups": 11
+      }
+    }
+  },
+  "decision": "rejected-non-generalizing",
+  "verdictImpact": "none",
+  "interpretation": "The corrected measurable-bin texture candidate separated controlled Slakh development cases but flagged MAESTRO native, intentional-processing, and 48 kHz upsample controls. High-band floor occupancy and entropy remain strongly content-dependent and must not influence production verdicts."
+}

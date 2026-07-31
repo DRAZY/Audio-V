@@ -197,6 +197,11 @@ export class SpectrogramAccumulator {
     let energyAbove18kDb: number | null = null;
     let energyAbove20kDb: number | null = null;
     let effectiveBandwidthEdgeDropDb: number | null = null;
+    let normalizedSpectralFluxDb: number | null = null;
+    let highBandFlatnessDb: number | null = null;
+    let highBandCrestDb: number | null = null;
+    let highBandEntropyPercent: number | null = null;
+    let highBandFloorOccupancyPercent: number | null = null;
     let activeSlicePercent = 0;
     let cutoffStabilityPercent: number | null = null;
     let priorNyquistMatchHz: number | null = null;
@@ -367,6 +372,94 @@ export class SpectrogramAccumulator {
       activeSlicePercent = Number(
         ((activeSlices.length / this.#slices.length) * 100).toFixed(1),
       );
+      if (activeSlices.length > 0) {
+        const highBandStart = Math.max(
+          1,
+          Math.ceil((8_000 * fftSize) / this.#sampleRate),
+        );
+        const flatnessValues: number[] = [];
+        const crestValues: number[] = [];
+        const entropyValues: number[] = [];
+        let floorCells = 0;
+        let highBandCells = 0;
+        const normalizedBands: number[][] = [];
+        for (const slice of activeSlices) {
+          const strongestLevel = Math.max(...slice.levelsDbfs);
+          const band = slice.levelsDbfs.slice(highBandStart);
+          if (band.length === 0) continue;
+          const measurableBand = band.filter(
+            (level) => level > floorDbfs + 0.5,
+          );
+          const powers = measurableBand.map((level) => 10 ** (level / 10));
+          const powerSum = powers.reduce((sum, power) => sum + power, 0);
+          if (measurableBand.length > 0) {
+            const meanPower = powerSum / powers.length;
+            const meanLogPowerDb =
+              measurableBand.reduce((sum, level) => sum + level, 0) /
+              measurableBand.length;
+            flatnessValues.push(
+              meanLogPowerDb - 10 * Math.log10(Math.max(meanPower, 1e-12)),
+            );
+            crestValues.push(
+              Math.max(...measurableBand) -
+                10 * Math.log10(Math.max(meanPower, 1e-12)),
+            );
+          }
+          if (powerSum > 0 && measurableBand.length > 1) {
+            const entropy = -powers.reduce((sum, power) => {
+              const probability = power / powerSum;
+              return probability <= 0
+                ? sum
+                : sum + probability * Math.log(probability);
+            }, 0);
+            entropyValues.push(
+              (entropy / Math.log(measurableBand.length)) * 100,
+            );
+          }
+          floorCells += band.filter((level) => level <= floorDbfs + 0.5).length;
+          highBandCells += band.length;
+          normalizedBands.push(
+            band.map((level) => Math.max(-80, level - strongestLevel)),
+          );
+        }
+        const median = (values: number[]): number | null => {
+          if (values.length === 0) return null;
+          const sorted = [...values].sort((left, right) => left - right);
+          const middle = Math.floor(sorted.length / 2);
+          return sorted.length % 2 === 0
+            ? (sorted[middle - 1] + sorted[middle]) / 2
+            : sorted[middle];
+        };
+        const flatnessMedian = median(flatnessValues);
+        const crestMedian = median(crestValues);
+        const entropyMedian = median(entropyValues);
+        highBandFlatnessDb =
+          flatnessMedian === null ? null : Number(flatnessMedian.toFixed(2));
+        highBandCrestDb =
+          crestMedian === null ? null : Number(crestMedian.toFixed(2));
+        highBandEntropyPercent =
+          entropyMedian === null ? null : Number(entropyMedian.toFixed(2));
+        highBandFloorOccupancyPercent =
+          highBandCells === 0
+            ? null
+            : Number(((floorCells / highBandCells) * 100).toFixed(2));
+        const fluxValues: number[] = [];
+        for (let index = 1; index < normalizedBands.length; index += 1) {
+          const previous = normalizedBands[index - 1];
+          const current = normalizedBands[index];
+          if (previous.length !== current.length || current.length === 0) {
+            continue;
+          }
+          const squaredDifference = current.reduce((sum, level, bin) => {
+            const difference = level - previous[bin];
+            return sum + difference * difference;
+          }, 0);
+          fluxValues.push(Math.sqrt(squaredDifference / current.length));
+        }
+        const fluxMedian = median(fluxValues);
+        normalizedSpectralFluxDb =
+          fluxMedian === null ? null : Number(fluxMedian.toFixed(2));
+      }
       if (strongestCutoffHz !== null && activeSlices.length >= 3) {
         let matchingSlices = 0;
         for (const slice of activeSlices) {
@@ -445,6 +538,11 @@ export class SpectrogramAccumulator {
       energyAbove18kDb,
       energyAbove20kDb,
       effectiveBandwidthEdgeDropDb,
+      normalizedSpectralFluxDb,
+      highBandFlatnessDb,
+      highBandCrestDb,
+      highBandEntropyPercent,
+      highBandFloorOccupancyPercent,
       activeSlicePercent,
       cutoffStabilityPercent,
       priorNyquistMatchHz,

@@ -188,3 +188,57 @@ depend on a single spectral edge, such as time-frequency texture or block-level
 residual structure. Any such measurement remains diagnostic until it separates
 independent development groups and protects native and intentional-processing
 controls.
+
+## Time-frequency texture result
+
+Audio-V implemented a bounded, deterministic texture measurement family over
+the existing 48-slice origin spectrogram:
+
+- normalized frame-to-frame spectral flux;
+- high-band spectral flatness and crest;
+- normalized high-band spectral entropy; and
+- high-band numerical-floor occupancy.
+
+Flatness, crest, and entropy use only bins measurably above the −120 dBFS
+numerical floor. Floor occupancy remains a separate measurement. This prevents
+clamped floor bins from falsely appearing to be meaningful uniform spectral
+energy. The measurements are path-free scalar summaries and do not retain more
+decoded audio or increase the bounded slice count.
+
+The corrected development search froze this candidate before observational
+confirmation:
+
+- declared sample rate no higher than 50 kHz;
+- high-band floor occupancy at least 16%; and
+- measurable-bin high-band entropy at least 84%.
+
+On 396 controlled development cases, it matched 104/216 lossy derivatives
+across all 18 source groups, with zero matches among 18 native, 90 intentional
+low-pass, and 72 upsample controls. That apparent separation did **not**
+generalize to MAESTRO:
+
+- 8/15 native controls matched;
+- 56/75 intentional-low-pass controls matched;
+- 11/60 upsample controls matched; and
+- 139/180 lossy derivatives matched.
+
+The candidate is therefore rejected. Quiet or naturally bandwidth-limited
+high-frequency regions can reproduce the texture pattern without proving codec
+history. Oracle v12 verdict logic remains unchanged. Reproduce the accounting
+after both feature matrices exist with:
+
+```bash
+npm run calibration:evaluate:texture
+```
+
+The concise frozen evidence is
+`validation/real-world/calibration/oracle-v12-texture-candidate-v2.json`.
+This negative result reinforces the robustness concern documented by Koops,
+Micchi, and Quinton: strong results on one codec/source configuration do not
+establish generalization to unseen content:
+https://arxiv.org/abs/2407.21545
+
+The next safe origin-classification advance is not another hand-tuned cutoff or
+texture threshold. It requires either a separately validated codec-artifact
+model with source-group and unseen-configuration testing, or continued
+conservative abstention. Audio-V chooses abstention until such evidence exists.

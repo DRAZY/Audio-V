@@ -20,6 +20,24 @@ const losslessCodecs = new Set([
   "wavpack",
 ]);
 
+export const textureCandidateV2 = Object.freeze({
+  maximumSampleRate: 50_000,
+  minimumFloorOccupancyPercent: 16,
+  minimumEntropyPercent: 84,
+});
+
+export function matchesTextureCandidateV2(record) {
+  const { technical, features } = record;
+  return (
+    (technical.sampleRate ?? Number.POSITIVE_INFINITY) <=
+      textureCandidateV2.maximumSampleRate &&
+    (features.highBandFloorOccupancyPercent ?? Number.NEGATIVE_INFINITY) >=
+      textureCandidateV2.minimumFloorOccupancyPercent &&
+    (features.highBandEntropyPercent ?? Number.NEGATIVE_INFINITY) >=
+      textureCandidateV2.minimumEntropyPercent
+  );
+}
+
 export function eligibleOriginCalibrationCase(item, splits) {
   return (
     item.originDetectorEligibility === "positive-and-negative" &&
@@ -87,6 +105,12 @@ export function originFeatureRecord(item, analysis) {
       energyAbove20kDb: spectrum?.energyAbove20kDb ?? null,
       effectiveBandwidthEdgeDropDb:
         spectrum?.effectiveBandwidthEdgeDropDb ?? null,
+      normalizedSpectralFluxDb: spectrum?.normalizedSpectralFluxDb ?? null,
+      highBandFlatnessDb: spectrum?.highBandFlatnessDb ?? null,
+      highBandCrestDb: spectrum?.highBandCrestDb ?? null,
+      highBandEntropyPercent: spectrum?.highBandEntropyPercent ?? null,
+      highBandFloorOccupancyPercent:
+        spectrum?.highBandFloorOccupancyPercent ?? null,
       activeSlicePercent: spectrum?.activeSlicePercent ?? null,
       cutoffStabilityPercent: spectrum?.cutoffStabilityPercent ?? null,
       priorNyquistMatchHz: spectrum?.priorNyquistMatchHz ?? null,

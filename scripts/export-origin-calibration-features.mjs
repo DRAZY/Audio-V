@@ -19,7 +19,7 @@ import {
   originFeatureRecord,
 } from "./lib/origin-calibration.mjs";
 
-const matrixSchema = "Audio-V origin calibration feature matrix v2";
+const matrixSchema = "Audio-V origin calibration feature matrix v4";
 
 function argumentsMap(values) {
   const result = new Map();

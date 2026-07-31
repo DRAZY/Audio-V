@@ -510,6 +510,11 @@ export class PcmMeasurementAccumulator {
       energyAbove18kDb: null,
       energyAbove20kDb: null,
       effectiveBandwidthEdgeDropDb: null,
+      normalizedSpectralFluxDb: null,
+      highBandFlatnessDb: null,
+      highBandCrestDb: null,
+      highBandEntropyPercent: null,
+      highBandFloorOccupancyPercent: null,
       durationSeconds: this.#frames / this.#sampleRate,
       slices: [],
     };

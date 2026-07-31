@@ -9,6 +9,11 @@ const measurements = [
   "energyAbove18kDb",
   "energyAbove20kDb",
   "effectiveBandwidthEdgeDropDb",
+  "normalizedSpectralFluxDb",
+  "highBandFlatnessDb",
+  "highBandCrestDb",
+  "highBandEntropyPercent",
+  "highBandFloorOccupancyPercent",
 ];
 
 function argumentsMap(values) {
