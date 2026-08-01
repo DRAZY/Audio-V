@@ -76,4 +76,49 @@ describe("checksum manifests", () => {
     expect(results[0].algorithm).toBe("md5");
     expect(results[1].algorithm).toBe("sha256");
   });
+
+  it("verifies a staged copy against entries naming the original file", async () => {
+    // The scanner reads bytes from a staged temp copy when stageSourceFile
+    // decides the source is slow or remote, while manifests still name the
+    // original. Passing the staged path as both the read location and the
+    // identity made every entry fail the match, so verification returned an
+    // empty list and reported nothing rather than failing. That is why sidecar
+    // checksums silently stopped working on Windows, where staging engages and
+    // macOS runs direct.
+    const directory = await fs.mkdtemp(
+      path.join(os.tmpdir(), "audio-v-checksum-staged-"),
+    );
+    temporaryDirectories.push(directory);
+    const originalPath = path.join(directory, "track.flac");
+    const contents = Buffer.from("Audio-V staged fixture");
+    await fs.writeFile(originalPath, contents);
+
+    // A byte-identical copy standing in for what stageSourceFile produces,
+    // deliberately under a different name so the paths cannot coincide.
+    const stagedPath = path.join(directory, "staged-copy.tmp");
+    await fs.writeFile(stagedPath, contents);
+
+    const md5 = createHash("md5").update(contents).digest("hex");
+    const entries = parseChecksumManifest(
+      path.join(directory, "album.md5"),
+      `${md5}  track.flac\n`,
+    );
+
+    const results = await verifyChecksumEntries(
+      stagedPath,
+      entries,
+      {},
+      undefined,
+      originalPath,
+    );
+
+    expect(results).toHaveLength(1);
+    expect(results[0]).toMatchObject({ algorithm: "md5", status: "verified" });
+
+    // Without the identity argument the entry names a file the read path is
+    // not, so nothing matches. Asserting the regression directly keeps the two
+    // parameters from being collapsed back into one.
+    const collapsed = await verifyChecksumEntries(stagedPath, entries);
+    expect(collapsed).toEqual([]);
+  });
 });

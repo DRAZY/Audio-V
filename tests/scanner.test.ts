@@ -578,7 +578,6 @@ describe("scanSources", () => {
   });
 
   it("turns adjacent checksum manifests into Oracle identity evidence", async () => {
-    process.env.AUDIOV_CHECKSUM_DIAG = "1"; // TEMPORARY — see scanner.ts scan-diag
     const directory = await makeTemporaryDirectory();
     const audioPath = path.join(directory, "verified.wav");
     const bytes = pcmWave({ seconds: 0.2 });
@@ -594,57 +593,6 @@ describe("scanSources", () => {
       label: "checksum test",
       paths: [audioPath],
     });
-    // TEMPORARY DIAGNOSTIC — remove once the Windows failure is understood.
-    // This assertion fails on Windows and passes on macOS, and two plausible
-    // explanations (case-insensitive path comparison, 8.3 short paths) have
-    // already turned out to be wrong. Rather than guess a third time, print the
-    // state on both platforms so the macOS run acts as a control. Every stage of
-    // the chain is covered, because the optional chaining below yields undefined
-    // whether `technical` is missing or the array is merely empty.
-    const record = verified.files[0];
-    const dirEntries = await fs.readdir(directory);
-    const { parseChecksumManifest, verifyChecksumEntries, isChecksumManifest } =
-      await import("../electron/checksum-verifier");
-    const manifestPath = path.join(directory, "album.md5");
-    const manifestText = await fs.readFile(manifestPath, "utf8");
-    const parsed = parseChecksumManifest(manifestPath, manifestText);
-    const direct = await verifyChecksumEntries(audioPath, parsed);
-    console.log(
-      "[checksum-diag] " +
-        JSON.stringify(
-          {
-            platform: process.platform,
-            sep: path.sep,
-            audioPath,
-            resolvedAudioPath: path.resolve(audioPath),
-            recordPath: record.path,
-            resolvedRecordPath: path.resolve(record.path),
-            recordPathEqualsAudioPath:
-              path.resolve(record.path) === path.resolve(audioPath),
-            directoryListing: dirEntries,
-            manifestDetectedAsManifest: isChecksumManifest(manifestPath),
-            manifestTextRaw: manifestText,
-            parsedEntryCount: parsed.length,
-            parsedEntries: parsed.map((entry) => ({
-              algorithm: entry.algorithm,
-              filePath: entry.filePath,
-              resolvedFilePath: path.resolve(entry.filePath),
-              matchesScannedFile:
-                path.resolve(entry.filePath) === path.resolve(audioPath),
-            })),
-            directVerifyResult: direct,
-            scanWarnings: verified.warnings,
-            hasTechnical: Boolean(record.oracle.technical),
-            technicalKeys: record.oracle.technical
-              ? Object.keys(record.oracle.technical).slice(0, 40)
-              : null,
-            externalChecksums: record.oracle.technical?.externalChecksums,
-          },
-          null,
-          2,
-        ),
-    );
-
     expect(
       verified.files[0].oracle.technical?.externalChecksums[0],
     ).toMatchObject({ algorithm: "md5", status: "verified" });

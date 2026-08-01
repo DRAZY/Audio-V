@@ -401,11 +401,16 @@ async function attachExternalChecksumEvidence(
 ): Promise<AudioFileRecord> {
   if (!file.oracle.technical) return file;
   const relevantEntries = entriesByPath.get(path.resolve(file.path)) ?? [];
+  // Read the bytes from verificationPath, which may be a staged temp copy, but
+  // match entries against file.path, which is the identity a manifest names.
+  // Passing the staged path for both made every entry fail the match and the
+  // whole verification silently return nothing.
   const externalChecksums = await verifyChecksumEntries(
     verificationPath,
     relevantEntries,
     { sha256: file.oracle.technical.fileSha256 },
     signal,
+    file.path,
   );
   const priorEvidence = file.oracle.evidence.filter(
     (item) => !item.id.startsWith("external-checksum-"),
@@ -1302,32 +1307,6 @@ export async function scanSources(
     const existing = checksumEntriesByPath.get(resolvedPath);
     if (existing) existing.push(entry);
     else checksumEntriesByPath.set(resolvedPath, [entry]);
-  }
-  // TEMPORARY DIAGNOSTIC — remove once the Windows failure is understood.
-  // Everything the test could observe from outside already checks out on
-  // Windows: the manifest is on disk, parses to one entry, that entry's path
-  // equals the scanned file, and a direct verifyChecksumEntries call verifies.
-  // Yet the scan yields externalChecksums: []. This stretch, from manifest
-  // discovery through to the map that gates the lookup, has never been observed
-  // from inside the scan itself.
-  if (process.env.AUDIOV_CHECKSUM_DIAG === "1") {
-    console.log(
-      "[scan-diag] " +
-        JSON.stringify({
-          platform: process.platform,
-          sourceMode: source.mode ?? null,
-          inventoryOnly,
-          checksumManifestCount: checksumManifests.size,
-          checksumManifests: [...checksumManifests],
-          checksumEntryCount: checksumEntries.length,
-          checksumEntryPaths: checksumEntries.map((entry) => entry.filePath),
-          mapSize: checksumEntriesByPath.size,
-          mapKeys: [...checksumEntriesByPath.keys()],
-          discoveredFileCount: filePaths.length,
-          discoveredFiles: filePaths.slice(0, 5),
-          warnings,
-        }),
-    );
   }
   await options?.onDiscovered?.(filePaths, warnings);
   onProgress?.({

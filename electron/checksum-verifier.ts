@@ -136,13 +136,31 @@ async function hashFile(
   );
 }
 
+/**
+ * Verify a file against the checksum manifest entries that name it.
+ *
+ * Two distinct paths are involved and they are not always the same file:
+ *
+ * - `matchPath` is the file's identity, the location a manifest refers to. It
+ *   decides which entries apply.
+ * - `filePath` is where the bytes are actually read from. The scanner may hand
+ *   over a staged temp copy instead of the original, which is what
+ *   stageSourceFile produces for slow or remote storage.
+ *
+ * These used to be one parameter. When the caller passed a staged copy, entries
+ * naming the original were filtered against the temp path, matched nothing, and
+ * the function returned an empty list. That reads as "this file has no manifest"
+ * rather than as an error, so sidecar verification silently did nothing on any
+ * platform where staging kicked in. Keeping them separate is what prevents that.
+ */
 export async function verifyChecksumEntries(
   filePath: string,
   entries: ChecksumManifestEntry[],
   knownHashes: Partial<Record<ChecksumAlgorithm, string>> = {},
   signal?: AbortSignal,
+  matchPath: string = filePath,
 ): Promise<ExternalChecksumVerification[]> {
-  const resolvedFile = path.resolve(filePath);
+  const resolvedFile = path.resolve(matchPath);
   const relevant = entries.filter(
     (entry) => path.resolve(entry.filePath) === resolvedFile,
   );
