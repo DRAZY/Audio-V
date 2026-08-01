@@ -578,6 +578,7 @@ describe("scanSources", () => {
   });
 
   it("turns adjacent checksum manifests into Oracle identity evidence", async () => {
+    process.env.AUDIOV_CHECKSUM_DIAG = "1"; // TEMPORARY — see scanner.ts scan-diag
     const directory = await makeTemporaryDirectory();
     const audioPath = path.join(directory, "verified.wav");
     const bytes = pcmWave({ seconds: 0.2 });

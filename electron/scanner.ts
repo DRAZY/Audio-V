@@ -28,7 +28,6 @@ import {
 import {
   isChecksumManifest,
   readChecksumManifest,
-  comparablePath,
   verifyChecksumEntries,
   type ChecksumManifestEntry,
 } from "./checksum-verifier";
@@ -401,15 +400,7 @@ async function attachExternalChecksumEvidence(
   verificationPath = file.path,
 ): Promise<AudioFileRecord> {
   if (!file.oracle.technical) return file;
-  // Keyed with comparablePath on both sides. This map is the real gate on
-  // external checksum evidence: a key built from the manifest entry and a lookup
-  // built from the scanned record must agree exactly, and on the case-insensitive
-  // filesystems Windows and macOS use by default the same file legitimately
-  // reaches those two sides spelled differently. A miss here returns [] rather
-  // than a mismatch, so sidecar verification reported nothing while appearing to
-  // work. verifyChecksumEntries itself was never at fault; it was being handed an
-  // empty list.
-  const relevantEntries = entriesByPath.get(comparablePath(file.path)) ?? [];
+  const relevantEntries = entriesByPath.get(path.resolve(file.path)) ?? [];
   const externalChecksums = await verifyChecksumEntries(
     verificationPath,
     relevantEntries,
@@ -1307,10 +1298,36 @@ export async function scanSources(
   );
   const checksumEntriesByPath = new Map<string, ChecksumManifestEntry[]>();
   for (const entry of checksumEntries) {
-    const resolvedPath = comparablePath(entry.filePath);
+    const resolvedPath = path.resolve(entry.filePath);
     const existing = checksumEntriesByPath.get(resolvedPath);
     if (existing) existing.push(entry);
     else checksumEntriesByPath.set(resolvedPath, [entry]);
+  }
+  // TEMPORARY DIAGNOSTIC — remove once the Windows failure is understood.
+  // Everything the test could observe from outside already checks out on
+  // Windows: the manifest is on disk, parses to one entry, that entry's path
+  // equals the scanned file, and a direct verifyChecksumEntries call verifies.
+  // Yet the scan yields externalChecksums: []. This stretch, from manifest
+  // discovery through to the map that gates the lookup, has never been observed
+  // from inside the scan itself.
+  if (process.env.AUDIOV_CHECKSUM_DIAG === "1") {
+    console.log(
+      "[scan-diag] " +
+        JSON.stringify({
+          platform: process.platform,
+          sourceMode: source.mode ?? null,
+          inventoryOnly,
+          checksumManifestCount: checksumManifests.size,
+          checksumManifests: [...checksumManifests],
+          checksumEntryCount: checksumEntries.length,
+          checksumEntryPaths: checksumEntries.map((entry) => entry.filePath),
+          mapSize: checksumEntriesByPath.size,
+          mapKeys: [...checksumEntriesByPath.keys()],
+          discoveredFileCount: filePaths.length,
+          discoveredFiles: filePaths.slice(0, 5),
+          warnings,
+        }),
+    );
   }
   await options?.onDiscovered?.(filePaths, warnings);
   onProgress?.({

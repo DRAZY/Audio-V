@@ -136,39 +136,15 @@ async function hashFile(
   );
 }
 
-/**
- * Resolve a path into a form safe to compare with `===`.
- *
- * Windows and macOS both use case-insensitive filesystems by default, so the
- * same file legitimately reaches us spelled differently: a manifest line saying
- * `Album\Track.flac` against a scan that walked `album\track.flac`, or a drive
- * letter that arrives as `d:\` from one source and `D:\` from another. A plain
- * `path.resolve(a) === path.resolve(b)` treats those as different files.
- *
- * That comparison gates whether a manifest entry is considered relevant at all,
- * so a miss did not surface as a mismatch, which the user would see. It returned
- * an empty list, and sidecar .md5/.sha256 verification silently reported nothing
- * on Windows while appearing to work.
- *
- * Case folding only where the platform is actually case-insensitive: doing it on
- * Linux would wrongly equate two genuinely distinct files.
- */
-export function comparablePath(value: string): string {
-  const resolved = path.resolve(value);
-  return process.platform === "win32" || process.platform === "darwin"
-    ? resolved.toLowerCase()
-    : resolved;
-}
-
 export async function verifyChecksumEntries(
   filePath: string,
   entries: ChecksumManifestEntry[],
   knownHashes: Partial<Record<ChecksumAlgorithm, string>> = {},
   signal?: AbortSignal,
 ): Promise<ExternalChecksumVerification[]> {
-  const resolvedFile = comparablePath(filePath);
+  const resolvedFile = path.resolve(filePath);
   const relevant = entries.filter(
-    (entry) => comparablePath(entry.filePath) === resolvedFile,
+    (entry) => path.resolve(entry.filePath) === resolvedFile,
   );
   if (relevant.length === 0) return [];
 
