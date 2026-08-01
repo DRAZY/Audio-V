@@ -938,10 +938,16 @@ app.whenReady().then(async () => {
       rect.right <= comparisonLayout.host.right + tolerance &&
       scrollWidth <= clientWidth + tolerance,
   );
-  const comparisonControlsStacked = comparisonLayout.controls.every(
+  const comparisonControlsSeparated = comparisonLayout.controls.every(
     (control, index, controls) =>
-      index === 0 || controls[index - 1].bottom <= control.top + tolerance,
+      controls.slice(index + 1).every((candidate) => !overlaps(control, candidate)),
   );
+  const comparisonControlsStackWhenNarrow =
+    comparisonLayout.viewportWidth > 900 + tolerance ||
+    comparisonLayout.controls.every(
+      (control, index, controls) =>
+        index === 0 || controls[index - 1].bottom <= control.top + tolerance,
+    );
   const comparisonNoPageOverflow =
     comparisonLayout.documentWidth <= comparisonLayout.viewportWidth;
   results.push({
@@ -949,12 +955,14 @@ app.whenReady().then(async () => {
     measurement: comparisonLayout,
     checks: {
       comparisonChildrenContained,
-      comparisonControlsStacked,
+      comparisonControlsSeparated,
+      comparisonControlsStackWhenNarrow,
       comparisonNoPageOverflow,
     },
     passed:
       comparisonChildrenContained &&
-      comparisonControlsStacked &&
+      comparisonControlsSeparated &&
+      comparisonControlsStackWhenNarrow &&
       comparisonNoPageOverflow,
   });
   await new Promise((resolve) => setTimeout(resolve, 120));
