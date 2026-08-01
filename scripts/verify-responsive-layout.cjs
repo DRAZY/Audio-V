@@ -985,6 +985,7 @@ app.whenReady().then(async () => {
     console.error(
       `Responsive layout failed: ${failed.map((result) => result.name).join(", ")}.`,
     );
+    console.error(JSON.stringify(failed, null, 2));
   } else {
     console.log(
       "Responsive layout passed at default and minimum desktop sizes, including bounded long status messages, storage-maintenance composition, open source warnings, table gutters, active assessment separation, adaptive resource controls, dense inspector text, selected paths, scan progress, independent report evidence panes, synchronized comparison evidence, and the loudness diagnostics grid.",
