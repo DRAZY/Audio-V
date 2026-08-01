@@ -196,21 +196,21 @@ comparison.
 ## Download Audio-V
 
 The current locally built and verified release is
-**[Audio-V 0.4.42](https://github.com/DRAZY/Audio-V/releases/latest)**.
+**[Audio-V 0.4.43](https://github.com/DRAZY/Audio-V/releases/latest)**.
 
 | Your computer | Download | What you receive |
 |---|---|---|
-| Apple Silicon Mac | [Apple Silicon DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.42/Audio-V-0.4.42-mac-arm64.dmg) | Native build for M-series Macs |
-| Any supported Mac | [Universal DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.42/Audio-V-0.4.42-mac-universal.dmg) | Apple Silicon and Intel in one package |
-| Windows | [Windows installer](https://github.com/DRAZY/Audio-V/releases/download/v0.4.42/Audio-V-0.4.42-win-x64.exe) | Guided installation |
-| Windows portable | [Portable executable](https://github.com/DRAZY/Audio-V/releases/download/v0.4.42/Audio-V-Portable-0.4.42-x64.exe) | Runs without installation |
+| Apple Silicon Mac | [Apple Silicon DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.43/Audio-V-0.4.43-mac-arm64.dmg) | Native build for M-series Macs |
+| Any supported Mac | [Universal DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.43/Audio-V-0.4.43-mac-universal.dmg) | Apple Silicon and Intel in one package |
+| Windows | [Windows installer](https://github.com/DRAZY/Audio-V/releases/download/v0.4.43/Audio-V-0.4.43-win-x64.exe) | Guided installation |
+| Windows portable | [Portable executable](https://github.com/DRAZY/Audio-V/releases/download/v0.4.43/Audio-V-Portable-0.4.43-x64.exe) | Runs without installation |
 
 These builds are not signed with paid Apple or Microsoft certificates. Verify
 the download with
-[`SHA256SUMS.txt`](https://github.com/DRAZY/Audio-V/releases/download/v0.4.42/SHA256SUMS.txt),
+[`SHA256SUMS.txt`](https://github.com/DRAZY/Audio-V/releases/download/v0.4.43/SHA256SUMS.txt),
 then follow the
 [unsigned installation guide](docs/UNSIGNED_INSTALLATION.md). The
-[`UNSIGNED_RELEASE_MANIFEST.json`](https://github.com/DRAZY/Audio-V/releases/download/v0.4.42/UNSIGNED_RELEASE_MANIFEST.json)
+[`UNSIGNED_RELEASE_MANIFEST.json`](https://github.com/DRAZY/Audio-V/releases/download/v0.4.43/UNSIGNED_RELEASE_MANIFEST.json)
 records the signing policy and artifact identities.
 
 ## Your first audit
