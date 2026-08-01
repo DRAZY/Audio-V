@@ -13,7 +13,7 @@
   </p>
 
   <p>
-    <a href="https://github.com/DRAZY/Audio-V/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/DRAZY/Audio-V?style=for-the-badge&color=51e19b"></a>
+    <img alt="Stars" src="https://img.shields.io/github/stars/DRAZY/Audio-V?style=for-the-badge&color=51e19b">
     <img alt="Last commit" src="https://img.shields.io/github/last-commit/DRAZY/Audio-V?style=for-the-badge&color=51e19b">
     <img alt="Electron" src="https://img.shields.io/badge/Electron-39-47848F?style=for-the-badge&logo=electron&logoColor=white">
     <img alt="Vue" src="https://img.shields.io/badge/Vue-3-4FC08D?style=for-the-badge&logo=vue.js&logoColor=white">
@@ -195,23 +195,29 @@ comparison.
 
 ## Download Audio-V
 
-The current locally built and verified release is
-**[Audio-V 0.4.43](https://github.com/DRAZY/Audio-V/releases/latest)**.
+Every download below points at the
+**[latest release](https://github.com/DRAZY/Audio-V/releases/latest)**, whatever
+that currently is. The version badge at the top of this page reports it live.
 
-| Your computer | Download | What you receive |
-|---|---|---|
-| Apple Silicon Mac | [Apple Silicon DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.43/Audio-V-0.4.43-mac-arm64.dmg) | Native build for M-series Macs |
-| Any supported Mac | [Universal DMG](https://github.com/DRAZY/Audio-V/releases/download/v0.4.43/Audio-V-0.4.43-mac-universal.dmg) | Apple Silicon and Intel in one package |
-| Windows | [Windows installer](https://github.com/DRAZY/Audio-V/releases/download/v0.4.43/Audio-V-0.4.43-win-x64.exe) | Guided installation |
-| Windows portable | [Portable executable](https://github.com/DRAZY/Audio-V/releases/download/v0.4.43/Audio-V-Portable-0.4.43-x64.exe) | Runs without installation |
+| Your computer | Download | Asset to pick | What you receive |
+|---|---|---|---|
+| Apple Silicon Mac | [Latest release](https://github.com/DRAZY/Audio-V/releases/latest) | `Audio-V-<version>-mac-arm64.dmg` | Native build for M-series Macs |
+| Any supported Mac | [Latest release](https://github.com/DRAZY/Audio-V/releases/latest) | `Audio-V-<version>-mac-universal.dmg` | Apple Silicon and Intel in one package |
+| Windows | [Latest release](https://github.com/DRAZY/Audio-V/releases/latest) | `Audio-V-<version>-win-x64.exe` | Guided installation |
+| Windows portable | [Latest release](https://github.com/DRAZY/Audio-V/releases/latest) | `Audio-V-Portable-<version>-x64.exe` | Runs without installation |
+
+Installer filenames carry their version, so this table names the asset to pick
+rather than linking each file directly. A direct link would break on the next
+release and quietly serve a 404 to anyone arriving from an older page.
 
 These builds are not signed with paid Apple or Microsoft certificates. Verify
 the download with
-[`SHA256SUMS.txt`](https://github.com/DRAZY/Audio-V/releases/download/v0.4.43/SHA256SUMS.txt),
+[`SHA256SUMS.txt`](https://github.com/DRAZY/Audio-V/releases/latest/download/SHA256SUMS.txt),
 then follow the
 [unsigned installation guide](docs/UNSIGNED_INSTALLATION.md). The
-[`UNSIGNED_RELEASE_MANIFEST.json`](https://github.com/DRAZY/Audio-V/releases/download/v0.4.43/UNSIGNED_RELEASE_MANIFEST.json)
-records the signing policy and artifact identities.
+[`UNSIGNED_RELEASE_MANIFEST.json`](https://github.com/DRAZY/Audio-V/releases/latest/download/UNSIGNED_RELEASE_MANIFEST.json)
+records the signing policy and artifact identities. Those two filenames carry no
+version, so both links always resolve to the current release.
 
 ## Your first audit
 
