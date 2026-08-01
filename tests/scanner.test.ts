@@ -616,6 +616,10 @@ describe("scanSources", () => {
             sep: path.sep,
             audioPath,
             resolvedAudioPath: path.resolve(audioPath),
+            recordPath: record.path,
+            resolvedRecordPath: path.resolve(record.path),
+            recordPathEqualsAudioPath:
+              path.resolve(record.path) === path.resolve(audioPath),
             directoryListing: dirEntries,
             manifestDetectedAsManifest: isChecksumManifest(manifestPath),
             manifestTextRaw: manifestText,

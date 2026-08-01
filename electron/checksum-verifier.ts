@@ -153,7 +153,7 @@ async function hashFile(
  * Case folding only where the platform is actually case-insensitive: doing it on
  * Linux would wrongly equate two genuinely distinct files.
  */
-function comparablePath(value: string): string {
+export function comparablePath(value: string): string {
   const resolved = path.resolve(value);
   return process.platform === "win32" || process.platform === "darwin"
     ? resolved.toLowerCase()

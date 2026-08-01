@@ -28,6 +28,7 @@ import {
 import {
   isChecksumManifest,
   readChecksumManifest,
+  comparablePath,
   verifyChecksumEntries,
   type ChecksumManifestEntry,
 } from "./checksum-verifier";
@@ -400,7 +401,15 @@ async function attachExternalChecksumEvidence(
   verificationPath = file.path,
 ): Promise<AudioFileRecord> {
   if (!file.oracle.technical) return file;
-  const relevantEntries = entriesByPath.get(path.resolve(file.path)) ?? [];
+  // Keyed with comparablePath on both sides. This map is the real gate on
+  // external checksum evidence: a key built from the manifest entry and a lookup
+  // built from the scanned record must agree exactly, and on the case-insensitive
+  // filesystems Windows and macOS use by default the same file legitimately
+  // reaches those two sides spelled differently. A miss here returns [] rather
+  // than a mismatch, so sidecar verification reported nothing while appearing to
+  // work. verifyChecksumEntries itself was never at fault; it was being handed an
+  // empty list.
+  const relevantEntries = entriesByPath.get(comparablePath(file.path)) ?? [];
   const externalChecksums = await verifyChecksumEntries(
     verificationPath,
     relevantEntries,
@@ -1298,7 +1307,7 @@ export async function scanSources(
   );
   const checksumEntriesByPath = new Map<string, ChecksumManifestEntry[]>();
   for (const entry of checksumEntries) {
-    const resolvedPath = path.resolve(entry.filePath);
+    const resolvedPath = comparablePath(entry.filePath);
     const existing = checksumEntriesByPath.get(resolvedPath);
     if (existing) existing.push(entry);
     else checksumEntriesByPath.set(resolvedPath, [entry]);
