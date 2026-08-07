@@ -1,10 +1,8 @@
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import {
-  analyzeAudioFile,
-  engineVersion,
-} from "../dist-electron/electron/oracle/oracle-engine.js";
+import { Worker } from "node:worker_threads";
+import { engineVersion } from "../dist-electron/electron/oracle/oracle-engine.js";
 import {
   acceptanceEligibilityForCase,
   clopperPearson,
@@ -96,7 +94,7 @@ const requestedConcurrency = Number.parseInt(
   10,
 );
 const evaluationConcurrency = Number.isInteger(requestedConcurrency)
-  ? Math.max(1, Math.min(8, requestedConcurrency))
+  ? Math.max(1, Math.min(16, requestedConcurrency))
   : Math.max(1, Math.min(4, os.availableParallelism()));
 const results = new Array(generated.cases.length);
 let reusedCases = 0;
@@ -128,7 +126,36 @@ function saveCheckpoint() {
   return checkpointWrite;
 }
 
-async function evaluateCase(item) {
+function analyzeWithWorker(worker, filePath) {
+  return new Promise((resolve, reject) => {
+    const handleMessage = (message) => {
+      cleanup();
+      if (message.ok) resolve(message.result);
+      else reject(new Error(message.error));
+    };
+    const handleError = (error) => {
+      cleanup();
+      reject(error);
+    };
+    const handleExit = (code) => {
+      cleanup();
+      reject(
+        new Error(`Real-world analysis worker exited unexpectedly (${code}).`),
+      );
+    };
+    const cleanup = () => {
+      worker.off("message", handleMessage);
+      worker.off("error", handleError);
+      worker.off("exit", handleExit);
+    };
+    worker.once("message", handleMessage);
+    worker.once("error", handleError);
+    worker.once("exit", handleExit);
+    worker.postMessage(filePath);
+  });
+}
+
+async function evaluateCase(item, worker) {
   const filePath = path.join(corpusDirectory, item.file);
   const actualHash = await sha256File(filePath);
   if (actualHash !== item.sha256) {
@@ -148,7 +175,7 @@ async function evaluateCase(item) {
       evidenceCoverage: reusable.evidenceCoverage,
     };
   } else {
-    const result = await analyzeAudioFile(filePath);
+    const result = await analyzeWithWorker(worker, filePath);
     newlyAnalyzedSinceCheckpoint += 1;
     observed = {
       actualClassification:
@@ -210,26 +237,36 @@ async function evaluateCase(item) {
 }
 
 async function evaluationWorker() {
-  while (nextCaseIndex < generated.cases.length) {
-    const caseIndex = nextCaseIndex;
-    nextCaseIndex += 1;
-    results[caseIndex] = await evaluateCase(generated.cases[caseIndex]);
-    completedCases += 1;
-    if (
-      completedCases % 25 === 0 ||
-      completedCases === generated.cases.length
-    ) {
-      console.log(
-        `Evaluated ${completedCases}/${generated.cases.length} controlled cases.`,
+  const worker = new Worker(
+    new URL("./lib/real-world-analysis-worker.mjs", import.meta.url),
+  );
+  try {
+    while (nextCaseIndex < generated.cases.length) {
+      const caseIndex = nextCaseIndex;
+      nextCaseIndex += 1;
+      results[caseIndex] = await evaluateCase(
+        generated.cases[caseIndex],
+        worker,
       );
+      completedCases += 1;
+      if (
+        completedCases % 25 === 0 ||
+        completedCases === generated.cases.length
+      ) {
+        console.log(
+          `Evaluated ${completedCases}/${generated.cases.length} controlled cases.`,
+        );
+      }
+      if (
+        newlyAnalyzedSinceCheckpoint >= 25 ||
+        completedCases === generated.cases.length
+      ) {
+        newlyAnalyzedSinceCheckpoint = 0;
+        await saveCheckpoint();
+      }
     }
-    if (
-      newlyAnalyzedSinceCheckpoint >= 25 ||
-      completedCases === generated.cases.length
-    ) {
-      newlyAnalyzedSinceCheckpoint = 0;
-      await saveCheckpoint();
-    }
+  } finally {
+    await worker.terminate();
   }
 }
 
