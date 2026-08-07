@@ -20,12 +20,17 @@ behavior are unchanged.
   Windows, native macOS, Oracle parity, and dependency-review checks.
 - Enabled CodeQL default analysis, secret protection, push protection, and
   private vulnerability reporting for the public project.
+- Replaced the corpus evaluator's single-threaded asynchronous lanes with real
+  worker threads. The four-worker safe default remains, while maintainers can
+  explicitly use up to 16 validation workers on capable release machines.
 
 ## Verification
 
 - Clean `npm ci` installation completes with the patched dependency graph.
 - `npm audit` and `npm audit --omit=dev` report zero vulnerabilities.
 - Local source, build, UI, release-policy, corpus, and package checks pass.
+- The 2,295-case real-world matrix completes across 85 independent references;
+  cached reruns preserve the same hashes, evidence fields, and thresholds.
 - Native Windows and macOS verification plus cross-platform Oracle parity pass
   on the protected pull request.
 

@@ -216,7 +216,7 @@ Gate 2 is complete for the repository-level scale foundation. The maintainer has
 - Changing the failure semantics advanced the engine/cache identity to `0.4.0-oracle-v6`, preventing older catch-all damage interpretations from appearing under the new model.
 - Deep spectrogram inspection and clipping-event evidence advance the current identity to `0.5.0-oracle-v7`, invalidating cached v6 measurements that do not contain the expanded evidence model.
 
-Gate 3 now has an enforceable validation foundation, but it is not statistically calibrated. The included corpus is synthetic and deliberately small. Production-grade provenance confidence requires a licensed, ground-truth library across genres, recording eras, mastering processes, analog transfers, speech, silence, sample rates, codecs, bitrates, resampling methods, and intentional filtering, with train/calibration/test separation and published per-class false-positive and false-negative results. Until that corpus exists, Audio-V will continue to use **possible**, **bandwidth limited**, or **inconclusive** language instead of claiming universal origin verdicts.
+Gate 3 now has both a small deterministic regression corpus and a separately governed real-world validation matrix. The current matrix contains 2,295 controlled cases derived from 85 independent references across five registered sources, with group-separated splits and published per-class measurements. It reaches the project's numeric public-reference target, but its present zero-positive-detection result for controlled lossy and upsample transformations means the Origin Assessment is not probability-calibrated and cannot claim universal accuracy. Audio-V therefore continues to use **possible**, **bandwidth limited**, or **inconclusive** language, and promotion remains blocked until the declared recall, false-positive, and confidence-bound requirements are met on eligible held-out evidence.
 
 ### Gate 4 implementation status
 
@@ -250,6 +250,9 @@ Gate 5 is complete for automated repository readiness and local-package validati
 - The external-reference registry enforces rights records, SHA-256 identity, public-versus-challenge disposition, and source-group partitions.
 - Deterministic recipes generate at least ten native, lossy-transcode, upsample, and intentional-filter cases per imported reference.
 - Evaluation records accepted classifications, detector confusion counts, inconclusive behavior, and exact 95% Clopper-Pearson binomial intervals grouped by dataset, source category/subcollection, split, recipe, and truth class.
+- Corpus evaluation uses true worker threads with a conservative four-worker
+  default, resumable 25-case checkpoints, hash-verified result reuse, and an
+  explicit validation-only override of up to 16 workers on capable machines.
 - Settings reads the exact status shipped with the package and exposes public-reference, source-group, case, corpus-version, and claim-level information.
 - Reports state that heuristic rule strength is not a probability-calibrated provenance claim.
 
