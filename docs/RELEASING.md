@@ -25,7 +25,14 @@ throughput, sampled process working set, database growth, source-storage class,
 and recovery mode without including source names, paths, hashes, tags, audio
 evidence, or service credentials.
 
-`.github/workflows/verify.yml` is an optional, manual-only cross-platform verification workflow. It runs only when a maintainer explicitly dispatches it and is not triggered by pushes, pull requests, or tags. This prevents the private repository from consuming GitHub-hosted runner allowance during normal development and publication.
+`.github/workflows/verify.yml` is the protected source-parity safety net. It runs
+for pull requests targeting `main`, pushes that land on `main`, and explicit
+maintainer dispatches. The workflow verifies source on native Windows and
+macOS runners and compares their Oracle snapshots; it never packages or
+publishes application binaries. `.github/workflows/dependency-review.yml`
+separately blocks pull requests that introduce high or critical dependency
+findings. Release packages remain entirely maintainer-built and locally
+verified.
 
 ## Local verification
 
@@ -83,7 +90,8 @@ intended release configuration.
    npm version patch --no-git-tag-version
    ```
 
-2. Commit and push the verified source and version metadata.
+2. Commit the verified source and version metadata on a topic branch, open a
+   pull request, and wait for every protected check to pass before merging.
 3. Produce and inspect the four local packages:
 
    ```bash
@@ -104,7 +112,7 @@ intended release configuration.
    ```bash
    VERSION=$(node -p "require('./package.json').version")
    git tag -a "v${VERSION}" -m "Audio-V v${VERSION}"
-   git push origin main "v${VERSION}"
+   git push origin "v${VERSION}"
    ```
 
 6. Create the version-named release and upload the exact locally verified assets:
@@ -128,8 +136,9 @@ intended release configuration.
 
 ## Maintainer synchronization policy
 
-For maintainer-directed work, verified source is synchronized when its commit is
-pushed to `main`. Documentation-only commits do not require rebuilding
+For maintainer-directed work, verified source is synchronized through a pull
+request into protected `main`. Direct and force pushes to `main` are blocked.
+Documentation-only commits do not require rebuilding
 unchanged application packages. A source or packaged-runtime change that is
 distributed to testers receives a new development version and four matching
 packages; local current-version artifacts are retained until their upload is
@@ -138,10 +147,9 @@ version, tag, package metadata, README links, and assets must match; applicable
 native correctness, packaged-runtime verification, and release-candidate
 checks must pass before upload.
 
-GitHub Releases preserve meaningful published test versions as the project’s
-distribution record while the repository is private. Before public launch, the
-maintainer may remove superseded private-development previews and retain the
-first release candidate plus later promoted versions. The local ignored
+GitHub Releases preserve meaningful published versions as the public project’s
+distribution record. The maintainer may remove superseded development previews
+while retaining promoted releases. The local ignored
 `release/` directory is a current-build workspace, not an archive. After a
 release succeeds:
 

@@ -3,6 +3,7 @@ import path from "node:path";
 
 const root = path.join(process.cwd(), "node_modules");
 const marker = "// Audio-V CommonJS compatibility adapter";
+const expectedVersion = "5.0.9";
 const adapter = `
 ${marker}
 module.exports = Object.assign(expand, {
@@ -27,9 +28,9 @@ async function visit(directory) {
       const packagePath = path.join(entryPath, "package.json");
       try {
         const metadata = JSON.parse(await fs.readFile(packagePath, "utf8"));
-        if (metadata.version !== "5.0.8") {
+        if (metadata.version !== expectedVersion) {
           throw new Error(
-            `Expected patched brace-expansion 5.0.8, found ${metadata.version}.`,
+            `Expected patched brace-expansion ${expectedVersion}, found ${metadata.version}.`,
           );
         }
         const commonJsPath = path.join(entryPath, "dist", "commonjs", "index.js");
@@ -53,7 +54,9 @@ async function visit(directory) {
 
 await visit(root);
 if (patched === 0) {
-  throw new Error("No brace-expansion 5.0.8 installation was found to adapt.");
+  throw new Error(
+    `No brace-expansion ${expectedVersion} installation was found to adapt.`,
+  );
 }
 console.log(
   `Applied callable CommonJS compatibility to ${patched} patched brace-expansion installation${patched === 1 ? "" : "s"}.`,
