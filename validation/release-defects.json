@@ -1,7 +1,7 @@
 {
   "schema": "Audio-V release defect register v1",
-  "releaseVersion": "0.4.43",
-  "auditedAt": "2026-08-01T07:12:04.000Z",
+  "releaseVersion": "0.4.44",
+  "auditedAt": "2026-08-07T01:01:53.000Z",
   "repositoryIssueCountAtAudit": 0,
   "defects": [
     {
@@ -73,6 +73,13 @@
       "status": "fixed",
       "summary": "MusicBrainz transient 503 throttling, busy-server responses, gateway failures, and request timeouts were recorded immediately as final service errors during large identity-enabled audits.",
       "verification": "electron/oracle/analysis-tools.ts retains the 1.1-second global scheduler margin and adds at most three bounded attempts with Retry-After-aware backoff; tests/analysis-tools.test.ts verifies a throttled lookup recovers to matched evidence."
+    },
+    {
+      "id": "AV-2026-011",
+      "severity": "P1",
+      "status": "fixed",
+      "summary": "The build dependency tree pinned vulnerable fast-uri, brace-expansion, and js-yaml releases while the default branch accepted unguarded direct pushes.",
+      "verification": "npm audit and npm audit --omit=dev both report zero vulnerabilities; clean npm ci applies the 5.0.9 CommonJS compatibility adapter; protected-main rules require native Windows, native macOS, Oracle parity, and dependency-review checks before merge."
     }
   ],
   "limitations": [
