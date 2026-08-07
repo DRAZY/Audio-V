@@ -805,7 +805,11 @@ describe("scanSources", () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(
       async (request) => {
         const url = String(request);
-        const body = url.includes("api.acoustid.org")
+        const parsedUrl = new URL(url);
+        const isAcoustIdRequest =
+          parsedUrl.protocol === "https:" &&
+          parsedUrl.hostname === "api.acoustid.org";
+        const body = isAcoustIdRequest
           ? {
               status: "ok",
               results: [{
