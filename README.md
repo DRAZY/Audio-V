@@ -15,9 +15,9 @@
   <p>
     <img alt="Stars" src="https://img.shields.io/github/stars/DRAZY/Audio-V?style=for-the-badge&color=51e19b">
     <img alt="Last commit" src="https://img.shields.io/github/last-commit/DRAZY/Audio-V?style=for-the-badge&color=51e19b">
-    <img alt="Electron" src="https://img.shields.io/badge/Electron-39-47848F?style=for-the-badge&logo=electron&logoColor=white">
-    <img alt="Vue" src="https://img.shields.io/badge/Vue-3-4FC08D?style=for-the-badge&logo=vue.js&logoColor=white">
-    <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5-3178C6?style=for-the-badge&logo=typescript&logoColor=white">
+    <img alt="Electron" src="https://img.shields.io/github/package-json/dependency-version/DRAZY/Audio-V/dev/electron?style=for-the-badge&logo=electron&logoColor=white&color=47848F">
+    <img alt="Vue" src="https://img.shields.io/github/package-json/dependency-version/DRAZY/Audio-V/vue?style=for-the-badge&logo=vue.js&logoColor=white&color=4FC08D">
+    <img alt="TypeScript" src="https://img.shields.io/github/package-json/dependency-version/DRAZY/Audio-V/dev/typescript?style=for-the-badge&logo=typescript&logoColor=white&color=3178C6">
   </p>
 
   <p>
