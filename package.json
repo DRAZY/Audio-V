@@ -101,7 +101,7 @@
     "@types/node": "^22.19.19",
     "@types/pdfkit": "^0.17.5",
     "@vitejs/plugin-vue": "^6.0.0",
-    "axe-core": "^4.12.1",
+    "axe-core": "^4.13.0",
     "concurrently": "^9.2.1",
     "cross-env": "^10.1.0",
     "electron": "^39.8.5",
@@ -109,7 +109,7 @@
     "typescript": "^5.9.3",
     "vite": "^7.2.4",
     "vitest": "^3.2.7",
-    "vue-tsc": "^3.2.1",
+    "vue-tsc": "^3.3.9",
     "wait-on": "^9.0.3"
   },
   "build": {
