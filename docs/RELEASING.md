@@ -160,7 +160,7 @@ release succeeds:
 
 This prevents stale local binaries from being confused with the source version while keeping reproducible historical downloads in GitHub.
 
-The local packaging commands provision engines before packaging. macOS builds FFmpeg 8.1.2 from the checksum-pinned official source with GPL/nonfree features disabled; Windows downloads the immutable, checksum-pinned BtbN `autobuild-2026-07-26-13-28` n8.1 LGPL static build. They also download checksum-pinned C2PA Tool 0.27.3 and Chromaprint fpcalc 1.6.0 archives from their official releases, write offline C2PA policy and license files into every target engine directory, and verify their executable hashes. `prepare:engines` blocks packaging when provenance, licensing policy, versions, or offline settings disagree.
+The local packaging commands provision engines before packaging. macOS builds FFmpeg 8.1.2 from the checksum-pinned official source with GPL/nonfree features disabled; Windows downloads the checksum-pinned BtbN `autobuild-2026-08-31-13-27` n8.1 LGPL static build. That Windows asset is the retained final build of its month instead of an expiring daily build. They also download checksum-pinned C2PA Tool 0.27.3 and Chromaprint fpcalc 1.6.0 archives from their official releases, write offline C2PA policy and license files into every target engine directory, and verify their executable hashes. `prepare:engines` blocks packaging when provenance, licensing policy, versions, or offline settings disagree.
 
 ## Headless automation
 

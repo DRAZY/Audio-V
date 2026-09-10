@@ -22,11 +22,11 @@ const engines = {
   },
   "win-x64": {
     "ffmpeg.exe":
-      "e674aa31bc9e6f56f955c7ce87a194a5f949f67545b59f723f155053acb1269d",
+      "9c60da6c0b083110d59084ea39f60ae149aa3e031c3b4bb4f573fafa1c1e7cea",
     "ffprobe.exe":
-      "ac9bf61f6f6f642e7f655e86ff60c7fe5670eebd16c18de3a9bbf81af03c50db",
+      "67176fa62f89f94c3bcd379fd05677a25651569a2eb8880ec2194e62c82be412",
     source:
-      "BtbN FFmpeg-Builds n8.1 win64 LGPL static build, autobuild-2026-07-26-13-28",
+      "BtbN FFmpeg-Builds n8.1 win64 LGPL static build, retained monthly autobuild-2026-08-31-13-27",
   },
 };
 
