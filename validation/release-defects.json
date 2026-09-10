@@ -1,7 +1,7 @@
 {
   "schema": "Audio-V release defect register v1",
   "releaseVersion": "0.4.44",
-  "auditedAt": "2026-09-10T17:31:47.000Z",
+  "auditedAt": "2026-09-10T17:40:34.000Z",
   "repositoryIssueCountAtAudit": 0,
   "defects": [
     {
@@ -87,6 +87,13 @@
       "status": "fixed",
       "summary": "Newly published advisories affected XML, archive extraction, URL parsing, test mocking, schema validation, and YAML packages in the development and build dependency graph.",
       "verification": "A clean npm install resolves @xmldom/xmldom 0.8.15, Electron 44.3.0 with @electron-internal/extract-zip 1.0.5, fast-uri 3.1.6, Vitest and @vitest/mocker 4.1.11, joi 18.2.5, and js-yaml 4.3.2; npm audit and npm audit --omit=dev both report zero vulnerabilities, and the protected pull request requires native Windows, native macOS, Oracle parity, dependency review, and CodeQL checks."
+    },
+    {
+      "id": "AV-2026-013",
+      "severity": "P1",
+      "status": "fixed",
+      "summary": "A removed daily BtbN FFmpeg archive prevented clean Windows runners from provisioning the bundled analysis engine.",
+      "verification": "Windows provisioning now uses the checksum-pinned n8.1 LGPL static build from retained monthly autobuild-2026-08-31-13-27; the archive and extracted ffmpeg.exe and ffprobe.exe hashes were independently verified, and the protected pull request requires the native Windows gate to provision and verify them from a clean runner."
     }
   ],
   "limitations": [
