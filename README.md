@@ -5,7 +5,7 @@
   <p>A cross-platform audio integrity, fidelity, and comparison workstation powered by the Oracle Engine.</p>
 
   <p>
-    <img alt="Locally verified builds" src="https://img.shields.io/badge/builds-locally%20verified-51e19b?style=for-the-badge">
+    <a href="https://github.com/DRAZY/Audio-V/actions/workflows/verify.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/DRAZY/Audio-V/verify.yml?branch=main&style=for-the-badge&label=CI&color=51e19b"></a>
     <a href="https://github.com/DRAZY/Audio-V/releases/latest"><img alt="Latest Audio-V release" src="https://img.shields.io/github/v/release/DRAZY/Audio-V?style=for-the-badge&label=latest&color=8b5cf6"></a>
     <a href="https://github.com/DRAZY/Audio-V/releases"><img alt="Total downloads" src="https://img.shields.io/github/downloads/DRAZY/Audio-V/total?style=for-the-badge&label=downloads&color=8b5cf6"></a>
     <a href="LICENSE"><img alt="AGPL 3.0 only" src="https://img.shields.io/badge/license-AGPL--3.0--only-8b5cf6?style=for-the-badge"></a>
