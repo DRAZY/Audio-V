@@ -110,7 +110,7 @@
     "electron-builder": "^26.8.1",
     "typescript": "^5.9.3",
     "vite": "^7.2.4",
-    "vitest": "^4.1.11",
+    "vitest": "^5.0.0",
     "vue-tsc": "^3.2.1",
     "wait-on": "^9.0.3"
   },
