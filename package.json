@@ -117,6 +117,9 @@
   "build": {
     "appId": "app.audiov.desktop",
     "productName": "Audio-V",
+    "toolsets": {
+      "nsis": "1.2.1"
+    },
     "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
     "directories": {
       "output": "release"
