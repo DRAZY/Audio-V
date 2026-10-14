@@ -3,7 +3,7 @@ import path from "node:path";
 
 const root = path.join(process.cwd(), "node_modules");
 const marker = "// Audio-V CommonJS compatibility adapter";
-const expectedVersion = "5.0.9";
+const expectedVersion = "5.0.12";
 const adapter = `
 ${marker}
 module.exports = Object.assign(expand, {
