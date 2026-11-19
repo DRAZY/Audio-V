@@ -1096,6 +1096,12 @@ export interface AudioVDesktopApi {
   saveExternalIdentityPreferences(
     preferences: ExternalIdentityPreferencesUpdate,
   ): Promise<ExternalIdentityPreferences>;
+  getUpdateStatus(): Promise<UpdateStatus>;
+  getUpdateSchedule(): Promise<UpdateSchedule>;
+  setUpdateSchedule(schedule: UpdateSchedule): Promise<UpdateSchedule>;
+  checkForUpdates(): Promise<UpdateStatus>;
+  installUpdate(): Promise<void>;
+  onUpdateStatus(listener: (status: UpdateStatus) => void): () => void;
   scanSelection(source: AudioSourceSelection): Promise<ScanSelectionResult>;
   listAuditSessions(): Promise<AuditSessionSummary[]>;
   clearAuditHistory(): Promise<AuditHistoryClearResult>;
@@ -1190,4 +1196,14 @@ export interface ExternalIdentityPreferencesUpdate {
   acoustIdEnabled: boolean;
   musicBrainzEnabled: boolean;
   acoustIdApiKey: string | null;
+}
+
+export type UpdateSchedule = "launch" | "day" | "week" | "never";
+export interface UpdateStatus {
+  state: "idle" | "checking" | "none" | "available" | "downloading" | "ready" | "error";
+  current: string;
+  latest?: string;
+  progress?: number;
+  error?: string;
+  manual?: boolean;
 }

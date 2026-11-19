@@ -45,9 +45,15 @@ app.whenReady().then(async () => {
         const deadline = Date.now() + 5000;
         const check = () => {
           const cards = [...document.querySelectorAll(".external-service-card")];
-          const acoustId = cards[0]?.querySelector('input[type="checkbox"]');
-          const key = cards[0]?.querySelector('input[type="password"]');
-          const musicBrainz = cards[1]?.querySelector('input[type="checkbox"]');
+          const acoustIdCard = cards.find((card) =>
+            card.textContent.includes("AcoustID acoustic matching"),
+          );
+          const musicBrainzCard = cards.find((card) =>
+            card.textContent.includes("MusicBrainz recording details"),
+          );
+          const acoustId = acoustIdCard?.querySelector('input[type="checkbox"]');
+          const key = acoustIdCard?.querySelector('input[type="password"]');
+          const musicBrainz = musicBrainzCard?.querySelector('input[type="checkbox"]');
           if (acoustId?.checked && musicBrainz?.checked && key?.value === "ABCDEFGHIJ") {
             resolve({
               acoustIdEnabled: acoustId.checked,

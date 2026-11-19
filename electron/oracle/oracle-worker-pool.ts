@@ -232,7 +232,13 @@ export class OracleWorkerPool {
       this.#dispatch();
     });
     slot.worker.on("error", (error) => {
-      this.#replaceFailedWorker(slot, "worker-error", error);
+      this.#replaceFailedWorker(
+        slot,
+        "worker-error",
+        error instanceof Error
+          ? error
+          : new Error("Oracle worker failed unexpectedly."),
+      );
     });
     slot.worker.on("exit", (code) => {
       if (!this.#closed && this.#slots.includes(slot)) {

@@ -12,6 +12,17 @@ const api: AudioVDesktopApi = {
     ipcRenderer.invoke("identity:preferences-load"),
   saveExternalIdentityPreferences: (preferences) =>
     ipcRenderer.invoke("identity:preferences-save", preferences),
+  getUpdateStatus: () => ipcRenderer.invoke("update:status"),
+  getUpdateSchedule: () => ipcRenderer.invoke("update:schedule"),
+  setUpdateSchedule: (schedule) =>
+    ipcRenderer.invoke("update:set-schedule", schedule),
+  checkForUpdates: () => ipcRenderer.invoke("update:check"),
+  installUpdate: () => ipcRenderer.invoke("update:install"),
+  onUpdateStatus: (listener) => {
+    const handler = (_event: Electron.IpcRendererEvent, status: Parameters<typeof listener>[0]) => listener(status);
+    ipcRenderer.on("update:status", handler);
+    return () => ipcRenderer.removeListener("update:status", handler);
+  },
   scanSelection: (source) => ipcRenderer.invoke("library:scan-selection", source),
   onScanProgress: (listener) => {
     const handler = (

@@ -50,7 +50,15 @@ export async function runComparisonWorker(
         else finish({ ok: false, error: new Error(response.message) });
       },
     );
-    worker.on("error", (error) => finish({ ok: false, error }));
+    worker.on("error", (error) =>
+      finish({
+        ok: false,
+        error:
+          error instanceof Error
+            ? error
+            : new Error("Comparison worker failed unexpectedly."),
+      }),
+    );
     worker.on("exit", (code) => {
       if (!settled && code !== 0) {
         finish({

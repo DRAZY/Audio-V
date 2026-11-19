@@ -74,7 +74,7 @@ async function requireUnsignedPe(file) {
   }
 }
 
-function requireAdHocSignedApp(application) {
+function requireDeveloperIdSignedApp(application) {
   execFileSync("codesign", [
     "--verify",
     "--deep",
@@ -88,23 +88,17 @@ function requireAdHocSignedApp(application) {
   const details = `${inspection.stdout ?? ""}\n${inspection.stderr ?? ""}`;
   if (
     inspection.status !== 0 ||
-    !details.includes("Signature=adhoc") ||
+    details.includes("Signature=adhoc") ||
     !details.includes("Identifier=app.audiov.desktop") ||
-    !details.includes("Sealed Resources version=2")
+    !details.includes("Sealed Resources version=2") ||
+    !details.includes("Authority=Developer ID Application:") ||
+    !details.includes("TeamIdentifier=W966GFT83K")
   ) {
     throw new Error(
-      `${application} is not a valid whole-bundle ad-hoc signature.`,
+      `${application} is not a valid Developer ID signature for Audio-V.`,
     );
   }
-  if (
-    details.includes("Authority=") ||
-    (details.includes("TeamIdentifier=") &&
-      !details.includes("TeamIdentifier=not set"))
-  ) {
-    throw new Error(
-      `${application} unexpectedly contains a certificate identity.`,
-    );
-  }
+  execFileSync("spctl", ["--assess", "--type", "execute", "--verbose=2", application], { stdio: "pipe" });
 }
 
 async function requireQuarantineSafeSignature(application) {
@@ -123,7 +117,7 @@ async function requireQuarantineSafeSignature(application) {
       "0081;00000000;Audio-V;https://github.com/DRAZY/Audio-V",
       quarantinedCopy,
     ]);
-    requireAdHocSignedApp(quarantinedCopy);
+    requireDeveloperIdSignedApp(quarantinedCopy);
   } finally {
     await fs.rm(temporary, { recursive: true, force: true });
   }
@@ -172,8 +166,15 @@ if (platform === "mac") {
     release,
     `Audio-V-${productVersion}-mac-universal.dmg`,
   );
+  const armZip = path.join(release, `Audio-V-${productVersion}-mac-arm64.zip`);
+  const universalZip = path.join(release, `Audio-V-${productVersion}-mac-universal.zip`);
   await requireFile(armDmg, 10_000_000);
   await requireFile(universalDmg, 10_000_000);
+  await requireFile(armZip, 10_000_000);
+  await requireFile(universalZip, 10_000_000);
+  for (const dmg of [armDmg, universalDmg]) {
+    execFileSync("xcrun", ["stapler", "validate", dmg], { stdio: "pipe" });
+  }
   for (const directory of ["mac-arm64", "mac-universal"]) {
     const contents = path.join(release, directory, "Audio-V.app", "Contents");
     const application = path.dirname(contents);
@@ -202,7 +203,7 @@ if (platform === "mac") {
       "c2patool",
       "fpcalc",
     ], "audio-v-cli");
-    requireAdHocSignedApp(application);
+    requireDeveloperIdSignedApp(application);
     await requireQuarantineSafeSignature(application);
   }
   const universalExecutable = path.join(
@@ -245,7 +246,7 @@ if (platform === "mac") {
     }
   }
   console.log(
-    "Verified Apple Silicon and Universal ad-hoc-signed macOS packages without a Developer ID identity.",
+    "Verified Apple Silicon and Universal Developer-ID-signed, notarized macOS packages and updater ZIPs.",
   );
 } else {
   const installer = path.join(
