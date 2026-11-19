@@ -20,6 +20,8 @@ import type {
   ScanProgressUpdate,
   SpectrogramMeasurements,
   UserReviewDisposition,
+  UpdateSchedule,
+  UpdateStatus,
 } from "../shared/contracts";
 import iconUrl from "../build/icon.svg";
 import { audioFormatLabel } from "../shared/audio-format";
@@ -118,6 +120,17 @@ const identityPreferencesLoaded = ref(false);
 const identityPreferencesMessage = ref(
   "Loading saved external identity preferences…",
 );
+const updateStatus = ref<UpdateStatus>({ state: "idle", current: "" });
+const updateSchedule = ref<UpdateSchedule>("launch");
+const updateMessage = computed(() => {
+  if (updateStatus.value.state === "checking") return "Checking GitHub Releases…";
+  if (updateStatus.value.state === "none") return `Audio-V ${updateStatus.value.current} is current.`;
+  if (updateStatus.value.state === "available") return `Audio-V ${updateStatus.value.latest} is available.`;
+  if (updateStatus.value.state === "downloading") return `Downloading update · ${updateStatus.value.progress ?? 0}%.`;
+  if (updateStatus.value.state === "ready") return `Audio-V ${updateStatus.value.latest} is ready to install.`;
+  if (updateStatus.value.state === "error") return `Update check failed · ${updateStatus.value.error}`;
+  return "Updates are checked from the official GitHub Releases repository.";
+});
 let identityPreferencesLoadPromise: Promise<void> | null = null;
 let identityPreferencesRequest = 0;
 const acoustIdValidationState = ref<"idle" | "checking" | "valid" | "error">(
@@ -1260,6 +1273,7 @@ watch(() => visibleFiles.value.length, () => {
 let removeScanProgressListener: (() => void) | null = null;
 let removeHistoryCleanupListener: (() => void) | null = null;
 let removeIdentityProgressListener: (() => void) | null = null;
+let removeUpdateStatusListener: (() => void) | null = null;
 let comparisonBlinkTimer: ReturnType<typeof setInterval> | null = null;
 let progressFrame: number | null = null;
 let queuedProgressFiles: AudioFileRecord[] = [];
@@ -1351,6 +1365,11 @@ onMounted(() => {
   void refreshAuditStorageStatus();
   void refreshAcceptanceRun();
   void ensureExternalIdentityPreferencesLoaded();
+  void window.audioV?.getUpdateStatus().then((status) => (updateStatus.value = status));
+  void window.audioV?.getUpdateSchedule().then((schedule) => (updateSchedule.value = schedule));
+  removeUpdateStatusListener = window.audioV?.onUpdateStatus((status) => {
+    updateStatus.value = status;
+  }) ?? null;
   void window.audioV?.externalIdentityServiceStatus().then((status) => {
     externalIdentityStatus.value = status;
     if (status.officialClientConfigured) {
@@ -1562,6 +1581,7 @@ onUnmounted(() => {
   removeScanProgressListener?.();
   removeHistoryCleanupListener?.();
   removeIdentityProgressListener?.();
+  removeUpdateStatusListener?.();
   if (comparisonBlinkTimer) clearInterval(comparisonBlinkTimer);
   if (progressFrame !== null) cancelAnimationFrame(progressFrame);
   if (tableViewportFrame !== null) cancelAnimationFrame(tableViewportFrame);
@@ -1600,6 +1620,21 @@ function handleGlobalKeydown(event: KeyboardEvent): void {
     event.preventDefault();
     activeWorkspace.value = panel;
   }
+}
+
+async function saveUpdateSchedule(): Promise<void> {
+  if (!window.audioV) return;
+  updateSchedule.value = await window.audioV.setUpdateSchedule(updateSchedule.value);
+}
+
+async function checkForUpdates(): Promise<void> {
+  if (!window.audioV) return;
+  updateStatus.value = await window.audioV.checkForUpdates();
+}
+
+async function installUpdate(): Promise<void> {
+  if (!window.audioV) return;
+  await window.audioV.installUpdate();
 }
 
 async function exportDiagnostics(): Promise<void> {
@@ -4755,6 +4790,24 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
         <div class="capability-grid">
           <article><span>Decode integrity</span><strong>Strict plus confirmation decode</strong><p>Every selected stream is decoded from beginning to end. A strict decoder error is confirmed with a tolerant full pass before Audio-V can issue a deterministic Failed verdict.</p></article>
           <article><span>Oracle v12 policy</span><strong>Five independent evidence lanes</strong><p>File integrity, signal defects, spectral origin, provenance, and delivery guidance remain separate. Advisory inventory never masquerades as file damage.</p></article>
+          <article class="resource-controls external-service-card">
+            <span>Application updates</span>
+            <strong>Official Audio-V releases</strong>
+            <p>Check GitHub Releases manually or after every restart. Developer-ID-signed macOS builds download, verify, install, and restart automatically; builds that cannot update in place open the release page instead.</p>
+            <label>Check for updates
+              <select v-model="updateSchedule" @change="saveUpdateSchedule">
+                <option value="launch">After every restart</option>
+                <option value="day">Once each day</option>
+                <option value="week">Once each week</option>
+                <option value="never">Never automatically</option>
+              </select>
+            </label>
+            <div class="external-service-actions">
+              <button :disabled="updateStatus.state === 'checking' || updateStatus.state === 'downloading'" @click="checkForUpdates">Check for updates</button>
+              <button v-if="updateStatus.state === 'available' || updateStatus.state === 'ready'" class="secondary-action" @click="installUpdate">{{ updateStatus.state === 'ready' ? 'Restart and install' : updateStatus.manual ? 'Get the update' : 'Update now' }}</button>
+            </div>
+            <small class="credential-validation idle" role="status" aria-live="polite">{{ updateMessage }}</small>
+          </article>
           <article><span>Metadata workflow</span><strong>Explicit inventory mode</strong><p>Catalog declared format, codec, duration, bitrate, sample rate, bit depth, and channels without decoding. Files remain Not analyzed until a Full Oracle Audit runs.</p></article>
           <article><span>Signal analysis</span><strong>Measured PCM and spectrum</strong><p>Peak, RMS, clipping, DC offset, channel relationship, and a real STFT spectrogram come from decoded samples.</p></article>
           <article><span>Broadcast loudness</span><strong>EBU R128 / BS.1770</strong><p>Integrated LUFS, loudness range, and oversampled true peak are measured by the bundled engine.</p></article>

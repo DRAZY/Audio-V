@@ -75,6 +75,14 @@ import {
   resolveDeliveryProfile,
 } from "../shared/delivery-profiles";
 import { applyDeliveryProfile } from "./oracle/delivery-profile";
+import {
+  checkForUpdates,
+  getUpdateSchedule,
+  getUpdateStatus,
+  initializeUpdates,
+  installUpdate,
+  setUpdateSchedule,
+} from "./app-update";
 
 const approvedSelections = new Map<string, AudioSourceSelection>();
 const approvedAudioFiles = new Set<string>();
@@ -575,6 +583,13 @@ function createWindow(): void {
 }
 
 ipcMain.handle("app:platform", () => process.platform);
+ipcMain.handle("update:status", () => getUpdateStatus());
+ipcMain.handle("update:schedule", () => getUpdateSchedule());
+ipcMain.handle("update:set-schedule", (_event, schedule: unknown) =>
+  setUpdateSchedule(schedule),
+);
+ipcMain.handle("update:check", () => checkForUpdates());
+ipcMain.handle("update:install", () => installUpdate());
 ipcMain.handle("app:open-logs", () => {
   if (!applicationLogger) return false;
   void shell.openPath(applicationLogger.directory);
@@ -2230,6 +2245,7 @@ app.whenReady().then(async () => {
   await auditSessions.importLegacyCache(
     path.join(userDataPath, "oracle-cache-v4.json"),
   );
+  await initializeUpdates();
   scheduleHistoryCleanup(250);
   oracleCache = {
     get: (filePath) => auditSessions.getCached(filePath),

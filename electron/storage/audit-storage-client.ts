@@ -74,7 +74,12 @@ export class AuditStorageClient {
       }
     });
     worker.on("error", (error) => {
-      void this.#restartWorker(worker, error);
+      void this.#restartWorker(
+        worker,
+        error instanceof Error
+          ? error
+          : new Error("Storage worker failed unexpectedly."),
+      );
     });
     worker.on("exit", (code) => {
       if (!this.#closed && worker === this.#worker) {
