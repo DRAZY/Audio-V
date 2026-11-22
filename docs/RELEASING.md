@@ -187,10 +187,10 @@ npm run cli -- ./collection --output ./audio-v-evidence.json --concurrency 2 --m
 Signing is not required by the current project policy, but the configuration keeps a credential-driven path ready:
 
 ```bash
-npm run dist:mac:signed
+npm run dist:mac:signed # uses the shared strata-notary Keychain profile
 npm run dist:win:signed
 ```
 
-The signed macOS path enables Hardened Runtime and Electron Builder notarization. It requires an Apple Developer Program membership, Developer ID Application certificate, and Apple notarization credentials. The signed Windows path accepts standard Electron Builder Authenticode credentials. The local process environment or an external secret manager—not repository files—must supply every credential.
+The signed macOS path enables Hardened Runtime and Electron Builder notarization. It uses the existing `strata-notary` Keychain profile, which is shared by Audio-V, TuberX, Deemix Remastered, and Strata; no password belongs in this repository. It requires the Developer ID Application certificate and that Keychain profile on the release Mac. The signed Windows path accepts standard Electron Builder Authenticode credentials.
 
 After a future signing change, extend the artifact checks to require a valid Developer ID/notarization ticket or Authenticode signature before publishing signed builds.
