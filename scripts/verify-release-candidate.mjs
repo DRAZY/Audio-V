@@ -80,10 +80,13 @@ await fileCheck("Headless CLI result", "build/cli-validation-latest.json", (valu
 );
 
 await fileCheck(
-  "Unsigned release manifest",
+  "Release signing manifest",
   "release/UNSIGNED_RELEASE_MANIFEST.json",
   (value) => {
     const manifest = JSON.parse(value);
+    const dmgStatuses = manifest.artifacts
+      ?.filter((artifact) => String(artifact.name).endsWith(".dmg"))
+      .map((artifact) => artifact.signingStatus);
     return (
       manifest.version === packageJson.version &&
       Array.isArray(manifest.artifacts) &&
@@ -91,13 +94,14 @@ await fileCheck(
       manifest.artifacts.every((artifact) =>
         String(artifact.name).includes(packageJson.version)
       ) &&
-      manifest.artifacts
-        .filter((artifact) => String(artifact.name).endsWith(".dmg"))
-        .every(
-          (artifact) =>
-            artifact.signingStatus ===
-            "ad-hoc-app-signature-no-developer-identity",
-        ) &&
+      // Both DMGs must share one status: Developer ID + notarized + stapled
+      // for a signed release, or the ad-hoc development signature.
+      dmgStatuses.length === 2 &&
+      new Set(dmgStatuses).size === 1 &&
+      [
+        "developer-id-notarized-stapled",
+        "ad-hoc-app-signature-no-developer-identity",
+      ].includes(dmgStatuses[0]) &&
       manifest.artifacts
         .filter((artifact) => String(artifact.name).endsWith(".exe"))
         .every(

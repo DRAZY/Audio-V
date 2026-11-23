@@ -86,7 +86,7 @@ but the main workflow is designed to answer three simple questions:
 3. **What evidence produced the verdict?**
 
 > [!IMPORTANT]
-> Audio-V is an unsigned open-source release still completing its broader
+> Audio-V is an open-source development release still completing its broader
 > release-candidate acceptance matrix. A Clear verdict means the file passed
 > the disclosed checks in this Oracle Engine version. It does not certify an
 > original studio master, prove ownership, or guarantee that the audio was
@@ -210,13 +210,15 @@ Installer filenames carry their version, so this table names the asset to pick
 rather than linking each file directly. A direct link would break on the next
 release and quietly serve a 404 to anyone arriving from an older page.
 
-These builds are not signed with paid Apple or Microsoft certificates. Verify
-the download with
-[`SHA256SUMS.txt`](https://github.com/DRAZY/Audio-V/releases/latest/download/SHA256SUMS.txt),
-then follow the
+From 0.4.48, both macOS DMGs are signed with the DRAZY Developer ID and
+notarized by Apple, so they open normally. Windows builds are not yet signed
+with a Microsoft certificate. Verify any download with
+[`SHA256SUMS.txt`](https://github.com/DRAZY/Audio-V/releases/latest/download/SHA256SUMS.txt);
+on Windows, then follow the
 [unsigned installation guide](docs/UNSIGNED_INSTALLATION.md). The
 [`UNSIGNED_RELEASE_MANIFEST.json`](https://github.com/DRAZY/Audio-V/releases/latest/download/UNSIGNED_RELEASE_MANIFEST.json)
-records the signing policy and artifact identities. Those two filenames carry no
+records each artifact's signing status and identity (the filename predates Mac
+signing). Those two filenames carry no
 version, so both links always resolve to the current release.
 
 ## Your first audit

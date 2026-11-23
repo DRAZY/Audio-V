@@ -1,6 +1,12 @@
 # Installing unsigned Audio-V development builds
 
-Audio-V is currently distributed as an open-source development application without an Apple Developer ID certificate, Apple notarization, or Windows Authenticode certificate. macOS application bundles carry a reproducible ad-hoc code signature so macOS can verify that the complete bundle has not changed; that signature does not identify DRAZY to Apple and does not bypass Gatekeeper.
+> **macOS from 0.4.48:** official Mac DMGs are signed with the DRAZY Developer
+> ID and notarized by Apple. They open normally, and the macOS steps below do
+> not apply to them. Those steps remain for Mac builds 0.4.47 and earlier and
+> for local ad-hoc development builds (`npm run dist:mac`). Windows builds are
+> still unsigned and this whole guide applies to them.
+
+Before 0.4.48, Audio-V was distributed as an open-source development application without an Apple Developer ID certificate, Apple notarization, or Windows Authenticode certificate. macOS application bundles carry a reproducible ad-hoc code signature so macOS can verify that the complete bundle has not changed; that signature does not identify DRAZY to Apple and does not bypass Gatekeeper.
 
 Unsigned does not mean that a build is safe. Only install Audio-V when the file came from the project's official GitHub Release and its SHA-256 value matches that release's `SHA256SUMS.txt` and `UNSIGNED_RELEASE_MANIFEST.json`.
 
