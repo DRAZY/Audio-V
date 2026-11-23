@@ -32,5 +32,14 @@ rules and evidence semantics are unchanged.
 - `Audio-V-0.4.48-win-x64.exe` — Windows installer
 - `Audio-V-Portable-0.4.48-x64.exe` — Windows portable
 
-> Audio-V remains an unsigned open-source release. Verify package checksums and
-> follow `docs/UNSIGNED_INSTALLATION.md` for first-launch steps.
+## macOS is now signed and notarized
+
+Both macOS DMGs, and the app inside them, are signed with the DRAZY Developer
+ID and notarized by Apple, so they open without a Gatekeeper warning and need
+no **Open Anyway** step. Earlier Mac builds were ad-hoc signed and have no
+in-app updater, so download 0.4.48 by hand once; later official releases can
+then update from inside the app.
+
+Windows builds are still unsigned. Verify package checksums with
+`SHA256SUMS.txt` and follow `docs/UNSIGNED_INSTALLATION.md` for Windows
+first-launch steps.

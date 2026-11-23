@@ -55,7 +55,7 @@ npm run dist:mac
 
 This creates a native Apple silicon DMG plus a Universal DMG containing both Intel and Apple silicon application and Oracle Engine binaries. Audio-V does not publish a standalone Intel DMG.
 
-The development command disables certificate discovery, notarization, and Hardened Runtime, then signs each complete app bundle with the ad-hoc pseudo-identity `-`. This supplies a valid resource seal without claiming a Developer ID identity. `npm run verify:artifacts:mac` requires the ad-hoc signature, validates the complete nested-code seal, rejects certificate identities, and checks both packages, embedded resources, permission declarations, and Universal Mach-O architectures.
+This development command disables certificate discovery, notarization, and Hardened Runtime, then signs each complete app bundle with the ad-hoc pseudo-identity `-`. This supplies a valid resource seal without claiming a Developer ID identity, and it is for local testing only. Official releases use `npm run dist:mac:signed` (see [macOS signing](#macos-signing)); `npm run verify:artifacts:mac` checks that signed output: the Developer ID signature, notarization, the complete nested-code seal, both packages and updater zips, embedded resources, permission declarations, and Universal Mach-O architectures.
 
 See [Unsigned installation](UNSIGNED_INSTALLATION.md) for checksum verification and the per-application macOS approval process.
 
@@ -92,10 +92,14 @@ intended release configuration.
 
 2. Commit the verified source and version metadata on a topic branch, open a
    pull request, and wait for every protected check to pass before merging.
-3. Produce and inspect the four local packages:
+3. Produce and inspect the four local packages. Official releases use the
+   signed macOS path (see [macOS signing](#macos-signing)); check the notary
+   profile right before the build because it has dropped out of the keychain
+   before:
 
    ```bash
-   npm run dist:mac
+   xcrun notarytool history --keychain-profile strata-notary
+   npm run dist:mac:signed
    npm run verify:artifacts:mac
    npm run verify:runtime:mac
    npm run dist:win
@@ -115,24 +119,38 @@ intended release configuration.
    git push origin "v${VERSION}"
    ```
 
-6. Create the version-named release and upload the exact locally verified assets:
+6. Create the version-named release and upload the exact locally verified assets.
+   The in-app updater reads GitHub's *latest* release, which skips
+   prereleases, and needs the update feeds (`latest-mac.yml`, `latest.yml`)
+   and the macOS zips. So a release meant to reach installed copies is
+   published as Latest, not as a prerelease:
 
    ```bash
    gh release create "v${VERSION}" \
      --repo DRAZY/Audio-V \
-     --prerelease \
+     --latest \
+     --verify-tag \
      --title "Audio-V v${VERSION}" \
-     --generate-notes \
+     --notes-file "docs/RELEASE_NOTES_${VERSION}.md" \
      "release/Audio-V-${VERSION}-mac-arm64.dmg" \
-     "release/Audio-V-${VERSION}-mac-arm64.dmg.blockmap" \
      "release/Audio-V-${VERSION}-mac-universal.dmg" \
-     "release/Audio-V-${VERSION}-mac-universal.dmg.blockmap" \
+     "release/Audio-V-${VERSION}-mac-arm64.zip" \
+     "release/Audio-V-${VERSION}-mac-arm64.zip.blockmap" \
+     "release/Audio-V-${VERSION}-mac-universal.zip" \
+     "release/Audio-V-${VERSION}-mac-universal.zip.blockmap" \
+     "release/latest-mac.yml" \
      "release/Audio-V-${VERSION}-win-x64.exe" \
      "release/Audio-V-${VERSION}-win-x64.exe.blockmap" \
      "release/Audio-V-Portable-${VERSION}-x64.exe" \
+     "release/latest.yml" \
      "release/SHA256SUMS.txt" \
      "release/UNSIGNED_RELEASE_MANIFEST.json"
    ```
+
+   The DMGs have no blockmap because stapling changes their bytes after
+   electron-builder hashes them (`dmg.writeUpdateInfo: false`); macOS updates
+   use the zips. Use `--prerelease` instead of `--latest` only for a build that
+   should not reach installed copies.
 
 ## Maintainer synchronization policy
 
@@ -176,21 +194,32 @@ npm run cli -- ./collection --output ./audio-v-evidence.json --concurrency 2 --m
 
 - Commit source, configuration, artwork, and lockfiles.
 - Do not commit `release/`, `dist/`, or `dist-electron/`.
-- macOS development app bundles are ad-hoc signed without a Developer ID identity; Windows artifacts remain unsigned until the maintainer explicitly adopts certificate signing.
+- Official macOS releases are Developer ID signed, notarized and stapled; local `dist:mac` development bundles are ad-hoc signed without a Developer ID identity. Windows artifacts remain unsigned until the maintainer explicitly adopts certificate signing.
 - Test installation, first launch, analysis, upgrade, uninstall, and portable behavior on clean operating-system environments before promoting a prerelease.
 - Publish SHA-256 checksums and the unsigned policy manifest with every binary release.
 - `scripts/verify-release-policy.mjs --public` blocks a tag whose version does not match `package.json` or whose repository lacks a project license.
 - Audio-V code uses `AGPL-3.0-only`. Contributions require the repository CLA acknowledgement; official names and artwork remain governed by `TRADEMARKS.md`.
 
-## Optional future signing
+## macOS signing
 
-Signing is not required by the current project policy, but the configuration keeps a credential-driven path ready:
+Official macOS releases are signed and notarized, starting with 0.4.48:
 
 ```bash
 npm run dist:mac:signed # uses the shared strata-notary Keychain profile
+```
+
+The signed macOS path enables Hardened Runtime and Electron Builder notarization of both app bundles, then `scripts/after-all-artifacts.cjs` notarizes, staples and validates each DMG. It uses the existing `strata-notary` Keychain profile, which is shared by Audio-V, TuberX, Deemix Remastered, and Strata; no password belongs in this repository. It requires the Developer ID Application certificate and that Keychain profile on the release Mac. Leave `APPLE_ID` unset in the shell, because Electron Builder prefers it over the Keychain profile.
+
+`npm run verify:artifacts:mac` requires the Developer ID signature, a notarization ticket and the updater zips. `npm run release:manifest` measures each DMG with Gatekeeper and `stapler` and records `developer-id-notarized-stapled` or the ad-hoc development status; `verify:release-candidate` requires both DMGs to share one of those statuses. The manifest keeps its historical `UNSIGNED_RELEASE_MANIFEST.json` filename so the version-free README link keeps resolving.
+
+`npm run dist:mac` remains the ad-hoc development build and must not be used for an official release.
+
+## Optional Windows signing
+
+Windows artifacts remain unsigned by project policy. The configuration keeps a credential-driven path ready:
+
+```bash
 npm run dist:win:signed
 ```
 
-The signed macOS path enables Hardened Runtime and Electron Builder notarization. It uses the existing `strata-notary` Keychain profile, which is shared by Audio-V, TuberX, Deemix Remastered, and Strata; no password belongs in this repository. It requires the Developer ID Application certificate and that Keychain profile on the release Mac. The signed Windows path accepts standard Electron Builder Authenticode credentials.
-
-After a future signing change, extend the artifact checks to require a valid Developer ID/notarization ticket or Authenticode signature before publishing signed builds.
+The signed Windows path accepts standard Electron Builder Authenticode credentials. After adopting it, extend the Windows artifact checks to require a valid Authenticode signature before publishing.
