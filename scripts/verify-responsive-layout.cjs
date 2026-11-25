@@ -24,6 +24,37 @@ function overlaps(first, second) {
   );
 }
 
+/**
+ * Resize the window and wait until the renderer reports the new viewport and
+ * has painted it. A fixed sleep is not enough: Electron 45 can apply the
+ * resize later on a slow CI runner, and measuring before it lands reads the
+ * previous layout.
+ */
+async function resizeContent(window, width, height) {
+  window.setContentSize(width, height);
+  const deadline = Date.now() + 5_000;
+  for (;;) {
+    const viewport = await window.webContents.executeJavaScript(
+      "({ width: innerWidth, height: innerHeight })",
+    );
+    if (
+      Math.abs(viewport.width - width) <= 1 &&
+      Math.abs(viewport.height - height) <= 1
+    ) {
+      break;
+    }
+    if (Date.now() > deadline) {
+      throw new Error(
+        `Window did not reach ${width}x${height} (renderer reports ${viewport.width}x${viewport.height}).`,
+      );
+    }
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  await window.webContents.executeJavaScript(
+    "new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))",
+  );
+}
+
 app.whenReady().then(async () => {
   const window = new BrowserWindow({
     width: scenarios[0].width,
@@ -41,8 +72,7 @@ app.whenReady().then(async () => {
   await mkdir(path.join(process.cwd(), "build"), { recursive: true });
 
   for (const scenario of scenarios) {
-    window.setContentSize(scenario.width, scenario.height);
-    await new Promise((resolve) => setTimeout(resolve, 80));
+    await resizeContent(window, scenario.width, scenario.height);
     const measurement = await window.webContents.executeJavaScript(`
       (() => {
         const rectangle = (selector) => {
@@ -142,8 +172,7 @@ app.whenReady().then(async () => {
     );
   }
 
-  window.setContentSize(900, 720);
-  await new Promise((resolve) => setTimeout(resolve, 80));
+  await resizeContent(window, 900, 720);
   const warningLayout = await window.webContents.executeJavaScript(`
     (() => {
       const host = document.createElement("div");
@@ -385,8 +414,7 @@ app.whenReady().then(async () => {
     `document.querySelector(".qa-snapped-audit")?.remove()`,
   );
 
-  window.setContentSize(scenarios[0].width, scenarios[0].height);
-  await new Promise((resolve) => setTimeout(resolve, 80));
+  await resizeContent(window, scenarios[0].width, scenarios[0].height);
   const resourceControlsLayout = await window.webContents.executeJavaScript(`
     (async () => {
       [...document.querySelectorAll(".rail-item")].find(
@@ -451,8 +479,7 @@ app.whenReady().then(async () => {
   );
 
   const measureStorageMaintenance = async (width, height) => {
-    window.setContentSize(width, height);
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await resizeContent(window, width, height);
     return window.webContents.executeJavaScript(`
       (async () => {
         const card = document.querySelector(".storage-maintenance");
@@ -531,7 +558,7 @@ app.whenReady().then(async () => {
     storageSnappedScreenshot.toPNG(),
   );
 
-  window.setContentSize(scenarios[0].width, scenarios[0].height);
+  await resizeContent(window, scenarios[0].width, scenarios[0].height);
   await window.webContents.executeJavaScript(`
     [...document.querySelectorAll(".rail-item")].find(
       (button) => button.textContent.toLowerCase().includes("audit")
@@ -720,8 +747,7 @@ app.whenReady().then(async () => {
       summaryPathVisible && inspectorRowsSeparated && scanProgressContained,
   });
 
-  window.setContentSize(1600, 900);
-  await new Promise((resolve) => setTimeout(resolve, 80));
+  await resizeContent(window, 1600, 900);
   const reportPaneLayout = await window.webContents.executeJavaScript(`
     (() => {
       const host = document.createElement("section");
@@ -814,8 +840,7 @@ app.whenReady().then(async () => {
       reportColumnsSeparated && reportDetailVisible && reportPanesIndependent,
   });
 
-  window.setContentSize(1100, 800);
-  await new Promise((resolve) => setTimeout(resolve, 80));
+  await resizeContent(window, 1100, 800);
   const stackedReportPaneLayout = await window.webContents.executeJavaScript(`
     (() => {
       const host = document.querySelector(".reports-page");
@@ -868,8 +893,7 @@ app.whenReady().then(async () => {
       stackedReportPanesIndependent,
   });
 
-  window.setContentSize(900, 720);
-  await new Promise((resolve) => setTimeout(resolve, 80));
+  await resizeContent(window, 900, 720);
   const comparisonLayout = await window.webContents.executeJavaScript(`
     (() => {
       const host = document.createElement("section");
