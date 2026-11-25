@@ -102,7 +102,7 @@
     "jszip": "^3.10.2",
     "music-metadata": "^12.7.0",
     "pdfkit": "^0.20.2",
-    "vue": "^3.5.44"
+    "vue": "^3.5.46"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
