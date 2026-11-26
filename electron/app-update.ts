@@ -3,6 +3,7 @@ import { autoUpdater } from "electron-updater";
 import { execFileSync } from "node:child_process";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { isNewerVersion } from "./version-compare";
 
 export type UpdateSchedule = "launch" | "day" | "week" | "never";
 export interface UpdateStatus {
@@ -37,12 +38,6 @@ function set(next: Partial<UpdateStatus>): void {
   status = { ...status, ...next, current: app.getVersion() };
   broadcast();
 }
-function newer(candidate: string, current: string): boolean {
-  const numbers = (version: string) => version.replace(/^v/u, "").split(/[.-]/u).map((part) => Number(part) || 0);
-  const left = numbers(candidate);
-  const right = numbers(current);
-  return left.some((value, index) => value !== (right[index] ?? 0) && value > (right[index] ?? 0));
-}
 function developerIdSigned(): boolean {
   if (process.platform !== "darwin" || !app.isPackaged) return false;
   try {
@@ -55,7 +50,11 @@ function developerIdSigned(): boolean {
   }
 }
 function canInstallInPlace(): boolean {
-  return app.isPackaged && (process.platform === "win32" || (process.platform === "darwin" && developerIdSigned()));
+  if (!app.isPackaged) return false;
+  // The portable executable is not an NSIS install, so electron-updater cannot
+  // replace it; send portable users to the release page instead.
+  if (process.platform === "win32") return !process.env.PORTABLE_EXECUTABLE_DIR;
+  return process.platform === "darwin" && developerIdSigned();
 }
 function wireUpdater(): void {
   if (wired) return;
@@ -99,7 +98,7 @@ export async function checkForUpdates(): Promise<UpdateStatus> {
     if (!response.ok) throw new Error(`GitHub ${response.status}`);
     const release = await response.json() as { tag_name: string };
     const latest = release.tag_name.replace(/^v/u, "");
-    set(newer(latest, app.getVersion()) ? { state: "available", latest, manual: !canInstallInPlace() } : { state: "none", latest, manual: false });
+    set(isNewerVersion(latest, app.getVersion()) ? { state: "available", latest, manual: !canInstallInPlace() } : { state: "none", latest, manual: false });
   } catch (error) {
     set({ state: "error", error: error instanceof Error ? error.message : "Update check failed." });
   }
@@ -113,7 +112,7 @@ export async function installUpdate(): Promise<void> {
   set({ state: "downloading", progress: 0, error: undefined });
   try {
     const result = await autoUpdater.checkForUpdates();
-    if (!result?.updateInfo || !newer(result.updateInfo.version, app.getVersion())) throw new Error("The release does not contain an update feed for this platform.");
+    if (!result?.updateInfo || !isNewerVersion(result.updateInfo.version, app.getVersion())) throw new Error("The release does not contain an update feed for this platform.");
     await autoUpdater.downloadUpdate();
   } catch (error) {
     set({ state: "available", error: error instanceof Error ? error.message : "Update download failed.", manual: true });

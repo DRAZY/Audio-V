@@ -1,6 +1,6 @@
 {
   "name": "audio-v",
-  "version": "0.4.48",
+  "version": "0.4.49",
   "private": true,
   "license": "AGPL-3.0-only",
   "engines": {
@@ -252,5 +252,8 @@
     "portable": {
       "artifactName": "${productName}-Portable-${version}-${arch}.${ext}"
     }
+  },
+  "allowScripts": {
+    "electron-winstaller@5.4.0": true
   }
 }
