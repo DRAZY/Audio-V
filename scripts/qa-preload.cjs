@@ -24,11 +24,37 @@ const {
   },
   acceptanceRun = null,
   spectrograms = {},
+  updateStatus = { state: "idle", current: "0.0.0-qa" },
 } =
   JSON.parse(serializedPayload);
 let savedExternalIdentityPreferences = externalIdentityPreferences;
+let currentUpdateStatus = updateStatus;
+const updateListeners = new Set();
+const updateCalls = [];
+function publishUpdateStatus(next) {
+  currentUpdateStatus = { ...currentUpdateStatus, ...next };
+  for (const listener of updateListeners) listener(currentUpdateStatus);
+  return currentUpdateStatus;
+}
 
 contextBridge.exposeInMainWorld("audioV", {
+  getUpdateStatus: async () => currentUpdateStatus,
+  getUpdateSchedule: async () => "launch",
+  setUpdateSchedule: async (schedule) => schedule,
+  checkForUpdates: async () => currentUpdateStatus,
+  installUpdate: async () => {
+    updateCalls.push("install");
+  },
+  skipUpdate: async (version) => {
+    updateCalls.push(`skip:${version}`);
+    return publishUpdateStatus({ skippedVersion: version });
+  },
+  onUpdateStatus: (listener) => {
+    updateListeners.add(listener);
+    return () => updateListeners.delete(listener);
+  },
+  qaSetUpdateStatus: async (next) => publishUpdateStatus(next),
+  qaUpdateCalls: async () => [...updateCalls],
   selectFiles: async () => source,
   selectFolder: async () => source,
   scanSelection: async () => result,

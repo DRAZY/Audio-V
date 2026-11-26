@@ -131,6 +131,21 @@ const updateMessage = computed(() => {
   if (updateStatus.value.state === "error") return `Update check failed · ${updateStatus.value.error}`;
   return "Updates are checked from the official GitHub Releases repository.";
 });
+// "Later" hides the notice for this version until the next launch; "Skip
+// this version" persists in the main process until a newer release appears.
+const updateNoticeDismissedFor = ref<string | null>(null);
+const showUpdateNotice = computed(() => {
+  const { state, latest, skippedVersion } = updateStatus.value;
+  if (!latest || updateNoticeDismissedFor.value === latest) return false;
+  if (state === "available") return skippedVersion !== latest;
+  return state === "downloading" || state === "ready";
+});
+const updateNoticeActionLabel = computed(() => {
+  const { state, manual, progress } = updateStatus.value;
+  if (state === "ready") return "Restart and install";
+  if (state === "downloading") return `Downloading ${progress ?? 0}%`;
+  return manual ? "Open release page" : "Update now";
+});
 let identityPreferencesLoadPromise: Promise<void> | null = null;
 let identityPreferencesRequest = 0;
 const acoustIdValidationState = ref<"idle" | "checking" | "valid" | "error">(
@@ -1635,6 +1650,16 @@ async function checkForUpdates(): Promise<void> {
 async function installUpdate(): Promise<void> {
   if (!window.audioV) return;
   await window.audioV.installUpdate();
+}
+
+async function skipUpdateVersion(): Promise<void> {
+  const version = updateStatus.value.latest;
+  if (!window.audioV || !version) return;
+  updateStatus.value = await window.audioV.skipUpdate(version);
+}
+
+function dismissUpdateNotice(): void {
+  updateNoticeDismissedFor.value = updateStatus.value.latest ?? null;
 }
 
 async function exportDiagnostics(): Promise<void> {
@@ -4793,7 +4818,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
           <article class="resource-controls external-service-card">
             <span>Application updates</span>
             <strong>Official Audio-V releases</strong>
-            <p>Check GitHub Releases manually or after every restart. Developer-ID-signed macOS builds download, verify, install, and restart automatically; builds that cannot update in place open the release page instead.</p>
+            <p>When a new release is found, a notice offers Update now or Skip this version. Signed macOS builds and the Windows installer download and install in place after you choose to update; the Windows portable build opens the release page instead. A skipped version stays available here.</p>
             <label>Check for updates
               <select v-model="updateSchedule" @change="saveUpdateSchedule">
                 <option value="launch">After every restart</option>
@@ -5014,5 +5039,39 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
         <span>Oracle evidence lanes &amp; forensics scope v12</span>
       </footer>
     </main>
+
+    <section
+      v-if="showUpdateNotice"
+      class="update-notice"
+      aria-live="polite"
+      aria-labelledby="update-notice-title"
+    >
+      <div class="update-notice-text">
+        <span class="eyebrow">Application update</span>
+        <strong id="update-notice-title">
+          {{ updateStatus.state === "ready" ? `Audio-V ${updateStatus.latest} is ready to install` : `Audio-V ${updateStatus.latest} is available` }}
+        </strong>
+        <p v-if="updateStatus.error">{{ updateStatus.error }}</p>
+        <p v-else>You have {{ updateStatus.current }}. Your audits and settings stay as they are.</p>
+      </div>
+      <div class="update-notice-actions">
+        <button
+          class="primary-action"
+          :disabled="updateStatus.state === 'downloading'"
+          @click="installUpdate"
+        >{{ updateNoticeActionLabel }}</button>
+        <button
+          v-if="updateStatus.state === 'available'"
+          class="secondary-action"
+          @click="skipUpdateVersion"
+        >Skip this version</button>
+        <button
+          class="update-notice-close"
+          aria-label="Remind me later"
+          title="Remind me later"
+          @click="dismissUpdateNotice"
+        >×</button>
+      </div>
+    </section>
   </div>
 </template>

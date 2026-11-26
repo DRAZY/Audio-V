@@ -81,6 +81,7 @@ import {
   getUpdateStatus,
   initializeUpdates,
   installUpdate,
+  skipUpdate,
   setUpdateSchedule,
 } from "./app-update";
 
@@ -590,6 +591,7 @@ ipcMain.handle("update:set-schedule", (_event, schedule: unknown) =>
 );
 ipcMain.handle("update:check", () => checkForUpdates());
 ipcMain.handle("update:install", () => installUpdate());
+ipcMain.handle("update:skip", (_event, version: unknown) => skipUpdate(version));
 ipcMain.handle("app:open-logs", () => {
   if (!applicationLogger) return false;
   void shell.openPath(applicationLogger.directory);

@@ -13,6 +13,8 @@ export interface UpdateStatus {
   progress?: number;
   error?: string;
   manual?: boolean;
+  /** The version the user chose to skip; the update notice stays hidden for it. */
+  skippedVersion?: string;
 }
 
 const REPOSITORY = "DRAZY/Audio-V";
@@ -25,6 +27,7 @@ const SCHEDULE_MS: Record<UpdateSchedule, number> = {
 };
 let status: UpdateStatus = { state: "idle", current: app.getVersion() };
 let schedule: UpdateSchedule = "launch";
+let skippedVersion: string | undefined;
 let timer: NodeJS.Timeout | undefined;
 let wired = false;
 let lastCheckAt = 0;
@@ -35,7 +38,7 @@ function broadcast(): void {
   }
 }
 function set(next: Partial<UpdateStatus>): void {
-  status = { ...status, ...next, current: app.getVersion() };
+  status = { ...status, ...next, current: app.getVersion(), skippedVersion };
   broadcast();
 }
 function developerIdSigned(): boolean {
@@ -70,14 +73,15 @@ function wireUpdater(): void {
     if (status.state === "downloading") set({ state: "available", error: error.message, manual: true });
   });
 }
-async function saveSchedule(): Promise<void> {
+async function savePreferences(): Promise<void> {
   const file = path.join(app.getPath("userData"), "update-preferences-v1.json");
-  await fs.writeFile(file, `${JSON.stringify({ schedule }, null, 2)}\n`, { mode: 0o600 });
+  await fs.writeFile(file, `${JSON.stringify({ schedule, skippedVersion }, null, 2)}\n`, { mode: 0o600 });
 }
 export async function initializeUpdates(): Promise<void> {
   try {
-    const data = JSON.parse(await fs.readFile(path.join(app.getPath("userData"), "update-preferences-v1.json"), "utf8")) as { schedule?: UpdateSchedule };
+    const data = JSON.parse(await fs.readFile(path.join(app.getPath("userData"), "update-preferences-v1.json"), "utf8")) as { schedule?: UpdateSchedule; skippedVersion?: unknown };
     if (data.schedule && data.schedule in SCHEDULE_MS) schedule = data.schedule;
+    if (typeof data.skippedVersion === "string" && data.skippedVersion) skippedVersion = data.skippedVersion;
   } catch { /* first launch uses launch checks */ }
   scheduleChecks();
 }
@@ -85,9 +89,22 @@ export function getUpdateStatus(): UpdateStatus { return status; }
 export function getUpdateSchedule(): UpdateSchedule { return schedule; }
 export async function setUpdateSchedule(value: unknown): Promise<UpdateSchedule> {
   schedule = typeof value === "string" && value in SCHEDULE_MS ? value as UpdateSchedule : "launch";
-  await saveSchedule();
+  await savePreferences();
   scheduleChecks(false);
   return schedule;
+}
+/**
+ * Hide the update notice for one version. A newer release shows the notice
+ * again, and Settings still offers the skipped version.
+ */
+export async function skipUpdate(version: unknown): Promise<UpdateStatus> {
+  if (typeof version !== "string" || !version) return status;
+  const normalized = version.replace(/^v/u, "");
+  if (!isNewerVersion(normalized, app.getVersion())) return status;
+  skippedVersion = normalized;
+  await savePreferences();
+  set({});
+  return status;
 }
 export async function checkForUpdates(): Promise<UpdateStatus> {
   if (status.state === "checking" || status.state === "downloading") return status;

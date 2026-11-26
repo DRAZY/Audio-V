@@ -1101,6 +1101,7 @@ export interface AudioVDesktopApi {
   setUpdateSchedule(schedule: UpdateSchedule): Promise<UpdateSchedule>;
   checkForUpdates(): Promise<UpdateStatus>;
   installUpdate(): Promise<void>;
+  skipUpdate(version: string): Promise<UpdateStatus>;
   onUpdateStatus(listener: (status: UpdateStatus) => void): () => void;
   scanSelection(source: AudioSourceSelection): Promise<ScanSelectionResult>;
   listAuditSessions(): Promise<AuditSessionSummary[]>;
@@ -1206,4 +1207,6 @@ export interface UpdateStatus {
   progress?: number;
   error?: string;
   manual?: boolean;
+  /** The version the user chose to skip; the update notice stays hidden for it. */
+  skippedVersion?: string;
 }
