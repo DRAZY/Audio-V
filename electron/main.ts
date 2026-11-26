@@ -2247,7 +2247,10 @@ app.whenReady().then(async () => {
   await auditSessions.importLegacyCache(
     path.join(userDataPath, "oracle-cache-v4.json"),
   );
-  await initializeUpdates();
+  await initializeUpdates({
+    isBusy: () => activeScanController !== null,
+    log: (level, event, data) => logApplication(level, event, data),
+  });
   scheduleHistoryCleanup(250);
   oracleCache = {
     get: (filePath) => auditSessions.getCached(filePath),
