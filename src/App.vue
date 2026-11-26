@@ -4829,7 +4829,7 @@ async function createTruePeakSafeCopy(file: AudioFileRecord): Promise<void> {
             </label>
             <div class="external-service-actions">
               <button :disabled="updateStatus.state === 'checking' || updateStatus.state === 'downloading'" @click="checkForUpdates">Check for updates</button>
-              <button v-if="updateStatus.state === 'available' || updateStatus.state === 'ready'" class="secondary-action" @click="installUpdate">{{ updateStatus.state === 'ready' ? 'Restart and install' : updateStatus.manual ? 'Get the update' : 'Update now' }}</button>
+              <button v-if="updateStatus.state === 'available' || updateStatus.state === 'ready'" class="secondary-action" @click="installUpdate">{{ updateStatus.state === 'ready' ? 'Restart and install' : updateStatus.manual ? 'Open release page' : 'Update now' }}</button>
             </div>
             <small class="credential-validation idle" role="status" aria-live="polite">{{ updateMessage }}</small>
           </article>
