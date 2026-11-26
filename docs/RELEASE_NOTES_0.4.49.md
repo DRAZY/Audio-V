@@ -9,6 +9,10 @@ semantics are unchanged.
 - Updated Electron from 44.11.5 to 45.4.1.
 - Updated Vue to 3.5.46 and the `concurrently` development tool to 10.0.7.
 - Updated the dependency-review GitHub Action to 5.0.1.
+- New update notice: when a newer release is found, a notice in the corner
+  of the window offers **Update now** or **Skip this version**. Skipping hides
+  the notice for that version until a newer one comes out; the close button
+  hides it until the next launch. Settings still lists every available update.
 - Fixed the update check's version comparison. It compared each part of the
   version on its own, so a newer install could be offered an older release
   (0.5.0 would have seen 0.4.49 as an update). It now compares versions in
@@ -24,8 +28,11 @@ semantics are unchanged.
 ## Updating
 
 This is the first release that installed copies of 0.4.48 can update to from
-inside the app (signed macOS builds and the Windows installer). The Windows
-portable build, and anyone on 0.4.47 or earlier, should download it by hand.
+inside the app (signed macOS builds and the Windows installer). 0.4.48 does
+not have the new notice, so open **Settings › Application updates** and choose
+**Update now** there; from 0.4.49 on, the notice appears by itself. The
+Windows portable build, and anyone on 0.4.47 or earlier, should download it
+by hand.
 
 ## Verification
 

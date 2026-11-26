@@ -12,6 +12,7 @@ build/layout-*.png
 build/comparison-visuals-latest.png
 build/identity-preferences-latest.png
 build/acceptance-evidence-latest.png
+build/update-notice-*.png
 build/origin-calibration-*.json
 build/origin-feature-separation-*.json
 build/origin-texture-candidate-*.json

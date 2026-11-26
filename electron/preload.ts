@@ -18,6 +18,7 @@ const api: AudioVDesktopApi = {
     ipcRenderer.invoke("update:set-schedule", schedule),
   checkForUpdates: () => ipcRenderer.invoke("update:check"),
   installUpdate: () => ipcRenderer.invoke("update:install"),
+  skipUpdate: (version) => ipcRenderer.invoke("update:skip", version),
   onUpdateStatus: (listener) => {
     const handler = (_event: Electron.IpcRendererEvent, status: Parameters<typeof listener>[0]) => listener(status);
     ipcRenderer.on("update:status", handler);
